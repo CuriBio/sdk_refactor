@@ -4,17 +4,14 @@ import tempfile
 import uuid
 import zipfile
 
-from dataclasses import dataclass
 from typing import Any, Optional
 from nptyping import NDArray
 from semver import VersionInfo
 
 import h5py
 import numpy as np
-import pandas as pd
 
 from constants import *
-
 from transforms import create_filter
 from transforms import apply_sensitivity_calibration
 from transforms import noise_cancellation
@@ -37,72 +34,48 @@ class WellFile:
             self.is_force_data = True
             self.is_magnetic_data = True
 
-            self.attrs = {attr: {'value': self.file.attrs[attr], 'desc': self._lookup(attr)} for attr in list(self.file.attrs)}
+            self.attrs = {attr: self.file.attrs[attr] for attr in list(self.file.attrs)}
         elif file_path.endswith('.xlsx'):
             self.file_name = os.path.basename(file_path)
             self.attrs = {}
             self.is_force_data = False
             self.is_magnetic_data = False
+            raise Exception('Not Implemented') #TODO
 
-        tissue_sampling_period = self.attrs[str(TISSUE_SAMPLING_PERIOD_UUID)]['value']
+        self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
+
+        # setup noise filter
+        tissue_sampling_period = self[TISSUE_SAMPLING_PERIOD_UUID]
         self.noise_filter_uuid = TSP_TO_DEFAULT_FILTER_UUID[tissue_sampling_period] if self.is_magnetic_data else None
         self.filter_coefficients = create_filter(self.noise_filter_uuid, tissue_sampling_period)
-        breakpoint()
-
-        if FILE_FORMAT_VERSION_METADATA_KEY in self.attrs:
-            version = self.attrs[FILE_FORMAT_VERSION_METADATA_KEY]['value']
-        else:
-            raise Exception('File Format Version not Found')
-
-        ds = [
-            UTC_BEGINNING_DATA_ACQUISTION_UUID,
-            UTC_BEGINNING_RECORDING_UUID,
-            UTC_FIRST_TISSUE_DATA_POINT_UUID,
-            UTC_FIRST_REF_DATA_POINT_UUID,
-        ]
 
         # extract datetimes
-        for d in ds:
-            if str(d) in self.attrs:
-                self.attrs[str(d)]['value'] = self._extract_datetime(d, version)
+        self[UTC_BEGINNING_DATA_ACQUISTION_UUID] = self._extract_datetime(UTC_BEGINNING_DATA_ACQUISTION_UUID)
+        self[UTC_BEGINNING_RECORDING_UUID] = self._extract_datetime(UTC_BEGINNING_RECORDING_UUID)
+        self[UTC_FIRST_TISSUE_DATA_POINT_UUID] = self._extract_datetime(UTC_FIRST_TISSUE_DATA_POINT_UUID)
+        self[UTC_FIRST_REF_DATA_POINT_UUID] = self._extract_datetime(UTC_FIRST_REF_DATA_POINT_UUID)
 
-        try:
-            is_untrimmed = self.attrs[str(IS_FILE_ORIGINAL_UNTRIMMED_UUID)]['value']
-        except:
-            is_untrimmed = True
+        is_untrimmed = self.get(IS_FILE_ORIGINAL_UNTRIMMED_UUID, True)
+        time_trimmed = None if is_untrimmed else self[TRIMMED_TIME_FROM_ORIGINAL_START_UUID]
 
-        time_trimmed = None if is_untrimmed else self.attrs[str(TRIMMED_TIME_FROM_ORIGINAL_START_UUID)]['value']
+        # load sensor data
+        self[TISSUE_SENSOR_READINGS] = self._load_reading(TISSUE_SENSOR_READINGS, time_trimmed)
+        self[REFERENCE_SENSOR_READINGS] = self._load_reading(REFERENCE_SENSOR_READINGS, time_trimmed)
 
-        # load data
-        raw_tissue_reading = self._load_reading(
-            TISSUE_SENSOR_READINGS,
-            self.attrs[str(START_RECORDING_TIME_INDEX_UUID)]['value'],
-            self.attrs[str(UTC_BEGINNING_DATA_ACQUISTION_UUID)]['value'],
-            self.attrs[str(UTC_FIRST_TISSUE_DATA_POINT_UUID)]['value'],
-            self.attrs[str(TISSUE_SAMPLING_PERIOD_UUID)]['value'],
-            time_trimmed
-        )
-        self.attrs[TISSUE_SENSOR_READINGS] = {
-            'value': raw_tissue_reading,
-            'desc': 'Raw tissue sensor reading',
-        }
+        self._load_magnetic_data()
 
-        raw_ref_reading = self._load_reading(
-            REFERENCE_SENSOR_READINGS,
-            self.attrs[str(START_RECORDING_TIME_INDEX_UUID)]['value'],
-            self.attrs[str(UTC_BEGINNING_DATA_ACQUISTION_UUID)]['value'],
-            self.attrs[str(UTC_FIRST_TISSUE_DATA_POINT_UUID)]['value'],
-            self.attrs[str(REF_SAMPLING_PERIOD_UUID)]['value'],
-            time_trimmed
-        )
 
-        self.attrs[REFERENCE_SENSOR_READINGS] = {
-            'value': raw_tissue_reading,
-            'desc': 'Raw reference sensor reading',
-        }
+    def _load_magnetic_data(self):
+        adj_raw_tissue_reading = self[TISSUE_SENSOR_READINGS].copy()
+        f = MICROSECONDS_PER_CENTIMILLISECOND if self.is_magnetic_data else MICRO_TO_BASE_CONVERSION
+        adj_raw_tissue_reading[0] *= f
 
-        self.raw_tissue_magnetic_data: NDArray[(2, Any), int] = raw_tissue_reading.copy()
-        self.raw_reference_magnetic_data: NDArray[(2, Any), int] = raw_ref_reading.copy()
+        # magnetic data is flipped
+        if self.is_magnetic_data:
+            adj_raw_tissue_reading[1] *= -1
+
+        self.raw_tissue_magnetic_data: NDArray[(2, Any), int] = adj_raw_tissue_reading
+        self.raw_reference_magnetic_data: NDArray[(2, Any), int] = self[REFERENCE_SENSOR_READINGS].copy()
 
         self.sensitivity_calibrated_tissue_gmr: NDArray[(2, Any), int] = \
             apply_sensitivity_calibration(self.raw_tissue_magnetic_data)
@@ -119,14 +92,14 @@ class WellFile:
             apply_empty_plate_calibration(self.noise_cancelled_magnetic_data)
 
         if self.noise_filter_uuid is None: 
-            self.noise_filtered_magnetic_data: NDArray[(2, Any), int] = \
-                self.fully_calibrated_magnetic_data
+            self.noise_filtered_magnetic_data: NDArray[(2, Any), int] = self.fully_calibrated_magnetic_data
         else:
             self.noise_filtered_magnetic_data: NDArray[(2, Any), int] = apply_noise_filtering(
                 self.fully_calibrated_magnetic_data,
                 self.filter_coefficients,
         )
 
+        # TODO
         # self.compressed_magnetic_data: NDArray[(2, Any), int] = compress_filtered_gmr(self.noise_filtered_magnetic_data)
         # self.compressed_voltage: NDArray[(2, Any), np.float32] = calculate_voltage_from_gmr(self.compressed_magnetic_data)
         # self.compressed_displacement: NDArray[(2, Any), np.float32] = calculate_displacement_from_voltage(self.compressed_voltage)
@@ -139,35 +112,35 @@ class WellFile:
 
     def get(self, key, default):
         try:
-            return self.attrs[key]
+            return self[key]
         except:
             return default
 
+
     def __contains__(self, key):
+        key = str(key) if isinstance(key, uuid.UUID) else key
         return key in self.attrs
 
+
+    def __setitem__(self, key, newvalue):
+        key = str(key) if isinstance(key, uuid.UUID) else key
+        self.attrs[key] = newvalue
+
+
     def __getitem__(self, i):
-        try:
-            return self.attrs[i]
-        except:
-            return None
+        i = str(i) if isinstance(i, uuid.UUID) else i
+        return self.attrs[i]
 
-    def _lookup(self, attr):
-        try:
-            return METADATA_UUID_DESCRIPTIONS[uuid.UUID(attr)]
-        except:
-            return attr
 
-    def _extract_datetime(self, metadata_uuid: uuid.UUID, file_version: str) -> datetime.datetime:
-        if file_version.split(".") < VersionInfo.parse("0.2.1"):
+    def _extract_datetime(self, metadata_uuid: uuid.UUID) -> datetime.datetime:
+        if self.version.split(".") < VersionInfo.parse("0.2.1"):
             if metadata_uuid == UTC_BEGINNING_RECORDING_UUID:
                 """
                 The use of this proxy value is justified by the fact that there is a 15 second delay
                 between when data is recorded and when the GUI displays it, and because the GUI will
                 send the timestamp of when the recording button is pressed.
                 """
-                metadata_name = str(UTC_BEGINNING_DATA_ACQUISTION_UUID)
-                acquisition_timestamp_str = self.attrs[metadata_name]['value']
+                acquisition_timestamp_str = self[UTC_BEGINNING_DATA_ACQUISTION_UUID]
 
                 begin_recording = datetime.datetime.strptime(
                     acquisition_timestamp_str, DATETIME_STR_FORMAT
@@ -180,7 +153,7 @@ class WellFile:
                 string identifier instead
                 """
                 metadata_name = "UTC Timestamp of Beginning of Recorded Tissue Sensor Data"
-                timestamp_str = self.attrs[metadata_name]['value']
+                timestamp_str = self[metadata_name]
 
                 return datetime.datetime.strptime(timestamp_str, DATETIME_STR_FORMAT).replace(
                     tzinfo=datetime.timezone.utc
@@ -190,28 +163,29 @@ class WellFile:
                 Early file versions did not include this metadata under a UUID, so we have to use this
                 string identifier instead
                 """
-                metadata_name = "UTC Timestamp of Beginning of Recorded Reference Sensor Data"
-                timestamp_str = self.attrs[metadata_name]['value']
+                timestamp_str = self["UTC Timestamp of Beginning of Recorded Reference Sensor Data"]
 
                 return datetime.datetime.strptime(timestamp_str, DATETIME_STR_FORMAT).replace(
                     tzinfo=datetime.timezone.utc
                 )
 
-        timestamp_str = self.attrs[str(metadata_uuid)]['value']
+        timestamp_str = self[metadata_uuid]
         return datetime.datetime.strptime(timestamp_str, DATETIME_STR_FORMAT).replace(
             tzinfo=datetime.timezone.utc
         )
 
 
-    def _load_reading(
-        self,
-        reading_type: str,              #TISSUE_SENSOR_READINGS,
-        recording_start_index,          #START_RECORDING_TIME_INDEX_UUID
-        beginning_data_acquisition_ts,  #UTC_BEGINNING_DATA_ACQUISTION_UUID
-        initial_timestamp,              #UTC_FIRST_TISSUE_DATA_POINT_UUID
-        sampling_period,                #TISSUE_SAMPLING_PERIOD_UUID
-        time_trimmed
-    ) -> NDArray[(Any, Any), int]:
+    def _load_reading(self, reading_type: str, time_trimmed) -> NDArray[(Any, Any), int]:
+        recording_start_index = self[START_RECORDING_TIME_INDEX_UUID]
+        beginning_data_acquisition_ts = self[UTC_BEGINNING_DATA_ACQUISTION_UUID]
+
+        if reading_type == REFERENCE_SENSOR_READINGS:
+            initial_timestamp = self[UTC_FIRST_REF_DATA_POINT_UUID]
+            sampling_period = self[REF_SAMPLING_PERIOD_UUID]
+        else:
+            initial_timestamp = self[UTC_FIRST_TISSUE_DATA_POINT_UUID]
+            sampling_period = self[TISSUE_SAMPLING_PERIOD_UUID]
+
         recording_start_index_useconds = int(recording_start_index) * MICROSECONDS_PER_CENTIMILLISECOND
         timestamp_of_start_index = beginning_data_acquisition_ts + datetime.timedelta(
             microseconds=recording_start_index_useconds
@@ -239,7 +213,6 @@ class WellFile:
             start_index = _find_start_index(time_trimmed, new_times)
             time_delta_centimilliseconds = int(new_times[start_index])
 
-        breakpoint()
         return np.concatenate(  # pylint: disable=unexpected-keyword-arg # Tanner (5/6/21): unsure why pylint thinks dtype is an unexpected kwarg for np.concatenate
             (times + time_delta_centimilliseconds, data), dtype=np.int32
         )
@@ -261,15 +234,19 @@ class PlateRecording:
 
                 for f in files:
                     well_file = WellFile(os.path.join(tempdir, f))
-                    self.wells[well_file[WELL_INDEX_UUID]['value']] = well_file
+                    self.wells[well_file[WELL_INDEX_UUID]] = well_file
+
 
     def __iter__(self):
         self._iter = 0
         return self
 
+
     def __next__(self):
         if self._iter < len(self.wells):
-            return self.wells[self._iter]
+            value = self.wells[self._iter]
+            self._iter += 1
+            return value
         else:
             raise StopIteration
 

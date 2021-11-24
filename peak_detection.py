@@ -14,6 +14,7 @@ import numpy as np
 from scipy import signal
 
 from constants import *
+from metrics import *
 from exceptions import TooFewPeaksDetectedError
 from exceptions import TwoPeaksInARowError
 from exceptions import TwoValleysInARowError
@@ -26,26 +27,20 @@ TWITCH_WIDTH_INDEX_OF_CONTRACTION_VELOCITY_END = np.where(TWITCH_WIDTH_PERCENTS 
 def peak_detector(
     filtered_magnetic_signal: NDArray[(2, Any), int],
     twitches_point_up: bool = True,
-    is_magnetic_data: bool = True,
 ) -> Tuple[List[int], List[int]]:
     """Locates peaks and valleys and returns the indices.
 
     Args:
         filtered_magnetic_signal: a 2D array of the magnetic signal vs time data after it has gone through noise cancellation. It is assumed that the time values are in microseconds
         twitches_point_up: whether in the incoming data stream the biological twitches are pointing up (in the positive direction) or down
-        is_magnetic_data: whether the incoming data stream is magnetic data or not
         sampling_period: Optional value indicating the period that magnetic data was sampled at. If not given, the sampling period will be calculated using the difference of the first two time indices
 
     Returns:
         A tuple containing a list of the indices of the peaks and a list of the indices of valleys
     """
-    magnetic_signal: NDArray[int] = filtered_magnetic_signal[1, :] * -1 if is_magnetic_data else filtered_magnetic_signal[1, :]
+    magnetic_signal: NDArray[int] = filtered_magnetic_signal[1, :]
 
-    peak_invertor_factor, valley_invertor_factor = 1, -1
-    if not twitches_point_up:
-        peak_invertor_factor *= -1
-        valley_invertor_factor *= -1
-
+    (peak_invertor_factor, valley_invertor_factor) = (1, -1) if twitches_point_up else (-1, 1)
     sampling_period_us = filtered_magnetic_signal[0, 1] - filtered_magnetic_signal[0, 0]
 
     max_possible_twitch_freq = 7
@@ -125,12 +120,138 @@ def too_few_peaks_or_valleys(
     """
     if len(peak_indices) < min_number_peaks:
         raise TooFewPeaksDetectedError(
-            f"A minimum of {min_number_valleys} peaks is required to extract twitch metrics, however only {len(peak_indices)} peak(s) were detected."
+            f"A minimum of {min_number_peaks} peaks is required to extract twitch metrics, however only {len(peak_indices)} peak(s) were detected."
         )
     if len(valley_indices) < min_number_valleys:
         raise TooFewPeaksDetectedError(
             f"A minimum of {min_number_valleys} valleys is required to extract twitch metrics, however only {len(valley_indices)} valley(s) were detected."
         )
+
+
+def find_twitch_indices(
+    peak_and_valley_indices: Tuple[NDArray[int], NDArray[int]],
+) -> Dict[int, Dict[UUID, Optional[int]]]:
+    """Find twitches that can be analyzed.
+
+    Sometimes the first and last peak in a trace can't be analyzed as a full twitch because not
+    enough information is present.
+    In order to be analyzable, a twitch needs to have a valley prior to it and another peak after it.
+
+    Args:
+        peak_and_valley_indices: a Tuple of 1D array of integers representing the indices of the
+        peaks and valleys
+
+    Returns:
+        a dictionary in which the key is an integer representing the time points of all the peaks
+        of interest and the value is an inner dictionary with various UUIDs of prior/subsequent
+        peaks and valleys and their index values.
+    """
+    too_few_peaks_or_valleys(*peak_and_valley_indices)
+    peak_indices, valley_indices = peak_and_valley_indices
+
+    twitches: Dict[int, Dict[UUID, Optional[int]]] = {}
+
+    starts_with_peak = peak_indices[0] < valley_indices[0]
+    prev_feature_is_peak = starts_with_peak
+    peak_idx, valley_idx = _find_start_indices(starts_with_peak)
+
+    # check for two back-to-back features
+    while peak_idx < len(peak_indices) and valley_idx < len(valley_indices):
+        if prev_feature_is_peak:
+            if valley_indices[valley_idx] > peak_indices[peak_idx]:
+                raise TwoPeaksInARowError((peak_indices[peak_idx - 1], peak_indices[peak_idx]))
+            valley_idx += 1
+        else:
+            if valley_indices[valley_idx] < peak_indices[peak_idx]:
+                raise TwoValleysInARowError((valley_indices[valley_idx - 1], valley_indices[valley_idx]))
+            peak_idx += 1
+        prev_feature_is_peak = not prev_feature_is_peak
+
+    if peak_idx < len(peak_indices) - 1:
+        raise TwoPeaksInARowError((peak_indices[peak_idx], peak_indices[peak_idx + 1]))
+    if valley_idx < len(valley_indices) - 1:
+        raise TwoValleysInARowError((valley_indices[valley_idx], valley_indices[valley_idx + 1]))
+
+    # compile dict of twitch information
+    for itr_idx, itr_peak_index in enumerate(peak_indices):
+        if itr_idx < peak_indices.shape[0] - 1:  # last peak
+            if itr_idx == 0 and starts_with_peak:
+                continue
+
+            twitches[itr_peak_index] = {
+                PRIOR_PEAK_INDEX_UUID: None if itr_idx == 0 else peak_indices[itr_idx - 1],
+                PRIOR_VALLEY_INDEX_UUID: valley_indices[itr_idx - 1 if starts_with_peak else itr_idx],
+                SUBSEQUENT_PEAK_INDEX_UUID: peak_indices[itr_idx + 1],
+                SUBSEQUENT_VALLEY_INDEX_UUID: valley_indices[itr_idx if starts_with_peak else itr_idx + 1],
+            }
+
+    return twitches
+
+def data_metrics(
+    peak_and_valley_indices: Tuple[NDArray[int], NDArray[int]],
+    filtered_data: NDArray[(2, Any), int],
+    rounded: bool = False,
+    metrics_to_create: Iterable[UUID] = ALL_METRICS,
+) -> Tuple[Dict[int, Dict[UUID, Any]], Dict[UUID, Any]]:
+    # pylint:disable=too-many-locals # Eli (9/8/20): there are a lot of metrics to calculate that need local variables
+    """Find all data metrics for individual twitches and averages.
+    Args:
+        peak_and_valley_indices: a tuple of integer value arrays representing the time indices of peaks and valleys within the data
+        filtered_data: a 2D array of the time and voltage data after it has gone through noise cancellation
+        rounded: whether to round estimates to the nearest int
+        metrics_to_create: list of desired metrics
+    Returns:
+        main_twitch_dict: a dictionary of individual peak metrics in which the twitch timepoint is accompanied by a dictionary in which the UUIDs for each twitch metric are the key and with its accompanying value as the value. For the Twitch Width metric UUID, another dictionary is stored in which the key is the percentage of the way down and the value is another dictionary in which the UUIDs for the rising coord, falling coord or width value are stored with the value as an int for the width value or a tuple of ints for the x/y coordinates
+        aggregate_dict: a dictionary of entire metric statistics. Most metrics have the stats underneath the UUID, but for twitch widths, there is an additional dictionary where the percent of repolarization is the key
+    """
+    # create main dictionaries
+    main_twitch_dict: Dict[int, Dict[UUID, Any]] = dict()
+    aggregate_dict: Dict[UUID, Any] = dict()
+
+    # get values needed for metrics creation
+    twitch_indices = find_twitch_indices(peak_and_valley_indices)
+    num_twitches = len(twitch_indices)
+    time_series = filtered_data[0, :]
+
+    metric_parameters = {
+        "peak_and_valley_indices": peak_and_valley_indices,
+        "filtered_data": filtered_data,
+        "twitch_indices": twitch_indices,
+    }
+
+    # create top level dict
+    twitch_peak_indices = tuple(twitch_indices.keys())
+    main_twitch_dict = {time_series[twitch_peak_indices[i]]: dict() for i in range(num_twitches)}
+
+    # Krisian 10/26/21
+    # dictionary of metric functions
+    # this could probably be made cleaner at some point
+    metric_mapper: Dict[UUID, BaseMetric]
+    metric_mapper = {
+        AMPLITUDE_UUID: TwitchAmplitude(rounded=rounded),
+        AUC_UUID: TwitchAUC(rounded=rounded),
+        BASELINE_TO_PEAK_UUID: TwitchPeakToBaseline(rounded=rounded, is_contraction=True),
+        CONTRACTION_TIME_UUID: TwitchPeakTime(rounded=rounded, is_contraction=True),
+        CONTRACTION_VELOCITY_UUID: TwitchVelocity(rounded=rounded, is_contraction=True),
+        FRACTION_MAX_UUID: TwitchFractionAmplitude(rounded=rounded),
+        IRREGULARITY_INTERVAL_UUID: TwitchIrregularity(rounded=rounded),
+        PEAK_TO_BASELINE_UUID: TwitchPeakToBaseline(rounded=rounded, is_contraction=False),
+        RELAXATION_TIME_UUID: TwitchPeakTime(rounded=rounded, is_contraction=False),
+        RELAXATION_VELOCITY_UUID: TwitchVelocity(rounded=rounded, is_contraction=False),
+        TWITCH_FREQUENCY_UUID: TwitchFrequency(rounded=rounded),
+        TWITCH_PERIOD_UUID: TwitchPeriod(rounded=rounded),
+        WIDTH_UUID: TwitchWidth(rounded=rounded),
+    }
+
+    for metric_id in metrics_to_create:
+        metric = metric_mapper[metric_id]
+        estimate = metric.fit(**metric_parameters)
+        metric.add_per_twitch_metrics(
+            main_twitch_dict=main_twitch_dict, metric_id=metric_id, metrics=estimate
+        )
+        metric.add_aggregate_metrics(aggregate_dict=aggregate_dict, metric_id=metric_id, metrics=estimate)
+
+    return main_twitch_dict, aggregate_dict
 
 
 def _find_start_indices(starts_with_peak: bool) -> Tuple[int, int]:

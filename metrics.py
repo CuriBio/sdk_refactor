@@ -18,7 +18,7 @@ from nptyping import Float64
 from nptyping import NDArray
 import numpy as np
 
-from constants import CENTIMILLISECONDS_PER_SECOND
+from constants import CENTIMILLISECONDS_PER_SECOND, MICRO_TO_BASE_CONVERSION
 from constants import PRIOR_VALLEY_INDEX_UUID
 from constants import SUBSEQUENT_VALLEY_INDEX_UUID
 from constants import TIME_VALUE_UUID
@@ -102,25 +102,29 @@ class BaseMetric:
         Returns:
         a dictionary of the average statistics of that metric in which the metrics are the key and average statistics are the value
         """
-        dictionary: Dict[str, Union[Float64, int]] = dict()
-        dictionary["n"] = len(metric)
+        d: Dict[str, Union[Float64, int]] = dict()
+        d["n"] = len(metric)
         if len(metric) > 0:
-            dictionary["mean"] = np.mean(metric)
-            dictionary["std"] = np.std(metric)
-            dictionary["min"] = np.min(metric)
-            dictionary["max"] = np.max(metric)
+            d["mean"] = np.mean(metric)
+            d["std"] = np.std(metric)
+            d["min"] = np.min(metric)
+            d["max"] = np.max(metric)
+            d["cov"] = d["std"] / d["mean"]
+            d["sem"] = d["std"] / d["n"] ** 0.5
 
             if rounded:
-                for iter_key, iter_value in dictionary.items():
-                    dictionary[iter_key] = int(round(iter_value))
+                for iter_key, iter_value in d.items():
+                    d[iter_key] = int(round(iter_value))
 
         else:
-            dictionary["mean"] = None
-            dictionary["std"] = None
-            dictionary["min"] = None
-            dictionary["max"] = None
+            d["mean"] = None
+            d["std"] = None
+            d["min"] = None
+            d["max"] = None
+            d["cov"] = None
+            d["sem"] = None
 
-        return dictionary
+        return d
 
 
 class TwitchAmplitude(BaseMetric):
@@ -180,6 +184,8 @@ class TwitchAmplitude(BaseMetric):
 
             amplitudes[i] = amplitude_value
 
+        amplitudes = amplitudes * MICRO_TO_BASE_CONVERSION
+        breakpoint()
         return amplitudes
 
 
@@ -340,7 +346,7 @@ class TwitchWidth(BaseMetric):
                     rising_threshold = int(round(rising_threshold, 0))
                     falling_threshold = int(round(falling_threshold, 0))
 
-                iter_percent_dict[WIDTH_VALUE_UUID] = width_val
+                iter_percent_dict[WIDTH_VALUE_UUID] = width_val / MICRO_TO_BASE_CONVERSION
                 iter_percent_dict[WIDTH_RISING_COORDS_UUID] = (
                     interpolated_rising_timepoint,
                     rising_threshold,
@@ -444,9 +450,7 @@ class TwitchVelocity(BaseMetric):
                 raise NotImplementedError(
                     f"The width value under twitch {twitch} must be a Tuple. It was: {iter_coord_top}"
                 )
-            velocity = abs(
-                (iter_coord_top[1] - iter_coord_base[1]) / (iter_coord_top[0] - iter_coord_base[0])
-            )
+            velocity = abs((iter_coord_top[1] - iter_coord_base[1]) / (iter_coord_top[0] - iter_coord_base[0]))
             iter_list_of_velocities.append(velocity)
         return np.asarray(iter_list_of_velocities, dtype=float)
 
@@ -469,7 +473,7 @@ class TwitchIrregularity(BaseMetric):
             twitch_indices=twitch_indices, time_series=filtered_data[0]
         )
 
-        return irregularity
+        return irregularity / MICRO_TO_BASE_CONVERSION
 
     def add_aggregate_metrics(
         self,
@@ -733,7 +737,7 @@ class TwitchPeriod(BaseMetric):
             filtered_data=filtered_data,
         )
 
-        return periods
+        return periods / MICRO_TO_BASE_CONVERSION
 
     @staticmethod
     def calculate_twitch_period(
@@ -785,7 +789,7 @@ class TwitchFrequency(BaseMetric):
             twitch_indices=twitch_indices,
         )
 
-        frequencies: NDArray[Float64] = 1 / (periods.astype(float) / CENTIMILLISECONDS_PER_SECOND)
+        frequencies: NDArray[Float64] = 1 / periods.astype(float)
 
         return frequencies
 
@@ -914,7 +918,7 @@ class TwitchPeakTime(BaseMetric):
                 else:
                     difference = width_percent_time - peak_time_value
 
-                iter_percent_difference_dict[TIME_VALUE_UUID] = difference
+                iter_percent_difference_dict[TIME_VALUE_UUID] = difference / MICRO_TO_BASE_CONVERSION
                 iter_twich_difference_dict[iter_percent] = iter_percent_difference_dict
 
             time_differences.append(iter_twich_difference_dict)

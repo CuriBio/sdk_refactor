@@ -26,7 +26,7 @@ from transforms import calculate_force_from_displacement
 
 
 class WellFile:
-    def __init__(self, file_path: str):
+    def __init__(self, file_path: str, sampling_period=None):
         if file_path.endswith('.h5'):
             self.file = h5py.File(file_path, 'r')
             self.file_name = self.file.filename
@@ -45,9 +45,9 @@ class WellFile:
         self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
 
         # setup noise filter
-        tissue_sampling_period = self[TISSUE_SAMPLING_PERIOD_UUID]
-        self.noise_filter_uuid = TSP_TO_DEFAULT_FILTER_UUID[tissue_sampling_period] if self.is_magnetic_data else None
-        self.filter_coefficients = create_filter(self.noise_filter_uuid, tissue_sampling_period)
+        self.tissue_sampling_period = sampling_period if sampling_period else self[TISSUE_SAMPLING_PERIOD_UUID]
+        self.noise_filter_uuid = TSP_TO_DEFAULT_FILTER_UUID[self.tissue_sampling_period] if self.is_magnetic_data else None
+        self.filter_coefficients = create_filter(self.noise_filter_uuid, self.tissue_sampling_period)
 
         # extract datetimes
         self[UTC_BEGINNING_DATA_ACQUISTION_UUID] = self._extract_datetime(UTC_BEGINNING_DATA_ACQUISTION_UUID)

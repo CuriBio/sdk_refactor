@@ -443,16 +443,15 @@ class TwitchVelocity(BaseMetric):
             iter_coord_top = per_twitch_widths[twitch][twitch_top][coord_type]
 
             if not isinstance(iter_coord_base, tuple):  # making mypy happy
-                raise NotImplementedError(
-                    f"The width value under twitch {twitch} must be a Tuple. It was: {iter_coord_base}"
-                )
+                raise NotImplementedError(f"The width value under twitch {twitch} must be a Tuple. It was: {iter_coord_base}")
             if not isinstance(iter_coord_top, tuple):  # making mypy happy
-                raise NotImplementedError(
-                    f"The width value under twitch {twitch} must be a Tuple. It was: {iter_coord_top}"
-                )
+                raise NotImplementedError(f"The width value under twitch {twitch} must be a Tuple. It was: {iter_coord_top}")
+
             velocity = abs((iter_coord_top[1] - iter_coord_base[1]) / (iter_coord_top[0] - iter_coord_base[0]))
             iter_list_of_velocities.append(velocity)
-        return np.asarray(iter_list_of_velocities, dtype=float)
+
+        values = np.asarray(iter_list_of_velocities, dtype=float)
+        return values * MICRO_TO_BASE_CONVERSION**2
 
 
 class TwitchIrregularity(BaseMetric):

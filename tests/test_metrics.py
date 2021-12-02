@@ -30,6 +30,7 @@ from constants import PRIOR_VALLEY_INDEX_UUID
 from constants import SUBSEQUENT_VALLEY_INDEX_UUID
 from constants import TIME_VALUE_UUID
 from constants import WIDTH_VALUE_UUID
+from constants import MICRO_TO_BASE_CONVERSION
 
 import metrics
 from stdlib_utils import get_current_file_abs_directory
@@ -139,6 +140,9 @@ def test_metrics__TwitchAmplitude():
     with open(os.path.join(PATH_OF_CURRENT_FILE, "data_metrics", "v0.3.1", "amplitude_MA201110001__2020_09_03_213024__A1.json")) as f:
         expected = json.load(f)
 
+    expected = np.asarray([float(x) for x in expected])
+    expected *= MICRO_TO_BASE_CONVERSION
+
     w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, "h5", "v0.3.1", "MA201110001__2020_09_03_213024", "MA201110001__2020_09_03_213024__A1.h5"))
     pv = peak_detector(w.noise_filtered_magnetic_data)
     twitch_indices = find_twitch_indices(pv)
@@ -146,7 +150,7 @@ def test_metrics__TwitchAmplitude():
     metric = metrics.TwitchAmplitude()
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    assert expected == [str(n) for n in estimate]
+    assert np.all(expected == estimate) #[n for n in estimate]
 
 
 def test_metrics__TwitchAUC():
@@ -195,6 +199,9 @@ def test_metrics__TwitchIrregularity():
     with open(os.path.join(PATH_OF_CURRENT_FILE, "data_metrics", "v0.3.1", "irregularity_interval_MA201110001__2020_09_03_213024__A1.json")) as f:
         expected = json.load(f)
 
+    expected = np.asarray([float(x) for x in expected])
+    expected /= MICRO_TO_BASE_CONVERSION
+
     w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, "h5", "v0.3.1", "MA201110001__2020_09_03_213024", "MA201110001__2020_09_03_213024__A1.h5"))
     pv = peak_detector(w.noise_filtered_magnetic_data)
     twitch_indices = find_twitch_indices(pv)
@@ -202,7 +209,7 @@ def test_metrics__TwitchIrregularity():
     metric = metrics.TwitchIrregularity()
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    assert expected == [str(n) for n in estimate]
+    assert [str(n) for n in expected] == [str(n) for n in estimate]
 
 
 # def test_metrics__TwitchPeakTime(
@@ -281,6 +288,9 @@ def test_metrics__TwitchPeriod():
     with open(os.path.join(PATH_OF_CURRENT_FILE, "data_metrics", "v0.3.1", "twitch_period_MA201110001__2020_09_03_213024__A1.json")) as f:
         expected = json.load(f)
 
+    expected = np.asarray([float(n) for n in expected])
+    expected /= MICRO_TO_BASE_CONVERSION
+
     w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, "h5", "v0.3.1", "MA201110001__2020_09_03_213024", "MA201110001__2020_09_03_213024__A1.h5"))
     pv = peak_detector(w.noise_filtered_magnetic_data)
     twitch_indices = find_twitch_indices(pv)
@@ -288,12 +298,15 @@ def test_metrics__TwitchPeriod():
     metric = metrics.TwitchPeriod()
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    assert expected == [str(n) for n in estimate]
+    assert [str(n) for n in expected] == [str(n) for n in estimate]
 
 
 def test_metrics__TwitchContractionVelocity():
     with open(os.path.join(PATH_OF_CURRENT_FILE, "data_metrics", "v0.3.1", "contraction_velocity_MA201110001__2020_09_03_213024__A1.json")) as f:
         expected = json.load(f)
+
+    expected = np.asarray([float(n) for n in expected])
+    expected *= MICRO_TO_BASE_CONVERSION**2
 
     w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, "h5", "v0.3.1", "MA201110001__2020_09_03_213024", "MA201110001__2020_09_03_213024__A1.h5"))
     pv = peak_detector(w.noise_filtered_magnetic_data)
@@ -302,12 +315,15 @@ def test_metrics__TwitchContractionVelocity():
     metric = metrics.TwitchVelocity(rounded=False, is_contraction=True)
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    assert expected == [str(n) for n in estimate]
+    assert [str(n) for n in expected] == [str(n) for n in estimate]
 
 
 def test_metrics__TwitchRelaxationVelocity():
     with open(os.path.join(PATH_OF_CURRENT_FILE, "data_metrics", "v0.3.1", "relaxation_velocity_MA201110001__2020_09_03_213024__A1.json")) as f:
         expected = json.load(f)
+
+    expected = np.asarray([float(n) for n in expected])
+    expected *= MICRO_TO_BASE_CONVERSION**2
 
     w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, "h5", "v0.3.1", "MA201110001__2020_09_03_213024", "MA201110001__2020_09_03_213024__A1.h5"))
     pv = peak_detector(w.noise_filtered_magnetic_data)
@@ -316,7 +332,7 @@ def test_metrics__TwitchRelaxationVelocity():
     metric = metrics.TwitchVelocity(rounded=False, is_contraction=False)
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    assert expected == [str(n) for n in estimate]
+    assert [str(n) for n in expected] == [str(n) for n in estimate]
 
 
 def test_metrics__TwitchWidth():

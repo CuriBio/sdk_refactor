@@ -185,7 +185,6 @@ class TwitchAmplitude(BaseMetric):
             amplitudes[i] = amplitude_value
 
         amplitudes = amplitudes * MICRO_TO_BASE_CONVERSION
-        breakpoint()
         return amplitudes
 
 

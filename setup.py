@@ -1,8 +1,29 @@
 # -*- coding: utf-8 -*-
 """Setup configuration."""
+import os
 
+import numpy as np
+from setuptools import Extension
 from setuptools import find_packages
 from setuptools import setup
+
+try:
+    from Cython.Build import cythonize
+except ImportError:
+    USE_CYTHON = False
+else:
+    USE_CYTHON = True
+
+ext = ".pyx" if USE_CYTHON else ".c"
+extensions = [
+    Extension(
+        "pulse3D.compression_cy",
+        [os.path.join("src", "pulse3D", "compression_cy") + ext],
+    )
+]
+if USE_CYTHON:
+    # cythonizing compression_cy.pyx with kwarg annotate=True will help when optimizing the code by enabling generation of the html annotation file
+    extensions = cythonize(extensions, annotate=False)
 
 setup(
     name="Pulse3D",
@@ -14,6 +35,7 @@ setup(
     author_email="contact@curibio.com",
     license="MIT",
     package_dir={"": "src"},
+    include_dirs=[np.get_include()],
     packages=find_packages("src"),
     install_requires=[
         "h5py>=3.2.1",
@@ -41,4 +63,5 @@ setup(
         "Programming Language :: Python :: 3.9",
         "Topic :: Scientific/Engineering",
     ],
+    ext_modules=extensions,
 )

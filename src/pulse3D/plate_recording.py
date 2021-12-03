@@ -23,6 +23,7 @@ from .transforms import calculate_force_from_displacement
 from .transforms import calculate_voltage_from_gmr
 from .transforms import calculate_displacement_from_voltage
 from .transforms import calculate_force_from_displacement
+from .compression_cy import compress_filtered_magnetic_data
 
 
 class WellFile:
@@ -99,11 +100,10 @@ class WellFile:
                 self.filter_coefficients,
         )
 
-        # TODO
-        # self.compressed_magnetic_data: NDArray[(2, Any), int] = compress_filtered_gmr(self.noise_filtered_magnetic_data)
-        # self.compressed_voltage: NDArray[(2, Any), np.float32] = calculate_voltage_from_gmr(self.compressed_magnetic_data)
-        # self.compressed_displacement: NDArray[(2, Any), np.float32] = calculate_displacement_from_voltage(self.compressed_voltage)
-        # self.compressed_force: NDArray[(2, Any), np.float32] = calculate_force_from_displacement(self.compressed_displacement)
+        self.compressed_magnetic_data: NDArray[(2, Any), int] = compress_filtered_magnetic_data(self.noise_filtered_magnetic_data)
+        self.compressed_voltage: NDArray[(2, Any), np.float32] = calculate_voltage_from_gmr(self.compressed_magnetic_data)
+        self.compressed_displacement: NDArray[(2, Any), np.float32] = calculate_displacement_from_voltage(self.compressed_voltage)
+        self.compressed_force: NDArray[(2, Any), np.float32] = calculate_force_from_displacement(self.compressed_displacement)
 
         self.voltage: NDArray[(2, Any), np.float32] = calculate_voltage_from_gmr(self.noise_filtered_magnetic_data)
         self.displacement: NDArray[(2, Any), np.float32] = calculate_displacement_from_voltage(self.voltage)

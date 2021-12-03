@@ -40,8 +40,9 @@ setup(
     install_requires=[
         "h5py>=3.2.1",
         "nptyping>=1.4.1",
-        "numpy>=1.20.1",
-        "scipy>=1.6.2",
+        "numpy==1.20.2",  # Tanner (12/3/21): pinned for numba compatibility
+        "scipy==1.6.2",
+        "numba>=0.54.1",
         "immutabledict>=1.2.0",
         "XlsxWriter>=1.3.8",
         "openpyxl>=3.0.7",

@@ -1006,7 +1006,7 @@ class TwitchPeakToBaseline(BaseMetric):
 
             full_differences[i] = time_difference
 
-        return full_differences
+        return full_differences / MICRO_TO_BASE_CONVERSION
 
 
 def interpolate_x_for_y_between_two_points(  # pylint:disable=invalid-name # (Eli 9/1/20: I can't think of a shorter name to describe this concept fully)

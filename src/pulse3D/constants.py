@@ -262,8 +262,8 @@ CALCULATED_METRIC_DISPLAY_NAMES = {
     WIDTH_UUID: "Twitch Width {} (seconds)",
     RELAXATION_TIME_UUID: "Time From Peak to Relaxation {} (seconds)",
     CONTRACTION_TIME_UUID: "Time From Contraction {} to Peak (seconds)",
-    BASELINE_TO_PEAK_UUID: "Baseline to Peak",
-    PEAK_TO_BASELINE_UUID: "Peak to Baseline",
+    BASELINE_TO_PEAK_UUID: "Time From Baseline to Peak (seconds)",
+    PEAK_TO_BASELINE_UUID: "Time From Peak to Baseline (seconds)",
 }
 
 COORDS = (10, 25, 50, 75, 90)

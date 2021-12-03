@@ -116,11 +116,9 @@ class WellFile:
         except:
             return default
 
-
     def __contains__(self, key):
         key = str(key) if isinstance(key, uuid.UUID) else key
         return key in self.attrs
-
 
     def __setitem__(self, key, newvalue):
         key = str(key) if isinstance(key, uuid.UUID) else key
@@ -236,11 +234,9 @@ class PlateRecording:
                     well_file = WellFile(os.path.join(tempdir, f))
                     self.wells[well_file[WELL_INDEX_UUID]] = well_file
 
-
     def __iter__(self):
         self._iter = 0
         return self
-
 
     def __next__(self):
         if self._iter < len(self.wells):

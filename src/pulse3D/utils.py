@@ -11,14 +11,14 @@ from typing import Optional
 from typing import Union
 from uuid import UUID
 
-from constants import CONTRACTION_TIME_UUID
-from constants import RELAXATION_TIME_UUID
-from constants import TIME_DIFFERENCE_UUID
-from constants import WIDTH_FALLING_COORDS_UUID
-from constants import WIDTH_RISING_COORDS_UUID
-from constants import WIDTH_UUID
+from .constants import CONTRACTION_TIME_UUID
+from .constants import RELAXATION_TIME_UUID
+from .constants import TIME_DIFFERENCE_UUID
+from .constants import WIDTH_FALLING_COORDS_UUID
+from .constants import WIDTH_RISING_COORDS_UUID
+from .constants import WIDTH_UUID
 
-from plate_recording import PlateRecording
+from .plate_recording import PlateRecording
 
 logger = logging.getLogger(__name__)
 

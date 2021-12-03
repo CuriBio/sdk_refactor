@@ -11,18 +11,18 @@ from semver import VersionInfo
 import h5py
 import numpy as np
 
-from constants import *
-from transforms import create_filter
-from transforms import apply_sensitivity_calibration
-from transforms import noise_cancellation
-from transforms import apply_empty_plate_calibration
-from transforms import apply_noise_filtering
-from transforms import calculate_voltage_from_gmr
-from transforms import calculate_displacement_from_voltage
-from transforms import calculate_force_from_displacement
-from transforms import calculate_voltage_from_gmr
-from transforms import calculate_displacement_from_voltage
-from transforms import calculate_force_from_displacement
+from .constants import *
+from .transforms import create_filter
+from .transforms import apply_sensitivity_calibration
+from .transforms import noise_cancellation
+from .transforms import apply_empty_plate_calibration
+from .transforms import apply_noise_filtering
+from .transforms import calculate_voltage_from_gmr
+from .transforms import calculate_displacement_from_voltage
+from .transforms import calculate_force_from_displacement
+from .transforms import calculate_voltage_from_gmr
+from .transforms import calculate_displacement_from_voltage
+from .transforms import calculate_force_from_displacement
 
 
 class WellFile:

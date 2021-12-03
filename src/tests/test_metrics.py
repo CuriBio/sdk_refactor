@@ -21,63 +21,24 @@ import json
 import numpy as np
 import pytest
 
-from constants import ALL_METRICS
-from constants import CONTRACTION_TIME_UUID
-from constants import RELAXATION_TIME_UUID
-from constants import TIME_DIFFERENCE_UUID
-from constants import CENTIMILLISECONDS_PER_SECOND
-from constants import PRIOR_VALLEY_INDEX_UUID
-from constants import SUBSEQUENT_VALLEY_INDEX_UUID
-from constants import TIME_VALUE_UUID
-from constants import WIDTH_VALUE_UUID
-from constants import MICRO_TO_BASE_CONVERSION
+from pulse3D.constants import ALL_METRICS
+from pulse3D.constants import CONTRACTION_TIME_UUID
+from pulse3D.constants import RELAXATION_TIME_UUID
+from pulse3D.constants import TIME_DIFFERENCE_UUID
+from pulse3D.constants import CENTIMILLISECONDS_PER_SECOND
+from pulse3D.constants import PRIOR_VALLEY_INDEX_UUID
+from pulse3D.constants import SUBSEQUENT_VALLEY_INDEX_UUID
+from pulse3D.constants import TIME_VALUE_UUID
+from pulse3D.constants import WIDTH_VALUE_UUID
+from pulse3D.constants import MICRO_TO_BASE_CONVERSION
+from pulse3D.constants import *
 
-import metrics
+import pulse3D.metrics as metrics
 from stdlib_utils import get_current_file_abs_directory
 
 from .fixtures import fixture_generic_deserialized_per_twitch_metrics_output_0_3_1
-# from .fixtures_metrics import fixture_generate_twitch_amplitude
-# from .fixtures_metrics import fixture_generate_twitch_auc
-# from .fixtures_metrics import fixture_generate_twitch_baseline_to_peak
-# from .fixtures_metrics import fixture_generate_twitch_fraction_amplitude
-# from .fixtures_metrics import fixture_generate_twitch_frequency
-# from .fixtures_metrics import fixture_generate_twitch_irregularity
-# from .fixtures_metrics import fixture_generate_twitch_peak_time_contraction
-# from .fixtures_metrics import fixture_generate_twitch_peak_time_relaxation
-# from .fixtures_metrics import fixture_generate_twitch_peak_to_baseline
-# from .fixtures_metrics import fixture_generate_twitch_period
-# from .fixtures_metrics import fixture_generate_twitch_velocity_contraction
-# from .fixtures_metrics import fixture_generate_twitch_velocity_relaxation
-# from .fixtures_metrics import fixture_generate_twitch_width
-# from .fixtures_metrics import fixture_generic_well_features
-# from .fixtures_utils import fixture_raw_generic_well_a1
-# from .fixtures_utils import fixture_raw_generic_well_a2
-# from .fixtures_utils import fixture_sample_tissue_reading
-# from .fixtures_utils import fixture_sample_reference_reading
-
-__fixtures__ = [
-    # fixture_raw_generic_well_a1,
-    # fixture_raw_generic_well_a2,
-    # fixture_generic_well_features,
-    # fixture_generate_twitch_amplitude,
-    # fixture_generate_twitch_auc,
-    # fixture_generate_twitch_fraction_amplitude,
-    # fixture_generate_twitch_frequency,
-    # fixture_generate_twitch_irregularity,
-    # fixture_generate_twitch_baseline_to_peak,
-    # fixture_generate_twitch_peak_to_baseline,
-    # fixture_generate_twitch_peak_time_contraction,
-    # fixture_generate_twitch_peak_time_relaxation,
-    # fixture_generate_twitch_period,
-    # fixture_generate_twitch_velocity_contraction,
-    # fixture_generate_twitch_velocity_relaxation,
-    # fixture_generate_twitch_width,
-    # fixture_sample_tissue_reading,
-    # fixture_sample_reference_reading,
-]
-
-from plate_recording import WellFile
-from peak_detection import peak_detector, data_metrics, find_twitch_indices
+from pulse3D.plate_recording import WellFile
+from pulse3D.peak_detection import peak_detector, data_metrics, find_twitch_indices
 
 def get_force_metrics_from_well_file(w: WellFile, metrics_to_create=ALL_METRICS):
     peak_and_valley_indices = peak_detector(w.noise_filtered_magnetic_data)
@@ -119,7 +80,23 @@ def test_per_twitch_metrics_for_single_well(
     dmf = generic_deserialized_per_twitch_metrics_output_0_3_1
     twitch = 1084000
 
-    for metric in ALL_METRICS:
+    metrics = [
+        TWITCH_PERIOD_UUID,
+        FRACTION_MAX_UUID,
+        AMPLITUDE_UUID,
+        AUC_UUID,
+        TWITCH_FREQUENCY_UUID,
+        CONTRACTION_VELOCITY_UUID,
+        RELAXATION_VELOCITY_UUID,
+        IRREGULARITY_INTERVAL_UUID,
+        # BASELINE_TO_PEAK_UUID, # older set of tests outputs doesn't have these metrics
+        # PEAK_TO_BASELINE_UUID,
+        WIDTH_UUID,
+        # RELAXATION_TIME_UUID,
+        # CONTRACTION_TIME_UUID,
+    ]
+
+    for metric in metrics:
         if not isinstance(main_dict[twitch][metric], dict) and not isinstance(dmf[twitch][metric], dict):
             if math.isnan(main_dict[twitch][metric]) and math.isnan(dmf[twitch][metric]):
                 continue

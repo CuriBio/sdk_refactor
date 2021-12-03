@@ -5,11 +5,11 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 
-from plate_recording import WellFile
-from constants import BESSEL_LOWPASS_30_UUID
-from constants import CENTIMILLISECONDS_PER_SECOND
-from constants import MICRO_TO_BASE_CONVERSION
-from peak_detection import peak_detector
+from pulse3D.plate_recording import WellFile
+from pulse3D.constants import BESSEL_LOWPASS_30_UUID
+from pulse3D.constants import CENTIMILLISECONDS_PER_SECOND
+from pulse3D.constants import MICRO_TO_BASE_CONVERSION
+from pulse3D.peak_detection import peak_detector
 
 import matplotlib
 import matplotlib.pyplot as plt

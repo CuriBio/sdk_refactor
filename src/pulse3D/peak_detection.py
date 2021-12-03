@@ -13,11 +13,11 @@ from nptyping import NDArray
 import numpy as np
 from scipy import signal
 
-from constants import *
-from metrics import *
-from exceptions import TooFewPeaksDetectedError
-from exceptions import TwoPeaksInARowError
-from exceptions import TwoValleysInARowError
+from .constants import *
+from .metrics import *
+from .exceptions import TooFewPeaksDetectedError
+from .exceptions import TwoPeaksInARowError
+from .exceptions import TwoValleysInARowError
 
 TWITCH_WIDTH_PERCENTS = np.arange(10, 95, 5)
 TWITCH_WIDTH_INDEX_OF_CONTRACTION_VELOCITY_START = np.where(TWITCH_WIDTH_PERCENTS == 10)[0]

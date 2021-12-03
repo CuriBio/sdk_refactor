@@ -1,22 +1,22 @@
 # -*- coding: utf-8 -*-
-from constants import ALL_METRICS
-from constants import AMPLITUDE_UUID
-from constants import CONTRACTION_VELOCITY_UUID
-from constants import MICRO_TO_BASE_CONVERSION
-from constants import MIN_NUMBER_PEAKS
-from constants import MIN_NUMBER_VALLEYS
-from constants import PRIOR_PEAK_INDEX_UUID
-from constants import PRIOR_VALLEY_INDEX_UUID
-from constants import RELAXATION_VELOCITY_UUID
-from constants import SUBSEQUENT_PEAK_INDEX_UUID
-from constants import SUBSEQUENT_VALLEY_INDEX_UUID
-from constants import TWITCH_FREQUENCY_UUID
-from constants import TWITCH_PERIOD_UUID
-from exceptions import TwoPeaksInARowError
-from exceptions import TwoValleysInARowError
-from exceptions import TooFewPeaksDetectedError
+from pulse3D.constants import ALL_METRICS
+from pulse3D.constants import AMPLITUDE_UUID
+from pulse3D.constants import CONTRACTION_VELOCITY_UUID
+from pulse3D.constants import MICRO_TO_BASE_CONVERSION
+from pulse3D.constants import MIN_NUMBER_PEAKS
+from pulse3D.constants import MIN_NUMBER_VALLEYS
+from pulse3D.constants import PRIOR_PEAK_INDEX_UUID
+from pulse3D.constants import PRIOR_VALLEY_INDEX_UUID
+from pulse3D.constants import RELAXATION_VELOCITY_UUID
+from pulse3D.constants import SUBSEQUENT_PEAK_INDEX_UUID
+from pulse3D.constants import SUBSEQUENT_VALLEY_INDEX_UUID
+from pulse3D.constants import TWITCH_FREQUENCY_UUID
+from pulse3D.constants import TWITCH_PERIOD_UUID
+from pulse3D.exceptions import TwoPeaksInARowError
+from pulse3D.exceptions import TwoValleysInARowError
+from pulse3D.exceptions import TooFewPeaksDetectedError
 
-from peak_detection import peak_detector, find_twitch_indices
+from pulse3D.peak_detection import peak_detector, find_twitch_indices
 
 import numpy as np
 import pytest

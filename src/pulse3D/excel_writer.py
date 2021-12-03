@@ -3,10 +3,10 @@ import datetime
 import pandas as pd
 from scipy import interpolate
 
-from plate_recording import WellFile
-from peak_detection import peak_detector, find_twitch_indices, data_metrics
-from constants import *
-from utils import xl_col_to_name
+from .plate_recording import WellFile
+from .peak_detection import peak_detector, find_twitch_indices, data_metrics
+from .constants import *
+from .utils import xl_col_to_name
 
 INTERPOLATED_DATA_PERIOD_SECONDS = 1 / 100
 INTERPOLATED_DATA_PERIOD_US = INTERPOLATED_DATA_PERIOD_SECONDS * MICRO_TO_BASE_CONVERSION

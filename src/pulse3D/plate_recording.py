@@ -1,5 +1,6 @@
 import datetime
 import os
+import glob
 import tempfile
 import uuid
 import zipfile
@@ -233,6 +234,31 @@ class PlateRecording:
                 for f in files:
                     well_file = WellFile(os.path.join(tempdir, f))
                     self.wells[well_file[WELL_INDEX_UUID]] = well_file
+        elif self.path.endswith('.xlsx'): #optical file
+            raise Exception('Not implemented')
+        else: #directory of .h5 files
+            files = glob.glob(os.path.join(self.path, '*.h5'))
+            self.wells = [None] * len(files)
+
+            for hf in files:
+                well_file = WellFile(hf)
+                self.wells[well_file[WELL_INDEX_UUID]] = well_file
+
+    @staticmethod
+    def from_directory(path):
+        basedir = os.path.dirname(path)
+
+        # multi zip files
+        for zf in glob.glob(os.path.join(basedir, '*.zip')):
+            yield PlateRecording(zf)
+
+        # multi optical files
+        for of in glob.glob(os.path.join(basedir, '*.xlsx')):
+            yield PlateRecording(of)
+
+        # directory of .h5 files
+        yield PlateRecording(basedir)
+
 
     def __iter__(self):
         self._iter = 0

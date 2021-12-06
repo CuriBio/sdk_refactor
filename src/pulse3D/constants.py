@@ -122,6 +122,8 @@ MICRO_TO_BASE_CONVERSION = int(1e6)
 MICROSECONDS_PER_CENTIMILLISECOND = 10
 TISSUE_SENSOR_READINGS = "tissue_sensor_readings"
 REFERENCE_SENSOR_READINGS = "reference_sensor_readings"
+TIME_INDICES = "time_indices"
+TIME_OFFSETS = "time_offsets"
 
 
 """
@@ -313,4 +315,16 @@ EXCEL_OPTICAL_METADATA_CELLS = immutabledict(
         MANTARRAY_SERIAL_NUMBER_UUID: "E7",
         INTERPOLATION_VALUE_UUID: "E8",
     }
+)
+
+
+"""
+Misc
+"""
+
+WELL_IDX_TO_MODULE_ID = immutabledict(
+    {well_idx: well_idx % 4 * 6 + well_idx // 4 + 1 for well_idx in range(24)}
+)
+MODULE_ID_TO_WELL_IDX = immutabledict(
+    {module_id: well_idx for well_idx, module_id in WELL_IDX_TO_MODULE_ID.items()}
 )

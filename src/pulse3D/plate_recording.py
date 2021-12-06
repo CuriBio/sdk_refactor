@@ -18,15 +18,21 @@ from xlsxwriter.utility import xl_cell_to_rowcol
 
 from .compression_cy import compress_filtered_magnetic_data
 from .constants import *
+from .magnet_finding import find_magnet_positions
+from .magnet_finding import format_well_file_data
+from .transforms import create_filter
+from .transforms import apply_sensitivity_calibration
+from .transforms import noise_cancellation
 from .transforms import apply_empty_plate_calibration
 from .transforms import apply_noise_filtering
 from .transforms import apply_sensitivity_calibration
 from .transforms import calculate_displacement_from_voltage
 from .transforms import calculate_force_from_displacement
 from .transforms import calculate_voltage_from_gmr
-from .transforms import create_filter
-from .transforms import noise_cancellation
-
+from .transforms import calculate_displacement_from_voltage
+from .transforms import calculate_force_from_displacement
+from .transforms import calculate_magnetic_flux_density_from_memsic
+from .compression_cy import compress_filtered_magnetic_data
 
 def _get_col_as_array(sheet: Worksheet, zero_based_row: int, zero_based_col: int) -> NDArray[(2, Any), float]:
     col_array = []
@@ -109,7 +115,6 @@ class WellFile:
         if file_path.endswith(".h5"):
             self.file = h5py.File(file_path, "r")
             self.file_name = os.path.basename(self.file.filename)
-
             self.is_force_data = True
             self.is_magnetic_data = True
 
@@ -129,34 +134,39 @@ class WellFile:
             self.file_name = os.path.basename(file_path)
             self.attrs = {k: v for (k, v) in _load_optical_file_attrs(self._excel_sheet).items()}
             self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
-
             self.is_magnetic_data = False
             self.is_force_data = (
                 "y" in str(_get_excel_metadata_value(self._excel_sheet, TWITCHES_POINT_UP_UUID)).lower()
             )
 
         # setup noise filter
-        self.tissue_sampling_period = (
-            sampling_period if sampling_period else self[TISSUE_SAMPLING_PERIOD_UUID]
-        )
-        self.noise_filter_uuid = (
-            TSP_TO_DEFAULT_FILTER_UUID[self.tissue_sampling_period] if self.is_magnetic_data else None
-        )
-        self.filter_coefficients = (
-            create_filter(self.noise_filter_uuid, self.tissue_sampling_period)
-            if self.noise_filter_uuid
-            else None
-        )
-
+        if self.version < VersionInfo.parse("1.0.0"):  # Tanner (12/6/21): should probably add beta 2 file support here and remove this condition
+            self.tissue_sampling_period = (
+                sampling_period if sampling_period else self[TISSUE_SAMPLING_PERIOD_UUID]
+            )
+            self.noise_filter_uuid = (
+                TSP_TO_DEFAULT_FILTER_UUID[self.tissue_sampling_period] if self.is_magnetic_data else None
+            )
+            self.filter_coefficients = (
+                create_filter(self.noise_filter_uuid, self.tissue_sampling_period)
+                if self.noise_filter_uuid
+                else None
+            )
         is_untrimmed = self.get(IS_FILE_ORIGINAL_UNTRIMMED_UUID, True)
         time_trimmed = None if is_untrimmed else self.attrs[TRIMMED_TIME_FROM_ORIGINAL_START_UUID]
 
-        if self.is_magnetic_data:
-            # load sensor data
-            self[TISSUE_SENSOR_READINGS] = self._load_reading(TISSUE_SENSOR_READINGS, time_trimmed)
-            self[REFERENCE_SENSOR_READINGS] = self._load_reading(REFERENCE_SENSOR_READINGS, time_trimmed)
-
-        self._load_magnetic_data()
+        # load sensor data. This is only possible to do for Beta 1 data files
+        if self.version < VersionInfo.parse("1.0.0"):
+            if self.is_magnetic_data:
+                self[TISSUE_SENSOR_READINGS] = self._load_reading(TISSUE_SENSOR_READINGS, time_trimmed)
+                self[REFERENCE_SENSOR_READINGS] = self._load_reading(REFERENCE_SENSOR_READINGS, time_trimmed)
+            self._load_magnetic_data()
+        else:
+            for reading_type in (TIME_INDICES, TIME_OFFSETS, TISSUE_SENSOR_READINGS, REFERENCE_SENSOR_READINGS):
+                self[reading_type] = self.file[reading_type][:]
+            # declaring these here so they can be set later
+            self.displacement: NDArray[(2, Any), np.float64]
+            self.force: NDArray[(2, Any), np.float64]
 
     def _load_magnetic_data(self):
         adj_raw_tissue_reading = self[TISSUE_SENSOR_READINGS].copy()
@@ -342,6 +352,31 @@ class PlateRecording:
             for hf in files:
                 well_file = WellFile(hf)
                 self.wells[well_file[WELL_INDEX_UUID]] = well_file
+
+        # Tanner (12/3/21): currently file versions 1.0.0 and above must have all their data processed together
+        if self.wells[0].version >= VersionInfo.parse("1.0.0"):
+            if not all(isinstance(well_file, WellFile) for well_file in self.wells) or len(self.wells) != 24:
+                raise NotImplementedError("All 24 wells must have a file present")
+            # pass data into magnet finding alg
+            plate_data_array = format_well_file_data(self.wells)
+            plate_data_array_mt = calculate_magnetic_flux_density_from_memsic(plate_data_array)
+            baseline_data_mt = None  # TODO
+            estimated_magnet_positions = find_magnet_positions(plate_data_array_mt, baseline_data_mt)
+            # following is just for testing for now
+            for val in estimated_magnet_positions:
+                print(val.shape)
+            for module_id in range(1, 25):
+                well_idx = MODULE_ID_TO_WELL_IDX[module_id]
+                self.wells[well_idx].displacement = {
+                    "X": estimated_magnet_positions[0][:, module_id - 1],
+                    "Y": estimated_magnet_positions[1][:, module_id - 1],
+                    "Z": estimated_magnet_positions[2][:, module_id - 1],
+                }
+                self.wells[well_idx].force = {
+                    "X": calculate_force_from_displacement(estimated_magnet_positions[0][:, module_id - 1]),
+                    "Y": calculate_force_from_displacement(estimated_magnet_positions[1][:, module_id - 1]),
+                    "Z": calculate_force_from_displacement(estimated_magnet_positions[2][:, module_id - 1]),
+                }
 
     @staticmethod
     def from_directory(path):

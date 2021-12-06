@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
 from pulse3D import magnet_finding
+from pulse3D import plate_recording
 from pulse3D import MEMSIC_CENTER_OFFSET
 from pulse3D import MEMSIC_FULL_SCALE,MEMSIC_MSB
 from pulse3D import GAUSS_PER_MILLITESLA
-from pulse3D import REFERENCE_SENSOR_READINGS
-from pulse3D import TISSUE_SENSOR_READINGS
+from pulse3D import REFERENCE_SENSOR_READINGS, TIME_INDICES,TIME_OFFSETS
+from pulse3D import TISSUE_SENSOR_READINGS,WELL_IDX_TO_MODULE_ID,MODULE_ID_TO_WELL_IDX
+from pulse3D import PlateRecording
 # from pulse3D import WellFile
 # from pulse3D import MantarrayH5FileCreator
 from h5py import File
 import numpy as np
-
-TIME_INDICES = "time_indices"
-TIME_OFFSETS = "time_offsets"
+import pytest
 
 
 # def test_data_validity():
@@ -28,15 +28,25 @@ TIME_OFFSETS = "time_offsets"
 #     )
 
 
-def test_100_pts():
-    # Cloud9 test times:
-    # start:                                              32.98s
-    # move "manta" calculation out of meas_field:         27.17s
+def load_h5_folder_as_array(recording_name):
+    # TODO Tanner (12/3/21): This should be in src
+    plate_data_array = None
+    for module_id in range(1, 25):
+        file_path = f"tests/magnet_finding/{recording_name}/{recording_name}__module_{module_id}.h5"
+
+        with File(file_path, "r") as well_file:
+            tissue_data = well_file[TISSUE_SENSOR_READINGS][:]
+        if plate_data_array is None:
+            num_samples = tissue_data.shape[-1]
+            plate_data_array = np.empty((24, 3, 3, num_samples))
+        reshaped_data = tissue_data.reshape((3, 3, num_samples))
+        plate_data_array[module_id - 1, :, :, :] = reshaped_data
+    return plate_data_array
 
 
-    print("\n")
-
-    loaded_data = load_h5_files_as_array("Durability_Test_11162021_data_90min")
+@pytest.mark.slow
+def test_get_positions__returns_expected_values():
+    loaded_data = load_h5_folder_as_array("Durability_Test_11162021_data_90min")
     loaded_data_mt = (
         (loaded_data - MEMSIC_CENTER_OFFSET)
         * MEMSIC_FULL_SCALE
@@ -54,6 +64,7 @@ def test_100_pts():
     output_names = ["X", "Y", "Z", "THETA", "PHI", "REMN"]
     acc = [-1] * len(output_names)
     for i, output in enumerate(outputs):
+        print(output)
         output_name = output_names[i]
         for decimal in range(0, 14):
             try:
@@ -70,20 +81,44 @@ def test_100_pts():
     assert all(val >= 3 for val in acc)
 
 
-def load_h5_files_as_array(recording_name):
-    # TODO Tanner (12/3/21): This should be in src
-    plate_data_array = None
-    for module_id in range(1, 25):
-        file_path = f"tests/magnet_finding/{recording_name}/{recording_name}__module_{module_id}.h5"
+@pytest.mark.slow
+def test_PlateRecording__creates_correct_position_and_force_data_for_beta_2_files(mocker):
 
-        with File(file_path, "r") as well_file:
-            tissue_data = well_file[TISSUE_SENSOR_READINGS][:]
-        if plate_data_array is None:
-            num_samples = tissue_data.shape[-1]
-            plate_data_array = np.empty((24, 3, 3, num_samples))
-        reshaped_data = tissue_data.reshape((3, 3, num_samples))
-        plate_data_array[module_id - 1, :, :, :] = reshaped_data
-    return plate_data_array
+    def format_well_file_data_se(*args):
+        return magnet_finding.format_well_file_data(*args)[:, :, :, 2:102]
+
+    mocker.patch.object(
+        plate_recording,
+        "format_well_file_data",
+        autospec=True,
+        side_effect=format_well_file_data_se
+    )
+
+    pr = PlateRecording("tests/magnet_finding/MA200440001__2020_02_09_190359.zip")
+
+    output_file = File(
+        "tests/magnet_finding/magnet_finding_output_100pts.h5",
+        "r",
+        libver="latest",
+    )
+
+    for well_idx, well_file in enumerate(pr.wells):
+        acc = {output_name: -1 for output_name in pr.wells[well_idx].displacement.keys()}
+        module_id = WELL_IDX_TO_MODULE_ID[well_idx]
+        for output_name, output in pr.wells[well_idx].displacement.items():
+            for decimal in range(0, 14):
+                try:
+                    np.testing.assert_array_almost_equal(
+                        output,
+                        output_file[output_name][:, module_id - 1],
+                        decimal=decimal,
+                        err_msg=f"{well_idx}, {output_name}"
+                    )
+                except AssertionError:
+                    acc[output_name] = decimal - 1
+                    break
+        print(acc)
+        assert all(val >= 3 for val in acc.values()), well_idx
 
 
 # def test_100_pts_og():

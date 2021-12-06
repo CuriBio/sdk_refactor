@@ -1,12 +1,22 @@
 # -*- coding: utf-8 -*-
 """More accurate estimation of magnet positions."""
 from typing import Any
+from typing import List
+from typing import TYPE_CHECKING
 
 import numpy as np
 from scipy.optimize import least_squares
 import scipy.signal as signal
 from numba import njit
 from nptyping import NDArray
+
+from .constants import WELL_IDX_TO_MODULE_ID
+from .constants import TISSUE_SENSOR_READINGS
+
+
+if TYPE_CHECKING:
+    from .plate_recording import WellFile
+
 
 # Kevin (12/1/21): Sensor locations relative to origin
 SENSOR_DISTANCES_FROM_CENTER_POINT = np.asarray([[-2.15, 1.7, 0], [2.15, 1.7, 0], [0, -2.743, 0]])
@@ -38,8 +48,9 @@ def meas_field(
     remn: NDArray[(1, Any), float],
     manta,  # TODO: add type hint
     num_active_module_ids: int
-):
+):  # TODO add return type hint
     """Simulate fields using a magnetic dipole model."""
+
     fields = np.zeros((len(manta), 3))
     # Tanner (12/2/21): numba doesn't like using *= here, for some reason it thinks the dtype of phi and theta are int64 yet they are float64
     theta = theta * TODO_CONST_1  # magnet pitch
@@ -68,7 +79,7 @@ def meas_field(
     return fields.reshape((1, 3 * len(r)))[0] / TODO_CONST_2
 
 
-def objective_function_ls(pos, b_meas, manta, num_active_module_ids):
+def objective_function_ls(pos, b_meas, manta, num_active_module_ids):  # TODO type hints
     """Cost function to be minimized by the least squares."""
     pos = pos.reshape(NUM_PARAMS, num_active_module_ids)
     x = pos[0]
@@ -82,9 +93,9 @@ def objective_function_ls(pos, b_meas, manta, num_active_module_ids):
     return b_calc - b_meas
 
 
-def get_positions(data):
+def get_positions(data):  # TODO type hints
     """Generate initial guess data and run least squares optimizer on instrument data to get magnet positions.
-    
+
     Takes an array indexed as [well, sensor, axis, timepoint]
     Data should be the difference of the data with plate on the instrument and empty plate calibration data
     Assumes 3 active sensors for each well, that all active wells have magnets, and that all magnets have the well beneath them active
@@ -170,21 +181,38 @@ def get_positions(data):
     # Kevin (12/1/21): I've gotten some strange results from downsampling; I'm not sure why that is necessarily, could be aliasing,
     # could be that the guesses for successive runs need to be really close together to get good accuracy.
     # For large files, you may be able to use the 1D approximation after running the algorithm once or twice "priming"
-    return [np.asarray(xpos_est),
-           np.asarray(ypos_est),
-           np.asarray(zpos_est),
-           np.asarray(theta_est),
-           np.asarray(phi_est),
-           np.asarray(remn_est)]
+    return [
+        np.asarray(xpos_est),  # Tanner (12/3/21): shape of each array is N x 24
+        np.asarray(ypos_est),
+        np.asarray(zpos_est),
+        np.asarray(theta_est),
+        np.asarray(phi_est),
+        np.asarray(remn_est)
+    ]
 
 
-def find_magnet_position(fields, baseline):
-    outputs = get_positions(fields - baseline)
+def find_magnet_positions(fields, baseline):  # TODO type hints
+    # outputs = get_positions(fields - baseline)
+    outputs = get_positions(fields)
 
-    # TODO: Is filtering here necessary? Can filtering be done before passing data to getPositions?: <Answer>
-    high_cut = 30 # Hz
-    b, a = signal.butter(4, high_cut, 'low', fs=100)
-    outputs = signal.filtfilt(b, a, outputs, axis=1)
+    # high_cut_hz = 30
+    # b, a = signal.butter(4, high_cut_hz, 'low', fs=100)
+    # outputs = signal.filtfilt(b, a, outputs, axis=1)
+    return outputs
+
+
+def format_well_file_data(well_files: List["WellFile"]) -> NDArray[(24, 3, 3, Any), float]:
+    # convert well data into the array format that the magnet finding alg uses
+    plate_data_array = None
+    for well_idx, well_file in enumerate(well_files):
+        module_id = WELL_IDX_TO_MODULE_ID[well_idx]
+        tissue_data = well_file[TISSUE_SENSOR_READINGS][:]
+        if plate_data_array is None:
+            num_samples = tissue_data.shape[-1]
+            plate_data_array = np.empty((24, 3, 3, num_samples))
+        reshaped_data = tissue_data.reshape((3, 3, num_samples))
+        plate_data_array[module_id - 1, :, :, :] = reshaped_data
+    return plate_data_array
 
 
 ##########################################################################################################################

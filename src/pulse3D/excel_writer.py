@@ -179,16 +179,18 @@ def create_frequency_vs_time_charts(
     )
 
 
-def write_xlsx(plate_recording):
+def write_xlsx(plate_recording, name=None):
     # get metadata from first well file
     w = [pw for pw in plate_recording if pw][0]
+    if name is None:
+        name = f"{w[PLATE_BARCODE_UUID]}__{w[UTC_BEGINNING_RECORDING_UUID].strftime('%Y_%m_%d_%H%M%S')}.xlsx"
+
     metadata = {
         'A': ['Recording Information:', '', '', '', 'Device Information:', '', '', '', '', '', 'Output Format:', '', ''],
         'B': ['', 'Plate Barcode', 'UTC Timestamp of Beginning of Recording', '', '', 'H5 File Layout Version', 'Mantarray Serial Number', 'Software Release Version', 'Software Build Version', 'Firmware Version (Main Controller)', '', 'SDK Version', 'File Creation Timestamp'],
         'C': ['', w[PLATE_BARCODE_UUID], w[UTC_BEGINNING_RECORDING_UUID].replace(tzinfo=None), '', '', w['File Format Version'], w.get(MANTARRAY_SERIAL_NUMBER_UUID,''), w.get(SOFTWARE_RELEASE_VERSION_UUID, ''), w.get(SOFTWARE_BUILD_NUMBER_UUID,''), w.get(MAIN_FIRMWARE_VERSION_UUID,''), '', '0.1', datetime.datetime.utcnow().replace(microsecond=0)],
     }
     metadata_df = pd.DataFrame(metadata)
-
 
     # get max_time from all wells
     max_time = max([w.raw_tissue_magnetic_data[0][-1] for w in plate_recording if w])
@@ -221,7 +223,6 @@ def write_xlsx(plate_recording):
         interp_data -= min_value
         interp_data *= MICRO_TO_BASE_CONVERSION
 
-
         data.append({
             'peaks_and_valleys': peaks_and_valleys,
             'twitch_indices': twitch_indices,
@@ -239,12 +240,11 @@ def write_xlsx(plate_recording):
 
     # waveform table
     continuous_waveforms = { 'Time (seconds)': time_points[first_idx:last_idx] / MICRO_TO_BASE_CONVERSION }
-    #continuous_waveforms = { 'Time (seconds)': well_file.force[0,first_idx:last_idx] / MICRO_TO_BASE_CONVERSION }
     for d in data:
-        continuous_waveforms[f"{d['well_name']} - Active Twitch Force"] = d['interp_data']
+        continuous_waveforms[f"{d['well_name']} - Active Twitch Force (μN)"] = d['interp_data']
     continuous_waveforms_df = pd.DataFrame(continuous_waveforms)
 
-    _write_xlsx('test.xlsx', metadata_df, continuous_waveforms_df, data, plate_recording.is_optical_recording)
+    _write_xlsx(name, metadata_df, continuous_waveforms_df, data, plate_recording.is_optical_recording)
 
 
 def _write_xlsx(name: str, metadata_df, continuous_waveforms_df, data, is_optical_recording):
@@ -361,9 +361,8 @@ def create_waveform_charts(iter_idx, dm, continuous_waveforms_df, wb, continuous
     add_peak_detection_series([snapshot_chart, full_chart], continuous_waveforms_sheet, "Peak", iter_idx, f"{dm['well_name']}", dm['num_data_points'], peaks, dm['interp_data_fn'], dm['force'][0], is_optical_recording, dm['min_value'])
     add_peak_detection_series([snapshot_chart, full_chart], continuous_waveforms_sheet, "Valley", iter_idx, f"{dm['well_name']}", dm['num_data_points'], valleys, dm['interp_data_fn'], dm['force'][0], is_optical_recording, dm['min_value'])
 
-    #(well_row, well_col) = TWENTY_FOUR_WELL_PLATE.get_row_and_column_from_well_index(dm['well_index'])
-    (well_row, well_col) = TWENTY_FOUR_WELL_PLATE.get_row_and_column_from_well_index(df_column)
-    snapshot_sheet.insert_chart(1 + well_row * (CHART_HEIGHT_CELLS + 1), 1 + well_col * (CHART_FIXED_WIDTH_CELLS + 1), snapshot_chart)
+    (well_row, well_col) = TWENTY_FOUR_WELL_PLATE.get_row_and_column_from_well_index(df_column - 1)
+    snapshot_sheet.insert_chart(well_row * (CHART_HEIGHT_CELLS + 1), well_col * (CHART_FIXED_WIDTH_CELLS + 1), snapshot_chart)
     full_sheet.insert_chart(1 + iter_idx * (CHART_HEIGHT_CELLS + 1), 1, full_chart)
 
 

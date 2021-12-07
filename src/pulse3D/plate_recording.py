@@ -116,6 +116,7 @@ class WellFile:
             self.is_magnetic_data = True
 
             self.attrs = {attr: self.file.attrs[attr] for attr in list(self.file.attrs)}
+            self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
 
             # extract datetime
             self[UTC_BEGINNING_RECORDING_UUID] = self._extract_datetime(UTC_BEGINNING_RECORDING_UUID)
@@ -127,11 +128,11 @@ class WellFile:
             self._excel_sheet = _get_single_sheet(file_path)
             self.file_name = os.path.basename(file_path)
             self.attrs = {k: v for (k,v) in _load_optical_file_attrs(self._excel_sheet).items()}
+            self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
 
             self.is_magnetic_data = False
             self.is_force_data = 'y' in str(_get_excel_metadata_value(self._excel_sheet, TWITCHES_POINT_UP_UUID)).lower()
 
-        self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
         # setup noise filter
         self.tissue_sampling_period = sampling_period if sampling_period else self[TISSUE_SAMPLING_PERIOD_UUID]
         self.noise_filter_uuid = TSP_TO_DEFAULT_FILTER_UUID[self.tissue_sampling_period] if self.is_magnetic_data else None

@@ -18,8 +18,8 @@ from xlsxwriter.utility import xl_cell_to_rowcol
 
 from .compression_cy import compress_filtered_magnetic_data
 from .constants import *
-from .magnet_finding import find_magnet_positions
-from .magnet_finding import format_well_file_data
+# from .magnet_finding import find_magnet_positions
+# from .magnet_finding import format_well_file_data
 from .transforms import create_filter
 from .transforms import apply_sensitivity_calibration
 from .transforms import noise_cancellation
@@ -109,6 +109,25 @@ def _load_optical_file_attrs(sheet: Worksheet):
 
     return attrs
 
+
+class MantarrayH5FileCreator(
+    h5py.File
+):  # pylint: disable=too-many-ancestors # Eli (7/28/20): I don't see a way around this...we need to subclass h5py File
+    """Creates an H5 file with the basic format/layout."""
+
+    def __init__(
+        self,
+        file_name: str,
+        file_format_version: str = CURRENT_BETA2_HDF5_FILE_FORMAT_VERSION,
+    ) -> None:
+        super().__init__(
+            file_name,
+            "w",
+            libver="latest",  # Eli (2/9/20) tried to specify this ('earliest', 'v110') to be more backward compatible but it didn't work for unknown reasons (gave error when trying to set swmr_mode=True)
+            userblock_size=512,  # minimum size is 512 bytes
+        )
+
+        self.attrs[FILE_FORMAT_VERSION_METADATA_KEY] = file_format_version
 
 class WellFile:
     def __init__(self, file_path: str, sampling_period=None):

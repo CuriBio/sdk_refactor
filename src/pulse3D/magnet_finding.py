@@ -104,28 +104,19 @@ def get_positions(data):  # TODO type hints
     num_sensors = 3
     num_axes = 3
 
-    # TODO Tanner (12/2/21): The final length of these should be known, so could try to init them as arrays
-    xpos_est = []
-    ypos_est = []
-    zpos_est = []
-    theta_est = []  # angle about y
-    phi_est = []  # angle about z
-    remn_est = []  # remanence
-
-    # Tanner (12/2/21): Every wells/sensors/axes will always be active as of now
+    # Tanner (12/2/21): Every well/sensor/axis will always be active as of now
     num_active_module_ids = 24
     active_module_ids = list(range(num_active_module_ids))
 
     # Kevin (12/1/21): Manta gives the locations of all active sensors on all arrays with respect to a common point
-    # Computing the locations of each centrally located point about which each array is to be distributed,
+    # computing the locations of each centrally located point about which each array is to be distributed,
     # for the purpose of offsetting the values in triad by the correct well spacing
+    # The values in "triad" and "manta" relate to layout of the board itself so they don't change at all so long as the board doesn't
     triad = SENSOR_DISTANCES_FROM_CENTER_POINT.copy()
-    manta = triad + active_module_ids[0] // WELLS_PER_ROW * WELL_VERTICAL_SPACING + (active_module_ids[0] % WELLS_PER_ROW) * WELL_HORIZONTAL_SPACING
-    for array in range(1, num_active_module_ids):
-        # Kevin (12/1/21):  Compute sensor positions under each well.
-        # Probably not necessary to do each call. The values in "triad" and "manta" relate to layout of the board itself
-        # They don't change at all so long as the board doesn't
-        manta = np.append(manta, triad + active_module_ids[array] // WELLS_PER_ROW * WELL_VERTICAL_SPACING + (active_module_ids[array] % WELLS_PER_ROW) * WELL_HORIZONTAL_SPACING, axis=0)
+    manta = np.empty((triad.shape[0] * num_active_module_ids, triad.shape[1]))
+    for module_id in range(0, num_active_module_ids):
+        module_slice = slice(module_id * triad.shape[0], (module_id + 1) * triad.shape[0])
+        manta[module_slice, :] = triad + module_id // WELLS_PER_ROW * WELL_VERTICAL_SPACING + (module_id % WELLS_PER_ROW) * WELL_HORIZONTAL_SPACING
 
     # Kevin (12/1/21): run meas_field with some dummy values so numba compiles it. There needs to be some delay before it's called again for it to compile
     dummy = np.asarray([1])
@@ -135,61 +126,47 @@ def get_positions(data):  # TODO type hints
     initial_guess_values = {"X": 0, "Y" : 1, "Z": -5, "THETA": 95,  "PHI": 0, "REMN": -575}
     # Kevin (12/1/21): Each magnet has its own positional coordinates and other characteristics depending on where it's located in the consumable. Every magnet
     # position is referenced with respect to the center of the array beneath well A1, so the positions need to be adjusted to account for that, e.g. the magnet in
-    # A2 has the x/y coordinate (19.5, 0), so guess is processed in the below loop to produce that value. prev_est contains the guesses for each magnet at each position
-    prev_est = []
-    for param, guess in initial_guess_values.items():
-        for module_id in active_module_ids:
-            if param == "X":
-                prev_est.append(guess + 19.5 * (module_id % WELLS_PER_ROW))
-            elif param == "Y":
-                prev_est.append(guess - 19.5 * (module_id // WELLS_PER_ROW))
-            else:
-                prev_est.append(guess)
+    # A2 has the x/y coordinate (19.5, 0), so guess is processed in the below loop to produce that value. prev_guess contains the guesses for each magnet at each position
+    prev_guess = [initial_guess_values["X"] + 19.5 * (module_id % WELLS_PER_ROW) for module_id in active_module_ids]
+    prev_guess.extend([initial_guess_values["Y"] - 19.5 * (module_id // WELLS_PER_ROW) for module_id in active_module_ids])
+    for param in list(initial_guess_values.keys())[2:]:
+        prev_guess.extend([initial_guess_values[param]] * num_active_module_ids)
+
+    params = tuple(initial_guess_values.keys())
+    estimations = {param: np.empty((data.shape[-1], num_active_module_ids)) for param in params}
 
     # Kevin (12/1/21): Run the algorithm on each time index. The algorithm uses its previous outputs as its initial guess for all datapoints but the first one
-    for i in range(0, data.shape[-1]):
-        print("###", i)
+    for data_idx in range(0, data.shape[-1]):
+        print("###", data_idx)
 
         # Kevin (12/1/21): This sorts the data from processData into something that the algorithm can operate on; it shouldn't be necessary if you combine this method and processData
         b_meas = np.empty(num_active_module_ids * 9)
         for mi_idx, module_id in enumerate(active_module_ids):
             # Kevin (12/1/21): rearrange sensor readings as a 1d vector
-            b_meas[mi_idx * 9 : (mi_idx + 1) * 9] = data[module_id, :, :, i].reshape((1, num_sensors * num_axes))
+            b_meas[mi_idx * 9 : (mi_idx + 1) * 9] = data[module_id, :, :, data_idx].reshape((1, num_sensors * num_axes))
 
         res = least_squares(
             objective_function_ls,
-            prev_est,
+            prev_guess,
             args=(b_meas, manta, num_active_module_ids),
             method='trf',
             ftol=1e-2
         )
 
         outputs = np.asarray(res.x).reshape(NUM_PARAMS, num_active_module_ids)
-        xpos_est.append(outputs[0])
-        ypos_est.append(outputs[1])
-        zpos_est.append(outputs[2])
-        theta_est.append(outputs[3])
-        phi_est.append(outputs[4])
-        remn_est.append(outputs[5])
+        for i, param in enumerate(params):
+            estimations[param][data_idx, :] = outputs[i]
 
         # Tanner (12/2/21): set the start point for next loop to the result of this loop
-        prev_est = np.asarray(res.x)
+        prev_guess = np.asarray(res.x)
 
     # Kevin (12/1/21): I've gotten some strange results from downsampling; I'm not sure why that is necessarily, could be aliasing,
     # could be that the guesses for successive runs need to be really close together to get good accuracy.
     # For large files, you may be able to use the 1D approximation after running the algorithm once or twice "priming"
-    return [
-        np.asarray(xpos_est),  # Tanner (12/3/21): shape of each array is N x 24
-        np.asarray(ypos_est),
-        np.asarray(zpos_est),
-        np.asarray(theta_est),
-        np.asarray(phi_est),
-        np.asarray(remn_est)
-    ]
+    return estimations
 
 
 def find_magnet_positions(fields, baseline):  # TODO type hints
-    print(fields - baseline)
     outputs = get_positions(fields - baseline)
 
     # high_cut_hz = 30

@@ -14,21 +14,30 @@ import numpy as np
 import pytest
 
 
-def test_data_validity():
-    processed_data, processed_timestamps = magnet_finding.processData("tests/magnet_finding/Durability_Test_11162021_data_Baseline")
-    # convert_to_h5(processed_data, processed_timestamps)
+# def test_data_validity():
+#     processed_data, processed_timestamps = magnet_finding.processData("tests/magnet_finding/Durability_Test_11162021_data_Baseline")
+#     # convert_to_h5(processed_data, processed_timestamps)
 
-    loaded_data = load_h5_folder_as_array("Durability_Test_11162021_data_Baseline")
-    loaded_data_mt = (
-        (loaded_data - MEMSIC_CENTER_OFFSET)
-        * MEMSIC_FULL_SCALE
-        / MEMSIC_MSB
-        / GAUSS_PER_MILLITESLA
-    )
-    print(processed_data.dtype, loaded_data_mt.dtype)
-    np.testing.assert_array_almost_equal(
-        processed_data, loaded_data_mt[:, :, :, :]
-    )
+#     recording_name = "Durability_Test_11162021_data_Baseline"
+#     # for well_idx in range(24):
+#     #     module_id = WELL_IDX_TO_MODULE_ID[well_idx]
+#     #     file_path = f"tests/magnet_finding/{recording_name}/{recording_name}__module_{module_id}.h5"
+
+#     #     with File(file_path, "r") as well_file:
+#     #         adjusted_time_indices = -well_file[TIME_OFFSETS][:] + well_file[TIME_INDICES][:]
+#     #     np.testing.assert_array_almost_equal(
+#     #         adjusted_time_indices.astype(np.float64), processed_timestamps[module_id - 1, :, :], err_msg=f"Well: {well_idx}"
+#     #     )
+#     loaded_data = load_h5_folder_as_array(recording_name)
+#     loaded_data_mt = (
+#         (loaded_data - MEMSIC_CENTER_OFFSET)
+#         * MEMSIC_FULL_SCALE
+#         / MEMSIC_MSB
+#         / GAUSS_PER_MILLITESLA
+#     )
+#     np.testing.assert_array_almost_equal(
+#         loaded_data_mt, processed_data
+#     )
 
 
 def load_h5_folder_as_array(recording_name):
@@ -88,7 +97,7 @@ def test_get_positions__returns_expected_values():
 def test_PlateRecording__creates_correct_position_and_force_data_for_beta_2_files(mocker):
 
     def format_well_file_data_se(*args):
-        return magnet_finding.format_well_file_data(*args)[:, :, :, 2:102]
+        return magnet_finding.format_well_file_data(*args)[:, :, :, :100]
 
     mocker.patch.object(
         plate_recording,
@@ -97,7 +106,7 @@ def test_PlateRecording__creates_correct_position_and_force_data_for_beta_2_file
         side_effect=format_well_file_data_se
     )
 
-    pr = PlateRecording("tests/magnet_finding/MA200440001__2020_02_09_190359.zip")
+    pr = PlateRecording("tests/magnet_finding/MA200440001__2020_02_09_190359__with_calibration_recordings.zip")
 
     output_file = File(
         "tests/magnet_finding/magnet_finding_output_100pts__baseline_removed.h5",
@@ -106,9 +115,9 @@ def test_PlateRecording__creates_correct_position_and_force_data_for_beta_2_file
     )
 
     for well_idx, well_file in enumerate(pr.wells):
-        acc = {output_name: -1 for output_name in pr.wells[well_idx].displacement.keys()}
+        acc = {output_name: -1 for output_name in well_file.displacement.keys()}
         module_id = WELL_IDX_TO_MODULE_ID[well_idx]
-        for output_name, output in pr.wells[well_idx].displacement.items():
+        for output_name, output in well_file.displacement.items():
             for decimal in range(0, 14):
                 try:
                     np.testing.assert_array_almost_equal(
@@ -122,11 +131,12 @@ def test_PlateRecording__creates_correct_position_and_force_data_for_beta_2_file
                     break
         print(acc)
         assert all(val >= 3 for val in acc.values()), well_idx
+    # TODO make assertions about force
 
 
 # def test_100_pts_og():
-#     baseline = magnet_finding.processData("tests/magnet_finding/Durability_Test_11162021_data_Baseline")
-#     processed_data = magnet_finding.processData("tests/magnet_finding/Durability_Test_11162021_data_90min")
+#     baseline, _ = magnet_finding.processData("tests/magnet_finding/Durability_Test_11162021_data_Baseline")
+#     processed_data, _ = magnet_finding.processData("tests/magnet_finding/Durability_Test_11162021_data_90min")
 #     outputs = magnet_finding.getPositions(processed_data[:, :, :, :100] - baseline[:, :, :, :100])
 #     save_outputs(outputs)
 

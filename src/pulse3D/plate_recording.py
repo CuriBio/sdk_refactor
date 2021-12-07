@@ -18,8 +18,8 @@ from xlsxwriter.utility import xl_cell_to_rowcol
 
 from .compression_cy import compress_filtered_magnetic_data
 from .constants import *
-# from .magnet_finding import find_magnet_positions
-# from .magnet_finding import format_well_file_data
+from .magnet_finding import find_magnet_positions
+from .magnet_finding import format_well_file_data
 from .transforms import create_filter
 from .transforms import apply_sensitivity_calibration
 from .transforms import noise_cancellation
@@ -345,21 +345,13 @@ class PlateRecording:
     def __init__(self, path):
         self.path = path
         self.wells = []
+        self.calibration = []
         self._iter = 0
         self.is_optical_recording = False
 
         if self.path.endswith(".zip"):
-            zf = zipfile.ZipFile(self.path)
-            files = [f for f in zf.namelist() if f.endswith(".h5")]
-            self.wells = [None] * len(files)
-
-            with tempfile.TemporaryDirectory() as tempdir:
-                zf.extractall(path=tempdir, members=files)
-
-                for f in files:
-                    well_file = WellFile(os.path.join(tempdir, f))
-                    self.wells[well_file[WELL_INDEX_UUID]] = well_file
-        elif self.path.endswith(".xlsx"):  # optical file
+            self.wells = _load_files(self.path, lambda f: "Calibration" not in f)
+        elif self.path.endswith('.xlsx'): #optical file
             self.is_optical_recording = True
             well_file = WellFile(self.path)
             self.wells = [None] * (well_file[WELL_INDEX_UUID] + 1)
@@ -374,12 +366,18 @@ class PlateRecording:
 
         # Tanner (12/3/21): currently file versions 1.0.0 and above must have all their data processed together
         if self.wells[0].version >= VersionInfo.parse("1.0.0"):
+            self.calibration = _load_files(self.path, lambda f: "Calibration" in f)
+
             if not all(isinstance(well_file, WellFile) for well_file in self.wells) or len(self.wells) != 24:
-                raise NotImplementedError("All 24 wells must have a file present")
+                raise NotImplementedError("All 24 wells must have a recording file present")
+            if not all(isinstance(well_file, WellFile) for well_file in self.calibration) or len(self.calibration) != 24:
+                raise NotImplementedError("All 24 wells must have a calibration file present")
+
             # pass data into magnet finding alg
             plate_data_array = format_well_file_data(self.wells)
             plate_data_array_mt = calculate_magnetic_flux_density_from_memsic(plate_data_array)
-            baseline_data_mt = None  # TODO
+            baseline_data = format_well_file_data(self.calibration)
+            baseline_data_mt = calculate_magnetic_flux_density_from_memsic(baseline_data)
             estimated_magnet_positions = find_magnet_positions(plate_data_array_mt, baseline_data_mt)
             # following is just for testing for now
             for val in estimated_magnet_positions:
@@ -391,11 +389,12 @@ class PlateRecording:
                     "Y": estimated_magnet_positions[1][:, module_id - 1],
                     "Z": estimated_magnet_positions[2][:, module_id - 1],
                 }
-                self.wells[well_idx].force = {
-                    "X": calculate_force_from_displacement(estimated_magnet_positions[0][:, module_id - 1]),
-                    "Y": calculate_force_from_displacement(estimated_magnet_positions[1][:, module_id - 1]),
-                    "Z": calculate_force_from_displacement(estimated_magnet_positions[2][:, module_id - 1]),
-                }
+                # self.wells[well_idx].force = {
+                #     "X": calculate_force_from_displacement(estimated_magnet_positions[0][:, module_id - 1]),
+                #     "Y": calculate_force_from_displacement(estimated_magnet_positions[1][:, module_id - 1]),
+                #     "Z": calculate_force_from_displacement(estimated_magnet_positions[2][:, module_id - 1]),
+                # }
+
 
     @staticmethod
     def from_directory(path):
@@ -423,6 +422,20 @@ class PlateRecording:
             return value
         else:
             raise StopIteration
+
+
+def _load_files(path, filter_func):
+    zf = zipfile.ZipFile(path)
+    files = [f for f in zf.namelist() if (f.endswith('.h5') and "__MACOSX" not in f) and filter_func(f)]
+    well_files = [None] * len(files)
+
+    with tempfile.TemporaryDirectory() as tempdir:
+        zf.extractall(path=tempdir, members=files)
+        for f in files:
+            print(f)
+            well_file = WellFile(os.path.join(tempdir, f))
+            well_files[well_file[WELL_INDEX_UUID]] = well_file
+    return well_files
 
 
 def _find_start_index(from_start: int, old_data: NDArray[(1, Any), int]) -> int:

@@ -345,7 +345,6 @@ class PlateRecording:
     def __init__(self, path):
         self.path = path
         self.wells = []
-        self.calibration = []
         self._iter = 0
         self.is_optical_recording = False
 
@@ -366,33 +365,41 @@ class PlateRecording:
 
         # Tanner (12/3/21): currently file versions 1.0.0 and above must have all their data processed together
         if self.wells[0].version >= VersionInfo.parse("1.0.0"):
-            self.calibration = _load_files(self.path, lambda f: "Calibration" in f)
+            calibration_recordings = _load_files(self.path, lambda f: "Calibration" in f)
 
             if not all(isinstance(well_file, WellFile) for well_file in self.wells) or len(self.wells) != 24:
                 raise NotImplementedError("All 24 wells must have a recording file present")
-            if not all(isinstance(well_file, WellFile) for well_file in self.calibration) or len(self.calibration) != 24:
+            if not all(isinstance(well_file, WellFile) for well_file in calibration_recordings) or len(calibration_recordings) != 24:
                 raise NotImplementedError("All 24 wells must have a calibration file present")
 
             # pass data into magnet finding alg
             plate_data_array = format_well_file_data(self.wells)
             plate_data_array_mt = calculate_magnetic_flux_density_from_memsic(plate_data_array)
-            baseline_data = format_well_file_data(self.calibration)
+            baseline_data = format_well_file_data(calibration_recordings)
             baseline_data_mt = calculate_magnetic_flux_density_from_memsic(baseline_data)
             estimated_magnet_positions = find_magnet_positions(plate_data_array_mt, baseline_data_mt)
+
+            # create displace and force arrays for each WellFile
+            # for module_id in range(1, 25):
+            #     well_idx = MODULE_ID_TO_WELL_IDX[module_id]
+            #     well_file = self.wells[well_idx]
+            #     x = estimated_magnet_positions["X"][:, module_id - 1]
+            #     well_file.displacement = np.array([np.zeros(x.shape), x])  # TODO add real time indices here in of np.zeros
+            #     well_file.force = calculate_force_from_displacement(well_file.displacement)
+
             # following is just for testing for now
-            for val in estimated_magnet_positions:
+            for val in estimated_magnet_positions.values():
                 print(val.shape)
             for module_id in range(1, 25):
                 well_idx = MODULE_ID_TO_WELL_IDX[module_id]
                 self.wells[well_idx].displacement = {
-                    "X": estimated_magnet_positions[0][:, module_id - 1],
-                    "Y": estimated_magnet_positions[1][:, module_id - 1],
-                    "Z": estimated_magnet_positions[2][:, module_id - 1],
+                    param: estimated_magnet_positions[param][:, module_id - 1] for param in ("X", "Y", "Z")
                 }
                 # self.wells[well_idx].force = {
-                #     "X": calculate_force_from_displacement(estimated_magnet_positions[0][:, module_id - 1]),
-                #     "Y": calculate_force_from_displacement(estimated_magnet_positions[1][:, module_id - 1]),
-                #     "Z": calculate_force_from_displacement(estimated_magnet_positions[2][:, module_id - 1]),
+                #     param: calculate_force_from_displacement(
+                #         estimated_magnet_positions[param][:, module_id - 1]
+                #     )
+                #     for param in ("X", "Y", "Z")
                 # }
 
 
@@ -434,7 +441,6 @@ def _load_files(path, filter_func):
     with tempfile.TemporaryDirectory() as tempdir:
         zf.extractall(path=tempdir, members=files)
         for f in files:
-            print(f)
             well_file = WellFile(os.path.join(tempdir, f))
             well_files[well_file[WELL_INDEX_UUID]] = well_file
     return well_files

@@ -73,24 +73,21 @@ def test_get_positions__returns_expected_values():
         libver="latest",
     )
 
-    output_names = ["X", "Y", "Z", "THETA", "PHI", "REMN"]
-    acc = [-1] * len(output_names)
-    for i, output in enumerate(outputs):
-        print(output)
-        output_name = output_names[i]
+    acc = {output_name: -1 for output_name in outputs.keys()}
+    for output_name, output in outputs.items():
         for decimal in range(0, 14):
             try:
                 np.testing.assert_array_almost_equal(
                     output,
                     output_file[output_name],
                     decimal=decimal,
-                    err_msg=f"{i}, {output_name}"
+                    err_msg=f"output_name"
                 )
             except AssertionError:
-                acc[i] = decimal - 1
+                acc[output_name] = decimal - 1
                 break
     print(acc)
-    assert all(val >= 3 for val in acc)
+    assert all(val >= 3 for val in acc.values())
 
 
 @pytest.mark.slow

@@ -33,6 +33,7 @@ def add_peak_detection_series(
     indices,
     interpolated_data_function: interpolate.interpolate.interp1d,
     time_values,
+    is_optical_recording,
     minimum_value: float,
 ) -> None:
     label = "Relaxation" if detector_type == "Valley" else "Contraction"
@@ -50,7 +51,7 @@ def add_peak_detection_series(
         uninterpolated_time_seconds = round(idx_time, 2)
         shifted_time_seconds = round(shifted_idx_time, 2)
 
-        if False:#self._is_optical_recording:
+        if is_optical_recording:
             row = int(shifted_time_seconds * MICRO_TO_BASE_CONVERSION / INTERPOLATED_DATA_PERIOD_US) #self._interpolated_data_period)
 
             value = (
@@ -180,31 +181,42 @@ def create_frequency_vs_time_charts(
 
 def write_xlsx(plate_recording):
     # get metadata from first well file
-    w = plate_recording.wells[0]
+    w = [pw for pw in plate_recording if pw][0]
     metadata = {
         'A': ['Recording Information:', '', '', '', 'Device Information:', '', '', '', '', '', 'Output Format:', '', ''],
         'B': ['', 'Plate Barcode', 'UTC Timestamp of Beginning of Recording', '', '', 'H5 File Layout Version', 'Mantarray Serial Number', 'Software Release Version', 'Software Build Version', 'Firmware Version (Main Controller)', '', 'SDK Version', 'File Creation Timestamp'],
-        'C': ['', w[PLATE_BARCODE_UUID], w[UTC_BEGINNING_RECORDING_UUID].replace(tzinfo=None), '', '', w['File Format Version'], w[MANTARRAY_SERIAL_NUMBER_UUID], w[SOFTWARE_RELEASE_VERSION_UUID], w[SOFTWARE_BUILD_NUMBER_UUID], w[MAIN_FIRMWARE_VERSION_UUID], '', '0.1', datetime.datetime.utcnow().replace(microsecond=0)],
+        'C': ['', w[PLATE_BARCODE_UUID], w[UTC_BEGINNING_RECORDING_UUID].replace(tzinfo=None), '', '', w['File Format Version'], w.get(MANTARRAY_SERIAL_NUMBER_UUID,''), w.get(SOFTWARE_RELEASE_VERSION_UUID, ''), w.get(SOFTWARE_BUILD_NUMBER_UUID,''), w.get(MAIN_FIRMWARE_VERSION_UUID,''), '', '0.1', datetime.datetime.utcnow().replace(microsecond=0)],
     }
     metadata_df = pd.DataFrame(metadata)
 
 
     # get max_time from all wells
-    max_time = max([w.raw_tissue_magnetic_data[0][-1] for w in plate_recording])
-    time_points = np.arange(INTERPOLATED_DATA_PERIOD_US, max_time, INTERPOLATED_DATA_PERIOD_US)
+    max_time = max([w.raw_tissue_magnetic_data[0][-1] for w in plate_recording if w])
+    interpolated_data_period = w[INTERPOLATION_VALUE_UUID] if plate_recording.is_optical_recording else INTERPOLATED_DATA_PERIOD_US
+    time_points = np.arange(interpolated_data_period, max_time, interpolated_data_period)
 
     data = []
     # calculate metrics for each well
     for i,well_file in enumerate(plate_recording):
+        if well_file is None:
+            continue
+
         well_index = well_file[WELL_INDEX_UUID]
         peaks_and_valleys = peak_detector(well_file.noise_filtered_magnetic_data)
         twitch_indices = find_twitch_indices(peaks_and_valleys)
         metrics = data_metrics(peaks_and_valleys, well_file.force)
 
+        first_idx, last_idx = 0, len(time_points) - 1
+        while well_file.force[0][-1] < time_points[last_idx]:
+            last_idx -= 1
+
+        while well_file.force[0][0] > time_points[first_idx]:
+            first_idx += 1
+
         interp_data_fn = interpolate.interp1d(well_file.force[0], well_file.force[1])
 
         # normalize and scale data
-        interp_data = interp_data_fn(time_points)
+        interp_data = interp_data_fn(time_points[first_idx:last_idx])
         min_value = min(interp_data)
         interp_data -= min_value
         interp_data *= MICRO_TO_BASE_CONVERSION
@@ -221,19 +233,21 @@ def write_xlsx(plate_recording):
             'interp_data': interp_data,
             'interp_data_fn': interp_data_fn,
             'force': well_file.force,
-            'num_data_points': len(well_file.force[0]),
+            'time_points': time_points,
+            'num_data_points': len(well_file.force[0,first_idx:last_idx]),
         })
 
     # waveform table
-    continuous_waveforms = { 'Time (seconds)': time_points / MICRO_TO_BASE_CONVERSION }
+    continuous_waveforms = { 'Time (seconds)': time_points[first_idx:last_idx] / MICRO_TO_BASE_CONVERSION }
+    #continuous_waveforms = { 'Time (seconds)': well_file.force[0,first_idx:last_idx] / MICRO_TO_BASE_CONVERSION }
     for d in data:
         continuous_waveforms[f"{d['well_name']} - Active Twitch Force"] = d['interp_data']
     continuous_waveforms_df = pd.DataFrame(continuous_waveforms)
 
-    _write_xlsx('test.xlsx', metadata_df, continuous_waveforms_df, data)
+    _write_xlsx('test.xlsx', metadata_df, continuous_waveforms_df, data, plate_recording.is_optical_recording)
 
 
-def _write_xlsx(name: str, metadata_df, continuous_waveforms_df, data):
+def _write_xlsx(name: str, metadata_df, continuous_waveforms_df, data, is_optical_recording):
     with pd.ExcelWriter(name) as writer:
         metadata_df.to_excel(writer, sheet_name='metadata', index=False, header=False)
 
@@ -256,7 +270,7 @@ def _write_xlsx(name: str, metadata_df, continuous_waveforms_df, data):
         full_sheet = wb.add_worksheet('full-continuous-waveform-plots')
 
         for i,dm in enumerate(data):
-            create_waveform_charts(i, dm, continuous_waveforms_df, wb, continuous_waveforms_sheet, snapshot_sheet, full_sheet)
+            create_waveform_charts(i, dm, continuous_waveforms_df, wb, continuous_waveforms_sheet, snapshot_sheet, full_sheet, is_optical_recording)
 
         # aggregate metrics sheet
         aggregate_df = aggregate_metrics_df(data)
@@ -296,18 +310,20 @@ def _write_xlsx(name: str, metadata_df, continuous_waveforms_df, data):
             )
 
 
-def create_waveform_charts(iter_idx, dm, continuous_waveforms_df, wb, continuous_waveforms_sheet, snapshot_sheet, full_sheet):
+def create_waveform_charts(iter_idx, dm, continuous_waveforms_df, wb, continuous_waveforms_sheet, snapshot_sheet, full_sheet, is_optical_recording):
+    recording_stop_time = dm['time_points'][-1] // MICRO_TO_BASE_CONVERSION
     lower_x_bound = (
-        0 if continuous_waveforms_df['Time (seconds)'].iloc[-1] <= CHART_WINDOW_NUM_SECONDS 
-        else int((continuous_waveforms_df['Time (seconds)'].iloc[-1] - CHART_WINDOW_NUM_SECONDS) // 2)
+        0 if recording_stop_time <= CHART_WINDOW_NUM_SECONDS 
+        else int((recording_stop_time - CHART_WINDOW_NUM_SECONDS) // 2)
     )
 
     upper_x_bound = (
-        0 if continuous_waveforms_df['Time (seconds)'].iloc[-1] <= CHART_WINDOW_NUM_SECONDS 
-        else int((continuous_waveforms_df['Time (seconds)'].iloc[-1] + CHART_WINDOW_NUM_SECONDS) // 2)
+        recording_stop_time if recording_stop_time <= CHART_WINDOW_NUM_SECONDS 
+        else int((recording_stop_time + CHART_WINDOW_NUM_SECONDS) // 2)
     )
 
-    well_column = xl_col_to_name(dm['well_index'] + 1)
+    df_column = continuous_waveforms_df.columns.get_loc(f"{dm['well_name']} - Active Twitch Force")
+    well_column = xl_col_to_name(df_column)
     full_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
     snapshot_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
 
@@ -316,11 +332,12 @@ def create_waveform_charts(iter_idx, dm, continuous_waveforms_df, wb, continuous
     snapshot_chart.set_size({"width": CHART_FIXED_WIDTH, "height": CHART_HEIGHT})
     snapshot_chart.set_title({"name": f"Well {dm['well_name']}"})
 
-    full_chart.set_x_axis({"name": "Time (seconds)", "min": 0, "max": continuous_waveforms_df['Time (seconds)'].iloc[-1]})
+    #full_chart.set_x_axis({"name": "Time (seconds)", "min": 0, "max": continuous_waveforms_df['Time (seconds)'].iloc[-1]})
+    full_chart.set_x_axis({"name": "Time (seconds)", "min": 0, "max": recording_stop_time})
     full_chart.set_y_axis({"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0}})
 
     full_chart.set_size({
-        "width": CHART_FIXED_WIDTH // 2 + (DEFAULT_CELL_WIDTH * continuous_waveforms_df['Time (seconds)'].iloc[-1] // SECONDS_PER_CELL),
+        "width": CHART_FIXED_WIDTH // 2 + (DEFAULT_CELL_WIDTH * int(recording_stop_time / SECONDS_PER_CELL)),
         "height": CHART_HEIGHT,
     })
     full_chart.set_title({"name": f"Well {dm['well_name']}"})
@@ -341,10 +358,11 @@ def create_waveform_charts(iter_idx, dm, continuous_waveforms_df, wb, continuous
     })
 
     (peaks, valleys) = dm['peaks_and_valleys']
-    add_peak_detection_series([snapshot_chart, full_chart], continuous_waveforms_sheet, "Peak", iter_idx, f"{dm['well_name']}", dm['num_data_points'], peaks, dm['interp_data_fn'], dm['force'][0], dm['min_value'])
-    add_peak_detection_series([snapshot_chart, full_chart], continuous_waveforms_sheet, "Valley", iter_idx, f"{dm['well_name']}", dm['num_data_points'], valleys, dm['interp_data_fn'], dm['force'][0], dm['min_value'])
+    add_peak_detection_series([snapshot_chart, full_chart], continuous_waveforms_sheet, "Peak", iter_idx, f"{dm['well_name']}", dm['num_data_points'], peaks, dm['interp_data_fn'], dm['force'][0], is_optical_recording, dm['min_value'])
+    add_peak_detection_series([snapshot_chart, full_chart], continuous_waveforms_sheet, "Valley", iter_idx, f"{dm['well_name']}", dm['num_data_points'], valleys, dm['interp_data_fn'], dm['force'][0], is_optical_recording, dm['min_value'])
 
-    (well_row, well_col) = TWENTY_FOUR_WELL_PLATE.get_row_and_column_from_well_index(dm['well_index'])
+    #(well_row, well_col) = TWENTY_FOUR_WELL_PLATE.get_row_and_column_from_well_index(dm['well_index'])
+    (well_row, well_col) = TWENTY_FOUR_WELL_PLATE.get_row_and_column_from_well_index(df_column)
     snapshot_sheet.insert_chart(1 + well_row * (CHART_HEIGHT_CELLS + 1), 1 + well_col * (CHART_FIXED_WIDTH_CELLS + 1), snapshot_chart)
     full_sheet.insert_chart(1 + iter_idx * (CHART_HEIGHT_CELLS + 1), 1, full_chart)
 

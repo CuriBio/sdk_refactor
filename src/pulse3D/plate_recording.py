@@ -351,34 +351,16 @@ class PlateRecording:
         self._iter = 0
         self.is_optical_recording = False
 
-        if self.path.endswith(".zip"):
-            self.wells = _load_files(self.path, lambda f: "Calibration" not in f)
-            calibration_recordings = _load_files(self.path, lambda f: "Calibration" in f)
-        elif self.path.endswith('.xlsx'): #optical file
+        if self.path.endswith('.xlsx'):  # optical file
             self.is_optical_recording = True
             well_file = WellFile(self.path)
             self.wells = [None] * (well_file[WELL_INDEX_UUID] + 1)
             self.wells[well_file[WELL_INDEX_UUID]] = well_file
-        else: #directory of .h5 files
-            # TODO Tanner make sure to test this
-            files = glob.glob(os.path.join(self.path, '*.h5'))
-            files = [f for f in files if "__MACOSX" not in f]
-
-            recording_files = [f for f in files if "Calibration" not in f]
-            self.wells = [None] * len(recording_files)
-            for hf in recording_files:
-                well_file = WellFile(hf)
-                self.wells[well_file[WELL_INDEX_UUID]] = well_file
-
-            calibration_files = [f for f in files if "Calibration" in f]
-            calibration_recordings = [None] * len(calibration_files)
-            for cf in recording_files:
-                well_file = WellFile(cf)
-                calibration_recordings[well_file[WELL_INDEX_UUID]] = well_file
-
-        # Tanner (12/3/21): currently file versions 1.0.0 and above must have all their data processed together
-        if not self.is_optical_recording and self.wells[0].version >= VersionInfo.parse("1.0.0"):
-            self._process_plate_data(calibration_recordings)
+        else:
+            self.wells, calibration_recordings = load_files(self.path)
+            # Tanner (12/3/21): currently file versions 1.0.0 and above must have all their data processed together
+            if self.wells[0].version >= VersionInfo.parse("1.0.0"):
+                self._process_plate_data(calibration_recordings)
 
     def _process_plate_data(self, calibration_recordings):
         if not all(isinstance(well_file, WellFile) for well_file in self.wells) or len(self.wells) != 24:
@@ -437,17 +419,33 @@ class PlateRecording:
             raise StopIteration
 
 
-def _load_files(path, filter_func):
-    zf = zipfile.ZipFile(path)
-    files = [f for f in zf.namelist() if (f.endswith('.h5') and "__MACOSX" not in f) and filter_func(f)]
-    well_files = [None] * len(files)
-
-    with tempfile.TemporaryDirectory() as tempdir:
-        zf.extractall(path=tempdir, members=files)
-        for f in files:
-            well_file = WellFile(os.path.join(tempdir, f))
-            well_files[well_file[WELL_INDEX_UUID]] = well_file
-    return well_files
+def load_files(path):
+    with tempfile.TemporaryDirectory() as recording_dir:
+        # get file names
+        if path.endswith('.zip'):
+            zf = zipfile.ZipFile(path)
+            zf.extractall(path=recording_dir)
+        else:
+            recording_dir = path
+        # remove folder that gets created when zipped on MacOS
+        folders = os.listdir(recording_dir)
+        if "__MACOSX" in folders:
+            folders.remove("__MACOSX")
+        # sort files
+        h5_files = glob.glob(os.path.join(recording_dir, folders[0], "*.h5"))
+        recording_files = [f for f in h5_files if "Calibration" not in f]
+        calibration_files = [f for f in h5_files if "Calibration" in f]
+        # create WellFiles
+        tissue_well_files = [None] * len(recording_files)
+        baseline_well_files = [None] * len(calibration_files)
+        for file_list, well_file_list in (
+            (recording_files, tissue_well_files),
+            (calibration_files, baseline_well_files)
+        ):
+            for f in file_list:
+                well_file = WellFile(os.path.join(recording_dir, f))
+                well_file_list[well_file[WELL_INDEX_UUID]] = well_file
+    return tissue_well_files, baseline_well_files
 
 
 def _find_start_index(from_start: int, old_data: NDArray[(1, Any), int]) -> int:

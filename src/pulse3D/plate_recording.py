@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import datetime
+import math
+import os
 import glob
 import os
 import tempfile
@@ -384,18 +386,27 @@ class PlateRecording:
         if not all(isinstance(well_file, WellFile) for well_file in calibration_recordings) or len(calibration_recordings) != 24:
             raise NotImplementedError("All 24 wells must have a calibration file present")
 
-        # pass data into magnet finding alg
+        # load data
         plate_data_array = format_well_file_data(self.wells)
         plate_data_array_mt = calculate_magnetic_flux_density_from_memsic(plate_data_array)
         baseline_data = format_well_file_data(calibration_recordings)
         baseline_data_mt = calculate_magnetic_flux_density_from_memsic(baseline_data)
-        estimated_magnet_positions = find_magnet_positions(plate_data_array_mt, baseline_data_mt)
+        # extend baseline data (if necessary) so that it has at least as many samples as the recording
+        num_samples_in_recording = plate_data_array_mt.shape[-1]
+        num_samples_in_baseline = baseline_data_mt.shape[-1]
+        num_times_to_duplicate = math.ceil(num_samples_in_recording / num_samples_in_baseline)
+        baseline_data_mt = np.tile(baseline_data_mt, num_times_to_duplicate)
+        # pass data into magnet finding alg
+        estimated_magnet_positions = find_magnet_positions(
+            plate_data_array_mt,
+            baseline_data_mt[:, :, :, :num_samples_in_recording]
+        )
         # create displace and force arrays for each WellFile
         for module_id in range(1, 25):
             well_idx = MODULE_ID_TO_WELL_IDX[module_id]
             well_file = self.wells[well_idx]
             x = estimated_magnet_positions["X"][:, module_id - 1]
-            well_file.displacement = np.array([well_file[TIME_INDICES][:len(x)], x])  # TODO add real time indices here in of np.zeros
+            well_file.displacement = np.array([well_file[TIME_INDICES], x])
             well_file.force = calculate_force_from_displacement(well_file.displacement)
 
     @staticmethod

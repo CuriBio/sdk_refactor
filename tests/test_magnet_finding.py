@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from pulse3D import magnet_finding
-from pulse3D import plate_recording
+from pulse3D import plate_recording,filter_magnet_positions
 from pulse3D import MEMSIC_CENTER_OFFSET
 from pulse3D import MEMSIC_FULL_SCALE,MEMSIC_MSB
 from pulse3D import GAUSS_PER_MILLITESLA
@@ -94,7 +94,7 @@ def test_get_positions__returns_expected_values():
 
 
 @pytest.mark.slow
-def test_PlateRecording__creates_correct_position_and_force_data_for_beta_2_files(mocker):
+def test_PlateRecording__creates_correct_displacement_and_force_data_for_beta_2_files(mocker):
     num_points_to_test = 100
 
     def load_files_se(*args):
@@ -113,7 +113,16 @@ def test_PlateRecording__creates_correct_position_and_force_data_for_beta_2_file
         side_effect=load_files_se
     )
 
+    # mock this so data doesn't actually get filtered and is easier to test
+    mocked_filter = mocker.patch.object(
+        magnet_finding,
+        "filter_magnet_positions",
+        autospec=True,
+        side_effect=lambda x: x,
+    )
+
     pr = PlateRecording("tests/magnet_finding/MA200440001__2020_02_09_190359__with_calibration_recordings.zip")
+    assert mocked_filter.call_count == magnet_finding.NUM_PARAMS
 
     output_file = File(
         "tests/magnet_finding/magnet_finding_output_100pts__baseline_removed.h5",

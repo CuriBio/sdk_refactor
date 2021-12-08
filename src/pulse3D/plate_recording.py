@@ -146,7 +146,8 @@ class WellFile:
                 UTC_BEGINNING_DATA_ACQUISTION_UUID
             )
             self[UTC_FIRST_TISSUE_DATA_POINT_UUID] = self._extract_datetime(UTC_FIRST_TISSUE_DATA_POINT_UUID)
-            self[UTC_FIRST_REF_DATA_POINT_UUID] = self._extract_datetime(UTC_FIRST_REF_DATA_POINT_UUID)
+            if self.version < VersionInfo.parse("1.0.0"):  # Tanner (12/6/21): Ref data not yet added to these files
+                self[UTC_FIRST_REF_DATA_POINT_UUID] = self._extract_datetime(UTC_FIRST_REF_DATA_POINT_UUID)
 
         elif file_path.endswith(".xlsx"):
             self._excel_sheet = _get_single_sheet(file_path)
@@ -350,42 +351,52 @@ class PlateRecording:
 
         if self.path.endswith(".zip"):
             self.wells = _load_files(self.path, lambda f: "Calibration" not in f)
+            calibration_recordings = _load_files(self.path, lambda f: "Calibration" in f)
         elif self.path.endswith('.xlsx'): #optical file
             self.is_optical_recording = True
             well_file = WellFile(self.path)
             self.wells = [None] * (well_file[WELL_INDEX_UUID] + 1)
             self.wells[well_file[WELL_INDEX_UUID]] = well_file
-        else:  # directory of .h5 files
-            files = glob.glob(os.path.join(self.path, "*.h5"))
-            self.wells = [None] * len(files)
+        else: #directory of .h5 files
+            # TODO Tanner make sure to test this
+            files = glob.glob(os.path.join(self.path, '*.h5'))
+            files = [f for f in files if "__MACOSX" not in f]
 
-            for hf in files:
+            recording_files = [f for f in files if "Calibration" not in f]
+            self.wells = [None] * len(recording_files)
+            for hf in recording_files:
                 well_file = WellFile(hf)
                 self.wells[well_file[WELL_INDEX_UUID]] = well_file
 
+            calibration_files = [f for f in files if "Calibration" in f]
+            calibration_recordings = [None] * len(calibration_files)
+            for cf in recording_files:
+                well_file = WellFile(cf)
+                calibration_recordings[well_file[WELL_INDEX_UUID]] = well_file
+
         # Tanner (12/3/21): currently file versions 1.0.0 and above must have all their data processed together
-        if self.wells[0].version >= VersionInfo.parse("1.0.0"):
-            calibration_recordings = _load_files(self.path, lambda f: "Calibration" in f)
+        if not self.is_optical_recording and self.wells[0].version >= VersionInfo.parse("1.0.0"):
+            self._process_plate_data(calibration_recordings)
 
-            if not all(isinstance(well_file, WellFile) for well_file in self.wells) or len(self.wells) != 24:
-                raise NotImplementedError("All 24 wells must have a recording file present")
-            if not all(isinstance(well_file, WellFile) for well_file in calibration_recordings) or len(calibration_recordings) != 24:
-                raise NotImplementedError("All 24 wells must have a calibration file present")
+    def _process_plate_data(self, calibration_recordings):
+        if not all(isinstance(well_file, WellFile) for well_file in self.wells) or len(self.wells) != 24:
+            raise NotImplementedError("All 24 wells must have a recording file present")
+        if not all(isinstance(well_file, WellFile) for well_file in calibration_recordings) or len(calibration_recordings) != 24:
+            raise NotImplementedError("All 24 wells must have a calibration file present")
 
-            # pass data into magnet finding alg
-            plate_data_array = format_well_file_data(self.wells)
-            plate_data_array_mt = calculate_magnetic_flux_density_from_memsic(plate_data_array)
-            baseline_data = format_well_file_data(calibration_recordings)
-            baseline_data_mt = calculate_magnetic_flux_density_from_memsic(baseline_data)
-            estimated_magnet_positions = find_magnet_positions(plate_data_array_mt, baseline_data_mt)
-
-            # create displace and force arrays for each WellFile
-            for module_id in range(1, 25):
-                well_idx = MODULE_ID_TO_WELL_IDX[module_id]
-                well_file = self.wells[well_idx]
-                x = estimated_magnet_positions["X"][:, module_id - 1]
-                well_file.displacement = np.array([well_file[TIME_INDICES][:len(x)], x])  # TODO add real time indices here in of np.zeros
-                well_file.force = calculate_force_from_displacement(well_file.displacement)
+        # pass data into magnet finding alg
+        plate_data_array = format_well_file_data(self.wells)
+        plate_data_array_mt = calculate_magnetic_flux_density_from_memsic(plate_data_array)
+        baseline_data = format_well_file_data(calibration_recordings)
+        baseline_data_mt = calculate_magnetic_flux_density_from_memsic(baseline_data)
+        estimated_magnet_positions = find_magnet_positions(plate_data_array_mt, baseline_data_mt)
+        # create displace and force arrays for each WellFile
+        for module_id in range(1, 25):
+            well_idx = MODULE_ID_TO_WELL_IDX[module_id]
+            well_file = self.wells[well_idx]
+            x = estimated_magnet_positions["X"][:, module_id - 1]
+            well_file.displacement = np.array([well_file[TIME_INDICES][:len(x)], x])  # TODO add real time indices here in of np.zeros
+            well_file.force = calculate_force_from_displacement(well_file.displacement)
 
     @staticmethod
     def from_directory(path):

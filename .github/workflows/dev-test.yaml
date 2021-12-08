@@ -1,0 +1,138 @@
+# Based on https://github.com/prettier/prettier/blob/master/.github/workflows/dev-test.yml
+name: Dev
+
+on:
+  workflow_dispatch:
+    inputs:
+      randomlyseed:
+        description: 'Pytest Randomly Seed'
+        required: false
+        default: ''
+  schedule:
+    - cron: '0 5 * * *'
+  push:
+    branches:
+      - main
+      - development
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - "ubuntu-18.04"
+          - "ubuntu-20.04"
+          - "windows-2019"
+          - "macos-10.15"
+          - "macos-11.0"
+        python-version:
+            - 3.7
+            - 3.8
+            - 3.9
+        include:
+          # only enable coverage on the fastest job
+          - os: "ubuntu-20.04"
+            python-version: "3.9"
+            IS_FASTEST_JOB: true
+
+    name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Display Python version
+        run: |
+          python -c "import sys; print(sys.version)"
+          python -m venv venv
+
+      # - name: Cache Pre-commit hooks
+      #   uses: actions/cache@v2.1.5
+      #   env:
+      #     cache-name: cache-pre-commit-hooks
+      #   if: matrix.IS_FASTEST_JOB == true
+      #   with:
+      #     path: ./.precommit_cache
+      #     key: ${{ matrix.os }}-${{ matrix.python-version }}-build-${{ env.cache-name }}-${{ hashFiles('**/.pre-commit-config.yaml') }}
+      #     restore-keys: |
+      #       ${{ matrix.os }}-${{ matrix.python-version }}-build-${{ env.cache-name }}-
+
+      - name: Activate virtual environment (Linux/MacOS)
+        if: runner.os == 'Linux' || runner.os == 'macOS'
+        run: . venv/bin/activate
+      - name: Activate virtual environment (Windows)
+        if: runner.os == 'Windows'
+        run: venv\Scripts\Activate.ps1
+
+      - name: Display Pip Version and confirm environment empty
+        run: |
+          pip -V
+          pip freeze
+      - name: Install Dev Dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Install Main Package
+        run: pip install -e .
+      - name: Log full installed packages
+        run: pip freeze
+
+      # - name: Run pre-commit hooks
+      #   if: matrix.IS_FASTEST_JOB == true
+      #   env:
+      #     PRE_COMMIT_HOME: ./.precommit_cache
+      #   # only enable pre-commit on the fastest job
+      #   run: |
+      #     pre-commit install
+      #     pre-commit run -a
+
+      - name: Run Tests with randomly generated seed
+        if: github.event.inputs.randomlyseed == ''
+        run: pytest -xsvv --cov-report=xml --full-ci --include-slow-tests -n auto
+
+      - name: Run Tests with supplied pytest-randomly seed
+        if: github.event.inputs.randomlyseed != ''
+        run: pytest -xsvv --cov-report=xml --full-ci --include-slow-tests -n auto --randomly-seed=${{ github.event.inputs.randomlyseed }}
+
+      # - name: Archive Pytest Code Coverage if failure
+      #   if: ${{ failure() }}
+      #   uses: actions/upload-artifact@v2
+      #   with:
+      #     name: pytest-coverage-report--${{ matrix.os }}--${{ matrix.python-version }}
+      #     path: "coverage-report-pytest/**/*"
+
+      - name: Confirm Sphinx Docs build correctly
+        # only check Sphinx docs build on the fastest job
+        if: matrix.IS_FASTEST_JOB == true
+        run: |
+          pip install -r docs/requirements.txt
+          SPHINXOPTS="-W" make --directory=docs html # the -W flag treats warnings as errors to cause build failures
+
+      - name: Confirm no modifications to the repository files occurred when running the test suite
+        if: matrix.IS_FASTEST_JOB == true # only enable pre-commit on the fastest job
+        env:
+          PRE_COMMIT_HOME: ./.precommit_cache
+        run: pre-commit run git-dirty -a
+
+      # - name: Upload coverage to Codecov
+      #   # only upload coverage from fastest job
+      #   if: matrix.IS_FASTEST_JOB == true
+      #   uses: codecov/codecov-action@v1
+      #   timeout-minutes: 1   # Tanner (8/11/20): once fundmental issue with codecov timeout is fixed, remove this line and the next
+      #   continue-on-error: true
+      #   with:
+      #     file: ./coverage.xml
+      #     flags: unittests
+      #     env_vars: OS,PYTHON
+      #     name: codecov-umbrella
+      #     fail_ci_if_error: true
+
+      # - name: Run prerelease to check packaging compatibilty
+      #   run: python prerelease.py --no-input

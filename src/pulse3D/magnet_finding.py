@@ -166,13 +166,19 @@ def get_positions(data):  # TODO type hints
     return estimations
 
 
-def find_magnet_positions(fields, baseline):  # TODO type hints
-    outputs = get_positions(fields - baseline)
+def find_magnet_positions(fields, baseline, filter_outputs=True):  # TODO type hints
+    output_dict = get_positions(fields - baseline)
+    if filter_outputs:
+        for param, output_arr in output_dict.items():
+            output_dict[param] = filter_magnet_positions(output_arr)
+    return output_dict
 
-    # high_cut_hz = 30
-    # b, a = signal.butter(4, high_cut_hz, 'low', fs=100)
-    # outputs = signal.filtfilt(b, a, outputs, axis=1)
-    return outputs
+
+def filter_magnet_positions(magnet_positions):
+    high_cut_hz = 30
+    b, a = signal.butter(4, high_cut_hz, 'low', fs=100)
+    filtered_magnet_positions = signal.filtfilt(b, a, magnet_positions)
+    return filtered_magnet_positions
 
 
 def format_well_file_data(well_files: List["WellFile"]) -> NDArray[(24, 3, 3, Any), float]:

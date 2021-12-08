@@ -1,4 +1,4 @@
-# # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 # """Fixtures for testing the metrics."""
 # import os
 # import pickle

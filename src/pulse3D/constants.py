@@ -1,13 +1,10 @@
+# -*- coding: utf-8 -*-
 """Constants for the Mantarray File Manager."""
+from typing import Dict
 import uuid
 
-from collections import OrderedDict
-from typing import Dict
-from typing import Tuple
-from typing import Union
-
-from labware_domain_models import LabwareDefinition
 from immutabledict import immutabledict
+from labware_domain_models import LabwareDefinition
 
 CURI_BIO_ACCOUNT_UUID = uuid.UUID("73f52be0-368c-42d8-a1fd-660d49ba5604")
 CURI_BIO_USER_ACCOUNT_ID = uuid.UUID("455b93eb-c78f-4494-9f73-d3291130f126")
@@ -132,8 +129,8 @@ constants from mantarray_waveform_analysis library
 """
 TWITCH_PERIOD_UUID = uuid.UUID("6e0cd81c-7861-4c49-ba14-87b2739d65fb")
 
-#This is just the reciprocal of twitch period, but is pre-computed to make downstream pipelines
-#simpler. Frequency is reported in Hz
+# This is just the reciprocal of twitch period, but is pre-computed to make downstream pipelines
+# simpler. Frequency is reported in Hz
 TWITCH_FREQUENCY_UUID = uuid.UUID("472d0707-ff87-4198-9374-c28900bb216c")
 AMPLITUDE_UUID = uuid.UUID("89cf1105-a015-434f-b527-4169b9400e26")
 AUC_UUID = uuid.UUID("e7b9a6e4-c43d-4e8b-af7e-51742e252030")

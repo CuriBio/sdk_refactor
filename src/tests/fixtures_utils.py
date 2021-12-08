@@ -5,15 +5,10 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 
-from pulse3D.plate_recording import WellFile
-from pulse3D.constants import BESSEL_LOWPASS_30_UUID
-from pulse3D.constants import CENTIMILLISECONDS_PER_SECOND
-from pulse3D.constants import MICRO_TO_BASE_CONVERSION
-from pulse3D.peak_detection import peak_detector
-
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+from pulse3D.plate_recording import WellFile
 import pytest
 from stdlib_utils import get_current_file_abs_directory
 
@@ -52,7 +47,9 @@ def _load_file_tsv(file_path: str) -> Tuple[List[str], List[str]]:
     return time, v
 
 
-def _load_file_h5(file_path: str, sampling_rate_construct: int, x_range: Optional[Tuple[int, int]]) -> Tuple[List[str], List[str]]:
+def _load_file_h5(
+    file_path: str, sampling_rate_construct: int, x_range: Optional[Tuple[int, int]]
+) -> Tuple[List[str], List[str]]:
     wf = WellFile(file_path)
     tissue_data = wf.raw_tissue_magnetic_data
 
@@ -193,11 +190,13 @@ def fixture_raw_generic_well_a2():
     raw_gmr_data = create_numpy_array_of_raw_gmr_from_python_arrays(time, gmr)
     return raw_gmr_data
 
+
 @pytest.fixture(scope="function", name="sample_tissue_reading")
 def fixture_sample_tissue_reading():
     time, gmr = _load_file_tsv(os.path.join(PATH_TO_DATASETS, "sample_tissue_reading.tsv"))
     raw_gmr_data = create_numpy_array_of_raw_gmr_from_python_arrays(time, gmr)
     return raw_gmr_data
+
 
 @pytest.fixture(scope="function", name="sample_reference_reading")
 def fixture_sample_reference_reading():

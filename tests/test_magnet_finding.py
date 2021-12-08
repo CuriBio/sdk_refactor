@@ -7,11 +7,14 @@ from pulse3D import GAUSS_PER_MILLITESLA
 from pulse3D import REFERENCE_SENSOR_READINGS, TIME_INDICES,TIME_OFFSETS
 from pulse3D import TISSUE_SENSOR_READINGS,WELL_IDX_TO_MODULE_ID,MODULE_ID_TO_WELL_IDX
 from pulse3D import PlateRecording
+from pulse3D.plate_recording import _load_files
 # from pulse3D import WellFile
 from pulse3D import MantarrayH5FileCreator
 from h5py import File
 import numpy as np
 import pytest
+
+from pulse3D.transforms import calculate_force_from_displacement
 
 
 # def test_data_validity():
@@ -92,15 +95,22 @@ def test_get_positions__returns_expected_values():
 
 @pytest.mark.slow
 def test_PlateRecording__creates_correct_position_and_force_data_for_beta_2_files(mocker):
+    num_points_to_test = 100
 
-    def format_well_file_data_se(*args):
-        return magnet_finding.format_well_file_data(*args)[:, :, :, :100]
+    def load_files_se(*args):
+        well_files = _load_files(*args)
+        for well_file in well_files:
+            well_file[TIME_INDICES] = well_file[TIME_INDICES][:num_points_to_test]
+            well_file[TIME_OFFSETS] = well_file[TIME_OFFSETS][:, :num_points_to_test]
+            well_file[TISSUE_SENSOR_READINGS] = well_file[TISSUE_SENSOR_READINGS][:, :num_points_to_test]
+            well_file[REFERENCE_SENSOR_READINGS] = well_file[REFERENCE_SENSOR_READINGS][:, :num_points_to_test]
+        return well_files
 
     mocker.patch.object(
         plate_recording,
-        "format_well_file_data",
+        "_load_files",
         autospec=True,
-        side_effect=format_well_file_data_se
+        side_effect=load_files_se
     )
 
     pr = PlateRecording("tests/magnet_finding/MA200440001__2020_02_09_190359__with_calibration_recordings.zip")
@@ -112,23 +122,25 @@ def test_PlateRecording__creates_correct_position_and_force_data_for_beta_2_file
     )
 
     for well_idx, well_file in enumerate(pr.wells):
-        acc = {output_name: -1 for output_name in well_file.displacement.keys()}
+        # test displacement
         module_id = WELL_IDX_TO_MODULE_ID[well_idx]
-        for output_name, output in well_file.displacement.items():
-            for decimal in range(0, 14):
-                try:
-                    np.testing.assert_array_almost_equal(
-                        output,
-                        output_file[output_name][:, module_id - 1],
-                        decimal=decimal,
-                        err_msg=f"{well_idx}, {output_name}"
-                    )
-                except AssertionError:
-                    acc[output_name] = decimal - 1
-                    break
-        print(acc)
-        assert all(val >= 3 for val in acc.values()), well_idx
-    # TODO make assertions about force
+        expected_displacement = np.array(
+            [well_file[TIME_INDICES], output_file["X"][:, module_id - 1]]
+        )
+        # Tanner (12/7/21): iterating through different decimal precision here since the precision is different for each well, but 
+        np.testing.assert_array_almost_equal(
+            well_file.displacement,
+            expected_displacement,
+            decimal=5,
+            err_msg=f"{well_idx}",
+        )
+        # test force
+        expected_force = calculate_force_from_displacement(well_file.displacement)
+        np.testing.assert_array_almost_equal(
+            well_file.force,
+            expected_force,
+            err_msg=f"{well_idx}",
+        )
 
 
 # def test_100_pts_og():

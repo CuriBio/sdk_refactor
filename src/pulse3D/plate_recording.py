@@ -380,28 +380,12 @@ class PlateRecording:
             estimated_magnet_positions = find_magnet_positions(plate_data_array_mt, baseline_data_mt)
 
             # create displace and force arrays for each WellFile
-            # for module_id in range(1, 25):
-            #     well_idx = MODULE_ID_TO_WELL_IDX[module_id]
-            #     well_file = self.wells[well_idx]
-            #     x = estimated_magnet_positions["X"][:, module_id - 1]
-            #     well_file.displacement = np.array([np.zeros(x.shape), x])  # TODO add real time indices here in of np.zeros
-            #     well_file.force = calculate_force_from_displacement(well_file.displacement)
-
-            # following is just for testing for now
-            for val in estimated_magnet_positions.values():
-                print(val.shape)
             for module_id in range(1, 25):
                 well_idx = MODULE_ID_TO_WELL_IDX[module_id]
-                self.wells[well_idx].displacement = {
-                    param: estimated_magnet_positions[param][:, module_id - 1] for param in ("X", "Y", "Z")
-                }
-                # self.wells[well_idx].force = {
-                #     param: calculate_force_from_displacement(
-                #         estimated_magnet_positions[param][:, module_id - 1]
-                #     )
-                #     for param in ("X", "Y", "Z")
-                # }
-
+                well_file = self.wells[well_idx]
+                x = estimated_magnet_positions["X"][:, module_id - 1]
+                well_file.displacement = np.array([well_file[TIME_INDICES][:len(x)], x])  # TODO add real time indices here in of np.zeros
+                well_file.force = calculate_force_from_displacement(well_file.displacement)
 
     @staticmethod
     def from_directory(path):

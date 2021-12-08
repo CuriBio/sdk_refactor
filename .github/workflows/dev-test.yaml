@@ -72,15 +72,12 @@ jobs:
         if: runner.os == 'Windows'
         run: venv\Scripts\Activate.ps1
 
-      # - name: Display Pip Version and confirm environment empty
-      #   run: |
-      #     pip -V
-      #     pip freeze
-      # - name: Install Dev Dependencies
-      #   run: pip install -r requirements-dev.txt
-
-      - name: Install Dependencies
-        run: pip install -r requirements.txt
+      - name: Display Pip Version and confirm environment empty
+        run: |
+          pip -V
+          pip freeze
+      - name: Install Dev Dependencies
+        run: pip install -r requirements-dev.txt
 
       - name: Install Main Package
         run: pip install -e .

@@ -1,18 +1,14 @@
 # -*- coding: utf-8 -*-
-import json
 import os
-import tempfile
+
+from pulse3D.constants import *
+from pulse3D.utils import deserialize_main_dict
+import pytest
+from stdlib_utils import get_current_file_abs_directory
 
 # from curibio.sdk import ExcelWellFile
 # from curibio.sdk import PlateRecording
 # from curibio.sdk import WellFile
-from pulse3D.utils import deserialize_aggregate_dict
-from pulse3D.utils import deserialize_main_dict
-from pulse3D.constants import *
-from pulse3D.constants import BESSEL_LOWPASS_10_UUID
-
-import pytest
-from stdlib_utils import get_current_file_abs_directory
 
 PATH_OF_CURRENT_FILE = get_current_file_abs_directory()
 

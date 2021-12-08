@@ -1,24 +1,17 @@
 # -*- coding: utf-8 -*-
-from pulse3D.constants import ALL_METRICS
-from pulse3D.constants import AMPLITUDE_UUID
-from pulse3D.constants import CONTRACTION_VELOCITY_UUID
+import numpy as np
 from pulse3D.constants import MICRO_TO_BASE_CONVERSION
 from pulse3D.constants import MIN_NUMBER_PEAKS
 from pulse3D.constants import MIN_NUMBER_VALLEYS
 from pulse3D.constants import PRIOR_PEAK_INDEX_UUID
 from pulse3D.constants import PRIOR_VALLEY_INDEX_UUID
-from pulse3D.constants import RELAXATION_VELOCITY_UUID
 from pulse3D.constants import SUBSEQUENT_PEAK_INDEX_UUID
 from pulse3D.constants import SUBSEQUENT_VALLEY_INDEX_UUID
-from pulse3D.constants import TWITCH_FREQUENCY_UUID
-from pulse3D.constants import TWITCH_PERIOD_UUID
+from pulse3D.exceptions import TooFewPeaksDetectedError
 from pulse3D.exceptions import TwoPeaksInARowError
 from pulse3D.exceptions import TwoValleysInARowError
-from pulse3D.exceptions import TooFewPeaksDetectedError
-
-from pulse3D.peak_detection import peak_detector, find_twitch_indices
-
-import numpy as np
+from pulse3D.peak_detection import find_twitch_indices
+from pulse3D.peak_detection import peak_detector
 import pytest
 
 # from .fixtures_compression import fixture_new_A1
@@ -27,7 +20,7 @@ import pytest
 # __fixtures__ = [fixture_new_A1]
 
 
-def get_test_data_array(flipped = False):
+def get_test_data_array(flipped=False):
     factor = -1 if flipped else 1
     test_timepoints = np.arange(0, 10, 0.1) * MICRO_TO_BASE_CONVERSION
     return np.array([test_timepoints, factor * np.sin(test_timepoints * np.pi * MICRO_TO_BASE_CONVERSION)])

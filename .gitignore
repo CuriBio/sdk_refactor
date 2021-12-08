@@ -55,5 +55,10 @@ pipeline_outputs/
 tests/*.xlsx
 tmp/
 
+# Cython
+*.so
+*.c
+*.html
+
 
 secrets.json

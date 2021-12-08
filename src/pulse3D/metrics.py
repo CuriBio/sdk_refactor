@@ -18,7 +18,7 @@ from nptyping import Float64
 from nptyping import NDArray
 import numpy as np
 
-from .constants import CENTIMILLISECONDS_PER_SECOND, MICRO_TO_BASE_CONVERSION
+from .constants import MICRO_TO_BASE_CONVERSION
 from .constants import PRIOR_VALLEY_INDEX_UUID
 from .constants import SUBSEQUENT_VALLEY_INDEX_UUID
 from .constants import TIME_VALUE_UUID
@@ -318,12 +318,16 @@ class TwitchWidth(BaseMetric):
             rising_idx = iter_twitch_peak_idx - 1
             falling_idx = iter_twitch_peak_idx + 1
             for iter_percent in twitch_width_percents:
-                iter_percent_dict: Dict[UUID, Union[Tuple[Union[float, int], Union[float, int]], Union[float, int]]] = dict()
+                iter_percent_dict: Dict[
+                    UUID, Union[Tuple[Union[float, int], Union[float, int]], Union[float, int]]
+                ] = dict()
                 rising_threshold = peak_value - iter_percent / 100 * rising_amplitude
                 falling_threshold = peak_value - iter_percent / 100 * falling_amplitude
 
                 # move to the left from the twitch peak until the threshold is reached
-                while abs(value_series[rising_idx] - prior_valley_value) > abs(rising_threshold - prior_valley_value):
+                while abs(value_series[rising_idx] - prior_valley_value) > abs(
+                    rising_threshold - prior_valley_value
+                ):
                     rising_idx -= 1
                 # move to the right from the twitch peak until the falling threshold is reached
                 while abs(value_series[falling_idx] - subsequent_valley_value) > abs(
@@ -457,15 +461,21 @@ class TwitchVelocity(BaseMetric):
             iter_coord_top = per_twitch_widths[twitch][twitch_top][coord_type]
 
             if not isinstance(iter_coord_base, tuple):  # making mypy happy
-                raise NotImplementedError(f"The width value under twitch {twitch} must be a Tuple. It was: {iter_coord_base}")
+                raise NotImplementedError(
+                    f"The width value under twitch {twitch} must be a Tuple. It was: {iter_coord_base}"
+                )
             if not isinstance(iter_coord_top, tuple):  # making mypy happy
-                raise NotImplementedError(f"The width value under twitch {twitch} must be a Tuple. It was: {iter_coord_top}")
+                raise NotImplementedError(
+                    f"The width value under twitch {twitch} must be a Tuple. It was: {iter_coord_top}"
+                )
 
-            velocity = abs((iter_coord_top[1] - iter_coord_base[1]) / (iter_coord_top[0] - iter_coord_base[0]))
+            velocity = abs(
+                (iter_coord_top[1] - iter_coord_base[1]) / (iter_coord_top[0] - iter_coord_base[0])
+            )
             iter_list_of_velocities.append(velocity)
 
         values = np.asarray(iter_list_of_velocities, dtype=float)
-        return values * MICRO_TO_BASE_CONVERSION**2
+        return values * MICRO_TO_BASE_CONVERSION ** 2
 
 
 class TwitchIrregularity(BaseMetric):
@@ -562,7 +572,11 @@ class TwitchAUC(BaseMetric):
         **kwargs: Dict[str, Any],
     ) -> NDArray[Float64]:
         width_metric = TwitchWidth(rounded=self.rounded, twitch_width_percents=self.twitch_width_percents)
-        widths = width_metric.fit(peak_and_valley_indices=peak_and_valley_indices, twitch_indices=twitch_indices, filtered_data=filtered_data)
+        widths = width_metric.fit(
+            peak_and_valley_indices=peak_and_valley_indices,
+            twitch_indices=twitch_indices,
+            filtered_data=filtered_data,
+        )
 
         auc: NDArray[Float64] = self.calculate_area_under_curve(
             twitch_indices=twitch_indices, filtered_data=filtered_data, per_twitch_widths=widths

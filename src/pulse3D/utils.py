@@ -2,7 +2,6 @@
 """General utility/helpers."""
 import json
 import logging
-import os
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -17,8 +16,6 @@ from .constants import TIME_DIFFERENCE_UUID
 from .constants import WIDTH_FALLING_COORDS_UUID
 from .constants import WIDTH_RISING_COORDS_UUID
 from .constants import WIDTH_UUID
-
-from .plate_recording import PlateRecording
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +100,7 @@ def deserialize_main_dict(json_file: str, metrics_to_create: Iterable[UUID]) -> 
         serialized = json.load(file_object)
 
     twitches = serialized.keys()
-    deserialized: Dict[int, Dict[UUID, Any] ] = dict()
+    deserialized: Dict[int, Dict[UUID, Any]] = dict()
     deserialized = {int(twitch): {metric: None for metric in metrics_to_create} for twitch in twitches}
 
     def add_metric(twitch: int, metric: UUID) -> Union[float, Dict[int, Any]]:
@@ -209,7 +206,7 @@ def deserialize_aggregate_dict(json_file: str, metrics_to_create: Iterable[UUID]
     Returns:
     serialized: dictionary of de-serialized aggregate metrics
     """
-    deserialized: Dict[UUID, Dict[ Union[str, int], Any]] = dict()
+    deserialized: Dict[UUID, Dict[Union[str, int], Any]] = dict()
     deserialized = {}
 
     with open(json_file, "r") as file_object:
@@ -249,8 +246,7 @@ def deserialize_aggregate_dict(json_file: str, metrics_to_create: Iterable[UUID]
 
 
 def xl_col_to_name(col, col_abs=False):
-    """
-    Convert a zero indexed column cell reference to a string.
+    """Convert a zero indexed column cell reference to a string.
 
     Args:
        col:     The cell column. Int.
@@ -265,8 +261,8 @@ def xl_col_to_name(col, col_abs=False):
         return None
 
     col_num += 1  # Change to 1-index.
-    col_str = ''
-    col_abs = '$' if col_abs else ''
+    col_str = ""
+    col_abs = "$" if col_abs else ""
 
     while col_num:
         # Set remainder from 1 .. 26
@@ -276,7 +272,7 @@ def xl_col_to_name(col, col_abs=False):
             remainder = 26
 
         # Convert the remainder to a character.
-        col_letter = chr(ord('A') + remainder - 1)
+        col_letter = chr(ord("A") + remainder - 1)
 
         # Accumulate the column letters, right to left.
         col_str = col_letter + col_str

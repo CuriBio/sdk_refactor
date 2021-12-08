@@ -1,34 +1,31 @@
+# -*- coding: utf-8 -*-
 import datetime
-import os
 import glob
+import os
 import tempfile
+from typing import Any
+from typing import Optional
 import uuid
 import zipfile
 
-from typing import Any, Optional
-from nptyping import NDArray
-from semver import VersionInfo
-
 import h5py
+from nptyping import NDArray
 import numpy as np
-
 from openpyxl import load_workbook
 from openpyxl.worksheet.worksheet import Worksheet
+from semver import VersionInfo
 from xlsxwriter.utility import xl_cell_to_rowcol
 
+from .compression_cy import compress_filtered_magnetic_data
 from .constants import *
-from .transforms import create_filter
-from .transforms import apply_sensitivity_calibration
-from .transforms import noise_cancellation
 from .transforms import apply_empty_plate_calibration
 from .transforms import apply_noise_filtering
-from .transforms import calculate_voltage_from_gmr
+from .transforms import apply_sensitivity_calibration
 from .transforms import calculate_displacement_from_voltage
 from .transforms import calculate_force_from_displacement
 from .transforms import calculate_voltage_from_gmr
-from .transforms import calculate_displacement_from_voltage
-from .transforms import calculate_force_from_displacement
-from .compression_cy import compress_filtered_magnetic_data
+from .transforms import create_filter
+from .transforms import noise_cancellation
 
 
 def _get_col_as_array(sheet: Worksheet, zero_based_row: int, zero_based_col: int) -> NDArray[(2, Any), float]:
@@ -52,6 +49,7 @@ def _get_cell_value(sheet: Worksheet, zero_based_row: int, zero_based_col: int) 
     if result is None:
         return result
     return str(result)
+
 
 def _get_excel_metadata_value(sheet: Worksheet, metadata_uuid: uuid.UUID) -> Optional[str]:
     """Return a user-entered metadata value."""
@@ -91,7 +89,7 @@ def _load_optical_file_attrs(sheet: Worksheet):
     well_name = _get_excel_metadata_value(sheet, WELL_NAME_UUID)
 
     attrs = {
-        FILE_FORMAT_VERSION_METADATA_KEY: '0.1.1',
+        FILE_FORMAT_VERSION_METADATA_KEY: "0.1.1",
         TISSUE_SENSOR_READINGS: raw_tissue_reading,
         REFERENCE_SENSOR_READINGS: np.zeros(raw_tissue_reading.shape),
         str(INTERPOLATION_VALUE_UUID): interpolation_value,
@@ -108,8 +106,8 @@ def _load_optical_file_attrs(sheet: Worksheet):
 
 class WellFile:
     def __init__(self, file_path: str, sampling_period=None):
-        if file_path.endswith('.h5'):
-            self.file = h5py.File(file_path, 'r')
+        if file_path.endswith(".h5"):
+            self.file = h5py.File(file_path, "r")
             self.file_name = os.path.basename(self.file.filename)
 
             self.is_force_data = True
@@ -120,23 +118,35 @@ class WellFile:
 
             # extract datetime
             self[UTC_BEGINNING_RECORDING_UUID] = self._extract_datetime(UTC_BEGINNING_RECORDING_UUID)
-            self[UTC_BEGINNING_DATA_ACQUISTION_UUID] = self._extract_datetime(UTC_BEGINNING_DATA_ACQUISTION_UUID)
+            self[UTC_BEGINNING_DATA_ACQUISTION_UUID] = self._extract_datetime(
+                UTC_BEGINNING_DATA_ACQUISTION_UUID
+            )
             self[UTC_FIRST_TISSUE_DATA_POINT_UUID] = self._extract_datetime(UTC_FIRST_TISSUE_DATA_POINT_UUID)
             self[UTC_FIRST_REF_DATA_POINT_UUID] = self._extract_datetime(UTC_FIRST_REF_DATA_POINT_UUID)
 
-        elif file_path.endswith('.xlsx'):
+        elif file_path.endswith(".xlsx"):
             self._excel_sheet = _get_single_sheet(file_path)
             self.file_name = os.path.basename(file_path)
-            self.attrs = {k: v for (k,v) in _load_optical_file_attrs(self._excel_sheet).items()}
+            self.attrs = {k: v for (k, v) in _load_optical_file_attrs(self._excel_sheet).items()}
             self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
 
             self.is_magnetic_data = False
-            self.is_force_data = 'y' in str(_get_excel_metadata_value(self._excel_sheet, TWITCHES_POINT_UP_UUID)).lower()
+            self.is_force_data = (
+                "y" in str(_get_excel_metadata_value(self._excel_sheet, TWITCHES_POINT_UP_UUID)).lower()
+            )
 
         # setup noise filter
-        self.tissue_sampling_period = sampling_period if sampling_period else self[TISSUE_SAMPLING_PERIOD_UUID]
-        self.noise_filter_uuid = TSP_TO_DEFAULT_FILTER_UUID[self.tissue_sampling_period] if self.is_magnetic_data else None
-        self.filter_coefficients = create_filter(self.noise_filter_uuid, self.tissue_sampling_period) if self.noise_filter_uuid else None
+        self.tissue_sampling_period = (
+            sampling_period if sampling_period else self[TISSUE_SAMPLING_PERIOD_UUID]
+        )
+        self.noise_filter_uuid = (
+            TSP_TO_DEFAULT_FILTER_UUID[self.tissue_sampling_period] if self.is_magnetic_data else None
+        )
+        self.filter_coefficients = (
+            create_filter(self.noise_filter_uuid, self.tissue_sampling_period)
+            if self.noise_filter_uuid
+            else None
+        )
 
         is_untrimmed = self.get(IS_FILE_ORIGINAL_UNTRIMMED_UUID, True)
         time_trimmed = None if is_untrimmed else self.attrs[TRIMMED_TIME_FROM_ORIGINAL_START_UUID]
@@ -147,7 +157,6 @@ class WellFile:
             self[REFERENCE_SENSOR_READINGS] = self._load_reading(REFERENCE_SENSOR_READINGS, time_trimmed)
 
         self._load_magnetic_data()
-
 
     def _load_magnetic_data(self):
         adj_raw_tissue_reading = self[TISSUE_SENSOR_READINGS].copy()
@@ -161,37 +170,49 @@ class WellFile:
         self.raw_tissue_magnetic_data: NDArray[(2, Any), int] = adj_raw_tissue_reading
         self.raw_reference_magnetic_data: NDArray[(2, Any), int] = self[REFERENCE_SENSOR_READINGS].copy()
 
-        self.sensitivity_calibrated_tissue_gmr: NDArray[(2, Any), int] = \
-            apply_sensitivity_calibration(self.raw_tissue_magnetic_data)
+        self.sensitivity_calibrated_tissue_gmr: NDArray[(2, Any), int] = apply_sensitivity_calibration(
+            self.raw_tissue_magnetic_data
+        )
 
-        self.sensitivity_calibrated_reference_gmr: NDArray[(2, Any), int] = \
-            apply_sensitivity_calibration(self.raw_reference_magnetic_data)
+        self.sensitivity_calibrated_reference_gmr: NDArray[(2, Any), int] = apply_sensitivity_calibration(
+            self.raw_reference_magnetic_data
+        )
 
         self.noise_cancelled_magnetic_data: NDArray[(2, Any), int] = noise_cancellation(
             self.sensitivity_calibrated_tissue_gmr,
             self.sensitivity_calibrated_reference_gmr,
         )
 
-        self.fully_calibrated_magnetic_data: NDArray[(2, Any), int] = \
-            apply_empty_plate_calibration(self.noise_cancelled_magnetic_data)
+        self.fully_calibrated_magnetic_data: NDArray[(2, Any), int] = apply_empty_plate_calibration(
+            self.noise_cancelled_magnetic_data
+        )
 
-        if self.noise_filter_uuid is None: 
+        if self.noise_filter_uuid is None:
             self.noise_filtered_magnetic_data: NDArray[(2, Any), int] = self.fully_calibrated_magnetic_data
         else:
             self.noise_filtered_magnetic_data: NDArray[(2, Any), int] = apply_noise_filtering(
                 self.fully_calibrated_magnetic_data,
                 self.filter_coefficients,
+            )
+
+        self.compressed_magnetic_data: NDArray[(2, Any), int] = compress_filtered_magnetic_data(
+            self.noise_filtered_magnetic_data
+        )
+        self.compressed_voltage: NDArray[(2, Any), np.float32] = calculate_voltage_from_gmr(
+            self.compressed_magnetic_data
+        )
+        self.compressed_displacement: NDArray[(2, Any), np.float32] = calculate_displacement_from_voltage(
+            self.compressed_voltage
+        )
+        self.compressed_force: NDArray[(2, Any), np.float32] = calculate_force_from_displacement(
+            self.compressed_displacement
         )
 
-        self.compressed_magnetic_data: NDArray[(2, Any), int] = compress_filtered_magnetic_data(self.noise_filtered_magnetic_data)
-        self.compressed_voltage: NDArray[(2, Any), np.float32] = calculate_voltage_from_gmr(self.compressed_magnetic_data)
-        self.compressed_displacement: NDArray[(2, Any), np.float32] = calculate_displacement_from_voltage(self.compressed_voltage)
-        self.compressed_force: NDArray[(2, Any), np.float32] = calculate_force_from_displacement(self.compressed_displacement)
-
-        self.voltage: NDArray[(2, Any), np.float32] = calculate_voltage_from_gmr(self.noise_filtered_magnetic_data)
+        self.voltage: NDArray[(2, Any), np.float32] = calculate_voltage_from_gmr(
+            self.noise_filtered_magnetic_data
+        )
         self.displacement: NDArray[(2, Any), np.float32] = calculate_displacement_from_voltage(self.voltage)
         self.force: NDArray[(2, Any), np.float32] = calculate_force_from_displacement(self.displacement)
-
 
     def get(self, key, default):
         try:
@@ -207,20 +228,17 @@ class WellFile:
         key = str(key) if isinstance(key, uuid.UUID) else key
         self.attrs[key] = newvalue
 
-
     def __getitem__(self, i):
         i = str(i) if isinstance(i, uuid.UUID) else i
         return self.attrs[i]
 
-
     def _extract_datetime(self, metadata_uuid: uuid.UUID) -> datetime.datetime:
         if self.version.split(".") < VersionInfo.parse("0.2.1"):
             if metadata_uuid == UTC_BEGINNING_RECORDING_UUID:
-                """
-                The use of this proxy value is justified by the fact that there is a 15 second delay
-                between when data is recorded and when the GUI displays it, and because the GUI will
-                send the timestamp of when the recording button is pressed.
-                """
+                """The use of this proxy value is justified by the fact that
+                there is a 15 second delay between when data is recorded and
+                when the GUI displays it, and because the GUI will send the
+                timestamp of when the recording button is pressed."""
                 acquisition_timestamp_str = self[UTC_BEGINNING_DATA_ACQUISTION_UUID]
 
                 begin_recording = datetime.datetime.strptime(
@@ -229,10 +247,8 @@ class WellFile:
 
                 return begin_recording
             if metadata_uuid == UTC_FIRST_TISSUE_DATA_POINT_UUID:
-                """
-                Early file versions did not include this metadata under a UUID, so we have to use this
-                string identifier instead
-                """
+                """Early file versions did not include this metadata under a
+                UUID, so we have to use this string identifier instead."""
                 metadata_name = "UTC Timestamp of Beginning of Recorded Tissue Sensor Data"
                 timestamp_str = self[metadata_name]
 
@@ -240,10 +256,8 @@ class WellFile:
                     tzinfo=datetime.timezone.utc
                 )
             if metadata_uuid == UTC_FIRST_REF_DATA_POINT_UUID:
-                """
-                Early file versions did not include this metadata under a UUID, so we have to use this
-                string identifier instead
-                """
+                """Early file versions did not include this metadata under a
+                UUID, so we have to use this string identifier instead."""
                 timestamp_str = self["UTC Timestamp of Beginning of Recorded Reference Sensor Data"]
 
                 return datetime.datetime.strptime(timestamp_str, DATETIME_STR_FORMAT).replace(
@@ -254,7 +268,6 @@ class WellFile:
         return datetime.datetime.strptime(timestamp_str, DATETIME_STR_FORMAT).replace(
             tzinfo=datetime.timezone.utc
         )
-
 
     def _load_reading(self, reading_type: str, time_trimmed) -> NDArray[(Any, Any), int]:
         recording_start_index = self[START_RECORDING_TIME_INDEX_UUID]
@@ -273,9 +286,9 @@ class WellFile:
         )
 
         time_delta = initial_timestamp - timestamp_of_start_index
-        time_delta_centimilliseconds = int(time_delta / datetime.timedelta(
-            microseconds=MICROSECONDS_PER_CENTIMILLISECOND
-        ))
+        time_delta_centimilliseconds = int(
+            time_delta / datetime.timedelta(microseconds=MICROSECONDS_PER_CENTIMILLISECOND)
+        )
 
         time_step = int(sampling_period / MICROSECONDS_PER_CENTIMILLISECOND)
 
@@ -306,9 +319,9 @@ class PlateRecording:
         self._iter = 0
         self.is_optical_recording = False
 
-        if self.path.endswith('.zip'):
+        if self.path.endswith(".zip"):
             zf = zipfile.ZipFile(self.path)
-            files = [f for f in zf.namelist() if f.endswith('.h5')]
+            files = [f for f in zf.namelist() if f.endswith(".h5")]
             self.wells = [None] * len(files)
 
             with tempfile.TemporaryDirectory() as tempdir:
@@ -317,13 +330,13 @@ class PlateRecording:
                 for f in files:
                     well_file = WellFile(os.path.join(tempdir, f))
                     self.wells[well_file[WELL_INDEX_UUID]] = well_file
-        elif self.path.endswith('.xlsx'): #optical file
+        elif self.path.endswith(".xlsx"):  # optical file
             self.is_optical_recording = True
             well_file = WellFile(self.path)
             self.wells = [None] * (well_file[WELL_INDEX_UUID] + 1)
             self.wells[well_file[WELL_INDEX_UUID]] = well_file
-        else: #directory of .h5 files
-            files = glob.glob(os.path.join(self.path, '*.h5'))
+        else:  # directory of .h5 files
+            files = glob.glob(os.path.join(self.path, "*.h5"))
             self.wells = [None] * len(files)
 
             for hf in files:
@@ -335,16 +348,15 @@ class PlateRecording:
         basedir = os.path.dirname(path)
 
         # multi zip files
-        for zf in glob.glob(os.path.join(basedir, '*.zip')):
+        for zf in glob.glob(os.path.join(basedir, "*.zip")):
             yield PlateRecording(zf)
 
         # multi optical files
-        for of in glob.glob(os.path.join(basedir, '*.xlsx')):
+        for of in glob.glob(os.path.join(basedir, "*.xlsx")):
             yield PlateRecording(of)
 
         # directory of .h5 files
         yield PlateRecording(basedir)
-
 
     def __iter__(self):
         self._iter = 0
@@ -368,5 +380,4 @@ def _find_start_index(from_start: int, old_data: NDArray[(1, Any), int]) -> int:
         time_from_start = old_data[start_index + 1] - old_data[0]
         start_index += 1
 
-    return start_index - 1 #loop iterates 1 past the desired index, so subtract 1
-
+    return start_index - 1  # loop iterates 1 past the desired index, so subtract 1

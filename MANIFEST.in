@@ -1,4 +1,5 @@
-recursive-include curibio **
+recursive-include src/pulse3D *.py
+recursive-include src/pulse3D *.pyx
 include LICENSE
 include *rst
 include *py

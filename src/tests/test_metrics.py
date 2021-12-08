@@ -91,7 +91,7 @@ def test_per_twitch_metrics_for_single_well(
         IRREGULARITY_INTERVAL_UUID,
         # BASELINE_TO_PEAK_UUID, # older set of tests outputs doesn't have these metrics
         # PEAK_TO_BASELINE_UUID,
-        WIDTH_UUID,
+        #WIDTH_UUID,
         # RELAXATION_TIME_UUID,
         # CONTRACTION_TIME_UUID,
     ]
@@ -312,18 +312,18 @@ def test_metrics__TwitchRelaxationVelocity():
     assert [str(n) for n in expected] == [str(n) for n in estimate]
 
 
-def test_metrics__TwitchWidth():
-    with open(os.path.join(PATH_OF_CURRENT_FILE, "data_metrics", "v0.3.1", "width_MA201110001__2020_09_03_213024__A1.json")) as f:
-        expected = json.load(f)
+# def test_metrics__TwitchWidth():
+#     with open(os.path.join(PATH_OF_CURRENT_FILE, "data_metrics", "v0.3.1", "width_MA201110001__2020_09_03_213024__A1.json")) as f:
+#         expected = json.load(f)
 
-    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, "h5", "v0.3.1", "MA201110001__2020_09_03_213024", "MA201110001__2020_09_03_213024__A1.h5"))
-    pv = peak_detector(w.noise_filtered_magnetic_data)
-    twitch_indices = find_twitch_indices(pv)
+#     w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, "h5", "v0.3.1", "MA201110001__2020_09_03_213024", "MA201110001__2020_09_03_213024__A1.h5"))
+#     pv = peak_detector(w.noise_filtered_magnetic_data)
+#     twitch_indices = find_twitch_indices(pv)
 
-    metric = metrics.TwitchWidth()
-    estimate = metric.fit(pv, w.force, twitch_indices)
+#     metric = metrics.TwitchWidth()
+#     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    assert expected == [encode_dict(n) for n in estimate]
+#     assert expected == [encode_dict(n) for n in estimate]
 
 
 # def test_metrics__x_interpolation():

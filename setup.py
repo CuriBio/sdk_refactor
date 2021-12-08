@@ -49,6 +49,7 @@ setup(
         "labware-domain-models>=0.3.1",
         "requests>=2.25.1",
         "pandas>=1.3.4",
+        "scipy>=1.6.2",
         'importlib-metadata >= 3.7.3 ; python_version < "3.8"',
     ],
     zip_safe=False,

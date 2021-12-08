@@ -1,4 +1,10 @@
 # -*- coding: utf-8 -*-
+from h5py import File
+import numpy as np
+import pytest
+import tempfile
+import zipfile
+
 from pulse3D import magnet_finding
 from pulse3D import plate_recording
 from pulse3D import MEMSIC_CENTER_OFFSET
@@ -7,14 +13,29 @@ from pulse3D import GAUSS_PER_MILLITESLA
 from pulse3D import REFERENCE_SENSOR_READINGS, TIME_INDICES,TIME_OFFSETS
 from pulse3D import TISSUE_SENSOR_READINGS,WELL_IDX_TO_MODULE_ID
 from pulse3D import PlateRecording
-from pulse3D.plate_recording import _load_files
-from h5py import File
-import numpy as np
-import pytest
-
+from pulse3D.plate_recording import load_files
 from pulse3D.transforms import calculate_force_from_displacement
 
 from .fixtures_utils import load_h5_folder_as_array
+
+
+def test_load_files__loads_zipped_folder_with_calibration_recordings_correctly():
+    tissue_recordings, baseline_recordings = load_files(
+        "tests/magnet_finding/MA200440001__2020_02_09_190359__with_calibration_recordings.zip"
+    )
+    assert len(tissue_recordings) == 24
+    assert len(baseline_recordings) == 24
+
+
+def test_load_files__loads_unzipped_folder_with_calibration_recordings_correctly():
+    with tempfile.TemporaryDirectory() as tempdir:
+        zf = zipfile.ZipFile(
+            "tests/magnet_finding/MA200440001__2020_02_09_190359__with_calibration_recordings.zip"
+        )
+        zf.extractall(path=tempdir)
+        tissue_recordings, baseline_recordings = load_files(tempdir)
+    assert len(tissue_recordings) == 24
+    assert len(baseline_recordings) == 24
 
 
 @pytest.mark.slow
@@ -56,17 +77,18 @@ def test_PlateRecording__creates_correct_displacement_and_force_data_for_beta_2_
     num_points_to_test = 100
 
     def load_files_se(*args):
-        well_files = _load_files(*args)
-        for well_file in well_files:
+        tissue_well_files, baseline_well_files = load_files(*args)
+        all_well_files = set(tissue_well_files) | set(baseline_well_files)
+        for well_file in all_well_files:
             well_file[TIME_INDICES] = well_file[TIME_INDICES][:num_points_to_test]
             well_file[TIME_OFFSETS] = well_file[TIME_OFFSETS][:, :num_points_to_test]
             well_file[TISSUE_SENSOR_READINGS] = well_file[TISSUE_SENSOR_READINGS][:, :num_points_to_test]
             well_file[REFERENCE_SENSOR_READINGS] = well_file[REFERENCE_SENSOR_READINGS][:, :num_points_to_test]
-        return well_files
+        return tissue_well_files, baseline_well_files
 
     mocker.patch.object(
         plate_recording,
-        "_load_files",
+        "load_files",
         autospec=True,
         side_effect=load_files_se
     )

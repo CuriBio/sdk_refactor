@@ -112,9 +112,7 @@ def _load_optical_file_attrs(sheet: Worksheet):
     return attrs
 
 
-class MantarrayH5FileCreator(
-    h5py.File
-):  # pylint: disable=too-many-ancestors # Eli (7/28/20): I don't see a way around this...we need to subclass h5py File
+class MantarrayH5FileCreator(h5py.File):
     """Creates an H5 file with the basic format/layout."""
 
     def __init__(
@@ -134,22 +132,22 @@ class MantarrayH5FileCreator(
 class WellFile:
     def __init__(self, file_path: str, sampling_period=None):
         if file_path.endswith(".h5"):
-            self.file = h5py.File(file_path, "r")
-            self.file_name = os.path.basename(self.file.filename)
-            self.is_force_data = True
-            self.is_magnetic_data = True
+            with h5py.File(file_path, "r") as f:
+                self.file_name = os.path.basename(f.filename)
+                self.is_force_data = True
+                self.is_magnetic_data = True
 
-            self.attrs = {attr: self.file.attrs[attr] for attr in list(self.file.attrs)}
-            self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
+                self.attrs = {attr: f.attrs[attr] for attr in list(f.attrs)}
+                self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
 
-            # extract datetime
-            self[UTC_BEGINNING_RECORDING_UUID] = self._extract_datetime(UTC_BEGINNING_RECORDING_UUID)
-            self[UTC_BEGINNING_DATA_ACQUISTION_UUID] = self._extract_datetime(
-                UTC_BEGINNING_DATA_ACQUISTION_UUID
-            )
-            self[UTC_FIRST_TISSUE_DATA_POINT_UUID] = self._extract_datetime(UTC_FIRST_TISSUE_DATA_POINT_UUID)
-            if self.version < VersionInfo.parse("1.0.0"):  # Tanner (12/6/21): Ref data not yet added to these files
-                self[UTC_FIRST_REF_DATA_POINT_UUID] = self._extract_datetime(UTC_FIRST_REF_DATA_POINT_UUID)
+                # extract datetime
+                self[UTC_BEGINNING_RECORDING_UUID] = self._extract_datetime(UTC_BEGINNING_RECORDING_UUID)
+                self[UTC_BEGINNING_DATA_ACQUISTION_UUID] = self._extract_datetime(
+                    UTC_BEGINNING_DATA_ACQUISTION_UUID
+                )
+                self[UTC_FIRST_TISSUE_DATA_POINT_UUID] = self._extract_datetime(UTC_FIRST_TISSUE_DATA_POINT_UUID)
+                if self.version < VersionInfo.parse("1.0.0"):  # Tanner (12/6/21): Ref data not yet added to these files
+                    self[UTC_FIRST_REF_DATA_POINT_UUID] = self._extract_datetime(UTC_FIRST_REF_DATA_POINT_UUID)
 
         elif file_path.endswith(".xlsx"):
             self._excel_sheet = _get_single_sheet(file_path)
@@ -393,18 +391,16 @@ class PlateRecording:
 
     @staticmethod
     def from_directory(path):
-        basedir = os.path.dirname(path)
-
         # multi zip files
-        for zf in glob.glob(os.path.join(basedir, "*.zip")):
+        for zf in glob.glob(os.path.join(path, "*.zip")):
             yield PlateRecording(zf)
 
         # multi optical files
-        for of in glob.glob(os.path.join(basedir, "*.xlsx")):
-            yield PlateRecording(zf)
+        for of in glob.glob(os.path.join(path, "*.xlsx")):
+            yield PlateRecording(of)
 
-        # directory of .h5 files
-        yield PlateRecording(basedir)
+        # directory of .h5 files or single .zip/.xlsx
+        yield PlateRecording(path)
 
     def __iter__(self):
         self._iter = 0

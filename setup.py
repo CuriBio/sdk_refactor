@@ -27,8 +27,8 @@ if USE_CYTHON:
 
 setup(
     name="Pulse3D",
-    version="0.18.1",
-    description="CREATE A DESCRIPTION",
+    version="0.19.4",
+    description="Pulse3D Analysis Platform",
     url="https://github.com/CuriBio/Pulse3D",
     project_urls={"Documentation": "https://pulse3D.readthedocs.io/en/latest/"},
     author="Curi Bio",
@@ -50,6 +50,7 @@ setup(
         "stdlib_utils>=0.4.4",
         "labware-domain-models>=0.3.1",
         "requests>=2.25.1",
+        "semver>=2.13.0",
         "pandas>=1.3.4",
         'importlib-metadata >= 3.7.3 ; python_version < "3.8"',
     ],

@@ -392,7 +392,8 @@ def create_waveform_charts(
         else int((recording_stop_time + CHART_WINDOW_NUM_SECONDS) // 2)
     )
 
-    df_column = continuous_waveforms_df.columns.get_loc(f"{dm['well_name']} - Active Twitch Force")
+    df_column = continuous_waveforms_df.columns.get_loc(f"{dm['well_name']} - Active Twitch Force (μN)")
+
     well_column = xl_col_to_name(df_column)
     full_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
     snapshot_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})

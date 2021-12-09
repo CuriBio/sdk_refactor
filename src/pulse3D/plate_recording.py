@@ -437,7 +437,7 @@ def load_files(path):
             (calibration_files, baseline_well_files)
         ):
             for f in file_list:
-                well_file = WellFile(os.path.join(recording_dir, f))
+                well_file = WellFile(f)
                 well_file_list[well_file[WELL_INDEX_UUID]] = well_file
     return tissue_well_files, baseline_well_files
 

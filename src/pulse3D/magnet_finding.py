@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """More accurate estimation of magnet positions."""
 from typing import Any
+from typing import Dict
 from typing import List
 from typing import TYPE_CHECKING
 
@@ -21,19 +22,19 @@ if TYPE_CHECKING:
 # Kevin (12/1/21): Sensor locations relative to origin
 SENSOR_DISTANCES_FROM_CENTER_POINT = np.asarray([[-2.15, 1.7, 0], [2.15, 1.7, 0], [0, -2.743, 0]])
 
-WELL_VERTICAL_SPACING = np.asarray([0, -19.5, 0])  # TODO Tanner (12/2/21): make 19.5 a constant
-WELL_HORIZONTAL_SPACING = np.asarray([19.5, 0, 0])
+ADJACENT_WELL_DISTANCE_MM = 19.5  # TODO Tanner (12/2/21): make sure this constant is named correctly
+WELL_VERTICAL_SPACING = np.asarray([0, -ADJACENT_WELL_DISTANCE_MM, 0])
+WELL_HORIZONTAL_SPACING = np.asarray([ADJACENT_WELL_DISTANCE_MM, 0, 0])
 WELLS_PER_ROW = 6
 
 FULL_CIRCLE_DEGREES = 360
 FULL_CIRCLE_RADIANS = 2 * np.pi
-TODO_CONST_1 = FULL_CIRCLE_RADIANS / FULL_CIRCLE_DEGREES
-
-# Kevin (12/1/21): This is part of the dipole model
-TODO_CONST_2 = 4 * np.pi
+RAD_PER_DEGREE = FULL_CIRCLE_RADIANS / FULL_CIRCLE_DEGREES
 
 # Kevin (12/1/21): Used for calculating magnet's dipole moment
 MAGNET_VOLUME = np.pi * (.75 / 2.0) ** 2
+# Kevin (12/1/21): This is part of the dipole model
+DIPOLE_MODEL_FACTOR = 4 * np.pi
 
 NUM_PARAMS = 6
 
@@ -46,15 +47,15 @@ def meas_field(
     theta: NDArray[(1, Any), float],
     phi: NDArray[(1, Any), float],
     remn: NDArray[(1, Any), float],
-    manta,  # TODO: add type hint
+    manta: NDArray[(72, 3), float],
     num_active_module_ids: int
-):  # TODO add return type hint
+) -> NDArray[(1, Any), float]:
     """Simulate fields using a magnetic dipole model."""
 
     fields = np.zeros((len(manta), 3))
     # Tanner (12/2/21): numba doesn't like using *= here, for some reason it thinks the dtype of phi and theta are int64 yet they are float64
-    theta = theta * TODO_CONST_1  # magnet pitch
-    phi = phi * TODO_CONST_1  # magnet yaw
+    theta = theta * RAD_PER_DEGREE  # magnet pitch
+    phi = phi * RAD_PER_DEGREE  # magnet yaw
 
     # Kevin (12/1/21): This simulates the fields for each magnet at each sensor on the device.
     # Each magnet has particular values for xpos -> remn. 
@@ -76,10 +77,15 @@ def meas_field(
         for field in range(0, len(r)):
             fields[field] += 3 * r[field] * np.dot(moment_vectors, r[field]) / r_abs[field] ** 5 - moment_vectors / r_abs[field] ** 3
     # Kevin (12/1/21): Reshaping to match the format of the data coming off the mantarray
-    return fields.reshape((1, 3 * len(r)))[0] / TODO_CONST_2
+    return fields.reshape((1, 3 * len(r)))[0] / DIPOLE_MODEL_FACTOR
 
 
-def objective_function_ls(pos, b_meas, manta, num_active_module_ids):  # TODO type hints
+def objective_function_ls(
+    pos: NDArray[(1, Any), float],
+    b_meas: NDArray[(1, Any), float],
+    manta: NDArray[(72, 3), float],
+    num_active_module_ids: int
+) -> NDArray[(1, Any), float]:
     """Cost function to be minimized by the least squares."""
     pos = pos.reshape(NUM_PARAMS, num_active_module_ids)
     x = pos[0]
@@ -93,7 +99,7 @@ def objective_function_ls(pos, b_meas, manta, num_active_module_ids):  # TODO ty
     return b_calc - b_meas
 
 
-def get_positions(data):  # TODO type hints
+def get_positions(data: NDArray[(24, 3, 3, Any), float]) -> Dict[str, NDArray[(1, Any), float]]:
     """Generate initial guess data and run least squares optimizer on instrument data to get magnet positions.
 
     Takes an array indexed as [well, sensor, axis, timepoint]
@@ -117,6 +123,7 @@ def get_positions(data):  # TODO type hints
     for module_id in range(0, num_active_module_ids):
         module_slice = slice(module_id * triad.shape[0], (module_id + 1) * triad.shape[0])
         manta[module_slice, :] = triad + module_id // WELLS_PER_ROW * WELL_VERTICAL_SPACING + (module_id % WELLS_PER_ROW) * WELL_HORIZONTAL_SPACING
+    print(manta.shape)
 
     # Kevin (12/1/21): run meas_field with some dummy values so numba compiles it. There needs to be some delay before it's called again for it to compile
     dummy = np.asarray([1])
@@ -127,8 +134,8 @@ def get_positions(data):  # TODO type hints
     # Kevin (12/1/21): Each magnet has its own positional coordinates and other characteristics depending on where it's located in the consumable. Every magnet
     # position is referenced with respect to the center of the array beneath well A1, so the positions need to be adjusted to account for that, e.g. the magnet in
     # A2 has the x/y coordinate (19.5, 0), so guess is processed in the below loop to produce that value. prev_guess contains the guesses for each magnet at each position
-    prev_guess = [initial_guess_values["X"] + 19.5 * (module_id % WELLS_PER_ROW) for module_id in active_module_ids]
-    prev_guess.extend([initial_guess_values["Y"] - 19.5 * (module_id // WELLS_PER_ROW) for module_id in active_module_ids])
+    prev_guess = [initial_guess_values["X"] + ADJACENT_WELL_DISTANCE_MM * (module_id % WELLS_PER_ROW) for module_id in active_module_ids]
+    prev_guess.extend([initial_guess_values["Y"] - ADJACENT_WELL_DISTANCE_MM * (module_id // WELLS_PER_ROW) for module_id in active_module_ids])
     for param in list(initial_guess_values.keys())[2:]:
         prev_guess.extend([initial_guess_values[param]] * num_active_module_ids)
 
@@ -166,7 +173,11 @@ def get_positions(data):  # TODO type hints
     return estimations
 
 
-def find_magnet_positions(fields, baseline, filter_outputs=True):  # TODO type hints
+def find_magnet_positions(
+    fields: NDArray[(24, 3, 3, Any), float],
+    baseline: NDArray[(24, 3, 3, Any), float],
+    filter_outputs: bool = True
+ ) -> Dict[str, NDArray[(1, Any), float]]:
     output_dict = get_positions(fields - baseline)
     if filter_outputs:
         for param, output_arr in output_dict.items():
@@ -174,7 +185,7 @@ def find_magnet_positions(fields, baseline, filter_outputs=True):  # TODO type h
     return output_dict
 
 
-def filter_magnet_positions(magnet_positions):
+def filter_magnet_positions(magnet_positions: NDArray[(1, Any), float]) -> NDArray[(1, Any), float]:
     high_cut_hz = 30
     b, a = signal.butter(4, high_cut_hz, 'low', fs=100)
     filtered_magnet_positions = signal.filtfilt(b, a, magnet_positions)

@@ -7,12 +7,12 @@ import zipfile
 
 from pulse3D import magnet_finding
 from pulse3D import plate_recording
-from pulse3D import MEMSIC_CENTER_OFFSET
-from pulse3D import MEMSIC_FULL_SCALE,MEMSIC_MSB
-from pulse3D import GAUSS_PER_MILLITESLA
-from pulse3D import REFERENCE_SENSOR_READINGS, TIME_INDICES,TIME_OFFSETS
-from pulse3D import TISSUE_SENSOR_READINGS,WELL_IDX_TO_MODULE_ID
-from pulse3D import PlateRecording
+from pulse3D.constants import MEMSIC_CENTER_OFFSET
+from pulse3D.constants import MEMSIC_FULL_SCALE,MEMSIC_MSB
+from pulse3D.constants import GAUSS_PER_MILLITESLA
+from pulse3D.constants import REFERENCE_SENSOR_READINGS, TIME_INDICES,TIME_OFFSETS
+from pulse3D.constants import TISSUE_SENSOR_READINGS,WELL_IDX_TO_MODULE_ID
+from pulse3D.plate_recording import PlateRecording
 from pulse3D.plate_recording import load_files
 from pulse3D.transforms import calculate_force_from_displacement
 

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from h5py import File
 import numpy as np
+import os
 import pytest
 import tempfile
 import zipfile
@@ -15,13 +16,20 @@ from pulse3D.constants import TISSUE_SENSOR_READINGS,WELL_IDX_TO_MODULE_ID
 from pulse3D.plate_recording import PlateRecording
 from pulse3D.plate_recording import load_files
 from pulse3D.transforms import calculate_force_from_displacement
+from stdlib_utils import get_current_file_abs_directory
 
 from .fixtures_utils import load_h5_folder_as_array
+
+PATH_OF_CURRENT_FILE = get_current_file_abs_directory()
 
 
 def test_load_files__loads_zipped_folder_with_calibration_recordings_correctly():
     tissue_recordings, baseline_recordings = load_files(
-        "tests/magnet_finding/MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip"
+        os.path.join(
+            PATH_OF_CURRENT_FILE,
+            "magnet_finding",
+            "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip"
+        )
     )
     assert len(tissue_recordings) == 24
     assert len(baseline_recordings) == 24
@@ -30,7 +38,11 @@ def test_load_files__loads_zipped_folder_with_calibration_recordings_correctly()
 def test_load_files__loads_unzipped_folder_with_calibration_recordings_correctly():
     with tempfile.TemporaryDirectory() as tempdir:
         zf = zipfile.ZipFile(
-            "tests/magnet_finding/MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip"
+            os.path.join(
+                PATH_OF_CURRENT_FILE,
+                "magnet_finding",
+                "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip"
+            )
         )
         zf.extractall(path=tempdir)
         tissue_recordings, baseline_recordings = load_files(tempdir)
@@ -40,7 +52,11 @@ def test_load_files__loads_unzipped_folder_with_calibration_recordings_correctly
 
 def test_load_files__loads_zipped_files_with_calibration_recordings_correctly():
     tissue_recordings, baseline_recordings = load_files(
-        "tests/magnet_finding/MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_files.zip"
+        os.path.join(
+            PATH_OF_CURRENT_FILE,
+            "magnet_finding",
+            "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_files.zip"
+        )
     )
     assert len(tissue_recordings) == 24
     assert len(baseline_recordings) == 24
@@ -49,7 +65,11 @@ def test_load_files__loads_zipped_files_with_calibration_recordings_correctly():
 def test_load_files__loads_unzipped_files_with_calibration_recordings_correctly():
     with tempfile.TemporaryDirectory() as tempdir:
         zf = zipfile.ZipFile(
-            "tests/magnet_finding/MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_files.zip"
+            os.path.join(
+                PATH_OF_CURRENT_FILE,
+                "magnet_finding",
+                "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_files.zip"
+            )
         )
         zf.extractall(path=tempdir)
         tissue_recordings, baseline_recordings = load_files(tempdir)
@@ -69,7 +89,11 @@ def test_get_positions__returns_expected_values():
     outputs = magnet_finding.get_positions(loaded_data_mt[:, :, :, 2:102])
 
     output_file = File(
-        "tests/magnet_finding/magnet_finding_output_100pts.h5",
+        os.path.join(
+            PATH_OF_CURRENT_FILE,
+            "magnet_finding",
+            "magnet_finding_output_100pts.h5",
+        ),
         "r",
         libver="latest",
     )
@@ -120,11 +144,21 @@ def test_PlateRecording__creates_correct_displacement_and_force_data_for_beta_2_
         side_effect=lambda x: x,
     )
 
-    pr = PlateRecording("tests/magnet_finding/MA200440001__2020_02_09_190359__with_calibration_recordings.zip")
+    pr = PlateRecording(
+        os.path.join(
+            PATH_OF_CURRENT_FILE,
+            "magnet_finding",
+            "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip"
+        )
+    )
     assert mocked_filter.call_count == magnet_finding.NUM_PARAMS
 
     output_file = File(
-        "tests/magnet_finding/magnet_finding_output_100pts__baseline_removed.h5",
+        os.path.join(
+            PATH_OF_CURRENT_FILE,
+            "magnet_finding",
+            "magnet_finding_output_100pts__baseline_removed.h5",
+        ),
         "r",
         libver="latest",
     )

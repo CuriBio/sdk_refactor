@@ -23,7 +23,8 @@ PATH_OF_CURRENT_FILE = get_current_file_abs_directory()
 
 
 PATH_TO_DATASETS = os.path.join(PATH_OF_CURRENT_FILE, "datasets")
-PATH_TO_PNGS = os.path.join(PATH_OF_CURRENT_FILE, "pngs")
+PATH_TO_MAGNET_FINDING_FILES = os.path.join(PATH_OF_CURRENT_FILE, "magnet_finding")
+# PATH_TO_PNGS = os.path.join(PATH_OF_CURRENT_FILE, "pngs")
 
 
 def _load_file(file_path: str) -> Tuple[List[str], List[str]]:
@@ -209,11 +210,11 @@ def fixture_sample_reference_reading():
     raw_gmr_data = create_numpy_array_of_raw_gmr_from_python_arrays(time, gmr)
     return raw_gmr_data
 
+
 def load_h5_folder_as_array(recording_name):
     plate_data_array = None
     for module_id in range(1, 25):
-        file_path = f"tests/magnet_finding/{recording_name}/{recording_name}__module_{module_id}.h5"
-
+        file_path = os.path.join(PATH_TO_MAGNET_FINDING_FILES, recording_name, f"{recording_name}__module_{module_id}.h5")
         with File(file_path, "r") as well_file:
             tissue_data = well_file[TISSUE_SENSOR_READINGS][:]
         if plate_data_array is None:

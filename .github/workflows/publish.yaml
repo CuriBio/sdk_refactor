@@ -341,7 +341,7 @@ jobs:
   #       run: pytest -xsvv --full-ci --include-slow-tests -n auto --randomly-seed=${{ github.event.inputs.randomlyseed }}
 
   publish_to_pypi:
-      #needs: [install_from_test_pypi]
+      needs: [publish_to_test_pypi]
     strategy:
       fail-fast: false
       matrix: # if publishing pure python code, then disable all except one os and python version combination. But if publishing code that uses Cython then likely all combinations will be needed

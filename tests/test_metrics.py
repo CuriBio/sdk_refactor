@@ -114,7 +114,6 @@ def test_metrics__TwitchAmplitude():
         )
     ) as f:
         expected = json.load(f)
-
     expected = np.asarray([float(x) for x in expected])
     expected *= MICRO_TO_BASE_CONVERSION
 
@@ -133,7 +132,7 @@ def test_metrics__TwitchAmplitude():
     metric = metrics.TwitchAmplitude()
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    assert np.all(expected == estimate)  # [n for n in estimate]
+    np.testing.assert_array_almost_equal(estimate, expected, decimal=5)
 
 
 def test_metrics__TwitchAUC():
@@ -143,6 +142,7 @@ def test_metrics__TwitchAUC():
         )
     ) as f:
         expected = json.load(f)
+    expected = np.asarray([float(x) for x in expected])
 
     w = WellFile(
         os.path.join(
@@ -159,7 +159,7 @@ def test_metrics__TwitchAUC():
     metric = metrics.TwitchAUC()
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    assert expected == [str(n) for n in estimate]
+    np.testing.assert_array_almost_equal(estimate, expected, decimal=4)
 
 
 def test_metrics__TwitchFracAmp():
@@ -172,6 +172,7 @@ def test_metrics__TwitchFracAmp():
         )
     ) as f:
         expected = json.load(f)
+    expected = np.asarray([float(x) for x in expected])
 
     w = WellFile(
         os.path.join(
@@ -188,7 +189,7 @@ def test_metrics__TwitchFracAmp():
     metric = metrics.TwitchFractionAmplitude()
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    assert expected == [str(n) for n in estimate]
+    np.testing.assert_array_almost_equal(estimate, expected, decimal=6)
 
 
 def test_metrics__TwitchFreq():
@@ -201,6 +202,8 @@ def test_metrics__TwitchFreq():
         )
     ) as f:
         expected = json.load(f)
+    expected = np.asarray([float(x) for x in expected])
+    # expected *= MICRO_TO_BASE_CONVERSION
 
     w = WellFile(
         os.path.join(
@@ -217,7 +220,7 @@ def test_metrics__TwitchFreq():
     metric = metrics.TwitchFrequency()
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    assert expected == [str(n) for n in estimate]
+    np.testing.assert_array_almost_equal(estimate, expected, decimal=5)
 
 
 def test_metrics__TwitchIrregularity():
@@ -230,7 +233,6 @@ def test_metrics__TwitchIrregularity():
         )
     ) as f:
         expected = json.load(f)
-
     expected = np.asarray([float(x) for x in expected])
     expected /= MICRO_TO_BASE_CONVERSION
 
@@ -249,7 +251,7 @@ def test_metrics__TwitchIrregularity():
     metric = metrics.TwitchIrregularity()
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    assert [str(n) for n in expected] == [str(n) for n in estimate]
+    np.testing.assert_array_almost_equal(estimate, expected, decimal=5)
 
 
 # def test_metrics__TwitchPeakTime(
@@ -334,7 +336,6 @@ def test_metrics__TwitchPeriod():
         )
     ) as f:
         expected = json.load(f)
-
     expected = np.asarray([float(n) for n in expected])
     expected /= MICRO_TO_BASE_CONVERSION
 
@@ -353,7 +354,7 @@ def test_metrics__TwitchPeriod():
     metric = metrics.TwitchPeriod()
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    assert [str(n) for n in expected] == [str(n) for n in estimate]
+    np.testing.assert_array_almost_equal(estimate, expected, decimal=5)
 
 
 def test_metrics__TwitchContractionVelocity():
@@ -366,7 +367,6 @@ def test_metrics__TwitchContractionVelocity():
         )
     ) as f:
         expected = json.load(f)
-
     expected = np.asarray([float(n) for n in expected])
     expected *= MICRO_TO_BASE_CONVERSION ** 2
 
@@ -385,7 +385,8 @@ def test_metrics__TwitchContractionVelocity():
     metric = metrics.TwitchVelocity(rounded=False, is_contraction=True)
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    assert [str(n) for n in expected] == [str(n) for n in estimate]
+    # Tanner (12/9/21): precision is low because data changed from float32 to float64. Could regenerate expected data to improve precision
+    np.testing.assert_array_almost_equal(estimate, expected, decimal=2)
 
 
 def test_metrics__TwitchRelaxationVelocity():
@@ -398,7 +399,6 @@ def test_metrics__TwitchRelaxationVelocity():
         )
     ) as f:
         expected = json.load(f)
-
     expected = np.asarray([float(n) for n in expected])
     expected *= MICRO_TO_BASE_CONVERSION ** 2
 
@@ -417,7 +417,8 @@ def test_metrics__TwitchRelaxationVelocity():
     metric = metrics.TwitchVelocity(rounded=False, is_contraction=False)
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    assert [str(n) for n in expected] == [str(n) for n in estimate]
+    # Tanner (12/9/21): precision is low because data changed from float32 to float64. Could regenerate expected data to improve precision
+    np.testing.assert_array_almost_equal(estimate, expected, decimal=3)
 
 
 # def test_metrics__TwitchWidth():

@@ -345,18 +345,16 @@ class PlateRecording:
 
     @staticmethod
     def from_directory(path):
-        basedir = os.path.dirname(path)
-
         # multi zip files
-        for zf in glob.glob(os.path.join(basedir, "*.zip")):
+        for zf in glob.glob(os.path.join(path, "*.zip")):
             yield PlateRecording(zf)
 
         # multi optical files
-        for of in glob.glob(os.path.join(basedir, "*.xlsx")):
+        for of in glob.glob(os.path.join(path, "*.xlsx")):
             yield PlateRecording(of)
 
         # directory of .h5 files
-        yield PlateRecording(basedir)
+        yield PlateRecording(path)
 
     def __iter__(self):
         self._iter = 0

@@ -340,63 +340,67 @@ jobs:
   #       if: github.event.inputs.randomlyseed != ''
   #       run: pytest -xsvv --full-ci --include-slow-tests -n auto --randomly-seed=${{ github.event.inputs.randomlyseed }}
 
-  # publish_to_pypi:
-  #   needs: [install_from_test_pypi]
-  #   strategy:
-  #     fail-fast: false
-  #     matrix: # if publishing pure python code, then disable all except one os and python version combination. But if publishing code that uses Cython then likely all combinations will be needed
-  #       os:
-  #         - "ubuntu-20.04"
-  #       python-version:
-  #           - 3.9
-  #   name: Publish to PyPI for Python ${{ matrix.python-version }} on ${{ matrix.os }}
-  #   runs-on: ${{ matrix.os }}
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v2
-  #       with:
-  #         fetch-depth: 1
+  publish_to_pypi:
+      #needs: [install_from_test_pypi]
+    strategy:
+      fail-fast: false
+      matrix: # if publishing pure python code, then disable all except one os and python version combination. But if publishing code that uses Cython then likely all combinations will be needed
+        os:
+          - "ubuntu-20.04"
+          - "windows-2019"
+          - "macos-10.15"
+        python-version:
+            - 3.7
+            - 3.8
+            - 3.9
+    name: Publish to PyPI for Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
 
-  #     - name: Set up Python
-  #       uses: actions/setup-python@v2
-  #       with:
-  #         python-version: ${{ matrix.python-version }}
-  #     - name: Display Python version
-  #       run: |
-  #         python -c "import sys; print(sys.version)"
-  #         python -m venv venv
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Display Python version
+        run: |
+          python -c "import sys; print(sys.version)"
+          python -m venv venv
 
-  #     - name: Activate virtual environment (Linux/MacOS)
-  #       if: runner.os == 'Linux' || runner.os == 'macOS'
-  #       run: . venv/bin/activate
+      - name: Activate virtual environment (Linux/MacOS)
+        if: runner.os == 'Linux' || runner.os == 'macOS'
+        run: . venv/bin/activate
 
-  #     - name: Activate virtual environment (Windows)
-  #       if: runner.os == 'Windows'
-  #       run: venv\Scripts\Activate.ps1
+      - name: Activate virtual environment (Windows)
+        if: runner.os == 'Windows'
+        run: venv\Scripts\Activate.ps1
 
-  #     - name: Display Pip Version and confirm environment empty
-  #       run: |
-  #         pip -V
-  #         pip freeze
-  #     - name: Install Dev Dependencies
-  #       run: pip install -r requirements-dev.txt
+      - name: Display Pip Version and confirm environment empty
+        run: |
+          pip -V
+          pip freeze
+      - name: Install Dev Dependencies
+        run: pip install -r requirements-dev.txt
 
-  #     - name: Log full installed packages
-  #       run: pip freeze
+      - name: Log full installed packages
+        run: pip freeze
 
-  #     - name: Download built dist folder from previous step
-  #       uses: actions/download-artifact@v2
-  #       with:
-  #         name: dist--${{ matrix.os }}--${{ matrix.python-version }}
-  #         path: dist
+      - name: Download built dist folder from previous step
+        uses: actions/download-artifact@v2
+        with:
+          name: dist--${{ matrix.os }}--${{ matrix.python-version }}
+          path: dist
 
-  #     - name: Uploading to PyPi
-  #       if: github.event.inputs.dry_run != '1'
-  #       env:
-  #         TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-  #         TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+      - name: Uploading to PyPi
+        if: github.event.inputs.dry_run != '1'
+        env:
+          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
 
-  #       run: twine upload dist/*
+        run: twine upload dist/*
 
   #     - name: Sleep for 360 seconds to allow PyPI Index to update before proceeding to the next step
   #       if: github.event.inputs.dry_run != '1'

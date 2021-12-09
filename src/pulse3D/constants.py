@@ -122,11 +122,15 @@ MICRO_TO_BASE_CONVERSION = int(1e6)
 MICROSECONDS_PER_CENTIMILLISECOND = 10
 TISSUE_SENSOR_READINGS = "tissue_sensor_readings"
 REFERENCE_SENSOR_READINGS = "reference_sensor_readings"
+TIME_INDICES = "time_indices"
+TIME_OFFSETS = "time_offsets"
 
 
 """
 constants from mantarray_waveform_analysis library
 """
+MILLI_TO_BASE_CONVERSION = 1000
+
 TWITCH_PERIOD_UUID = uuid.UUID("6e0cd81c-7861-4c49-ba14-87b2739d65fb")
 
 # This is just the reciprocal of twitch period, but is pre-computed to make downstream pipelines
@@ -195,16 +199,22 @@ BESSEL_LOWPASS_10_UUID = uuid.UUID("7d64cac3-b841-4912-b734-c0cf20a81e7a")
 BESSEL_LOWPASS_30_UUID = uuid.UUID("eee66c75-4dc4-4eb4-8d48-6c608bf28d91")
 BUTTERWORTH_LOWPASS_30_UUID = uuid.UUID("de8d8cef-65bf-4119-ada7-bdecbbaa897a")
 
-# GMR conversion factors
-# Conversion values were obtained 03/09/2021 by Kevin Grey
-MIDSCALE_CODE = 0x800000
-RAW_TO_SIGNED_CONVERSION_VALUE = 2 ** 23  # subtract this value from raw hardware data
-MILLIVOLTS_PER_MILLITESLA = 1073.6
+# General mangetic field to force conversion factor. Obtained 03/09/2021 by Kevin Grey, Valid as of 11/19/21
 MILLIMETERS_PER_MILLITESLA = 23.25
 NEWTONS_PER_MILLIMETER = 0.000159
+
+# Beta 1 GMR to magnetic field conversion values. Valid as of 11/19/21
+MILLIVOLTS_PER_MILLITESLA = 1073.6  # Obtained 03/09/2021 by Kevin Grey
+MIDSCALE_CODE = 0x800000
+RAW_TO_SIGNED_CONVERSION_VALUE = 2 ** 23  # subtract this value from raw hardware data
 REFERENCE_VOLTAGE = 2.5
 ADC_GAIN = 2
-MILLI_TO_BASE_CONVERSION = 1000
+
+# Beta 2 Memsic to magnetic field conversion factors. Valid as of 11/19/21
+MEMSIC_CENTER_OFFSET = 2 ** 15
+MEMSIC_MSB = 2 ** 16
+MEMSIC_FULL_SCALE = 16
+GAUSS_PER_MILLITESLA = 10
 
 
 MIN_NUMBER_PEAKS = 3
@@ -305,4 +315,16 @@ EXCEL_OPTICAL_METADATA_CELLS = immutabledict(
         MANTARRAY_SERIAL_NUMBER_UUID: "E7",
         INTERPOLATION_VALUE_UUID: "E8",
     }
+)
+
+
+"""
+Misc
+"""
+
+WELL_IDX_TO_MODULE_ID = immutabledict(
+    {well_idx: well_idx % 4 * 6 + well_idx // 4 + 1 for well_idx in range(24)}
+)
+MODULE_ID_TO_WELL_IDX = immutabledict(
+    {module_id: well_idx for well_idx, module_id in WELL_IDX_TO_MODULE_ID.items()}
 )

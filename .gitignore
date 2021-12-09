@@ -11,11 +11,15 @@
 *.py[cod]
 __pycache__/
 
+# Cython
+*.c
+*.so
+*.html
+
 # Venv
 .venv/
 venv/
 *.egg-info
-
 
 # sphinx html
 docs/build
@@ -62,3 +66,6 @@ tmp/
 
 
 secrets.json
+
+# MacOS
+*.DS_Store

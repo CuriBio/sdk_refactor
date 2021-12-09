@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import datetime
+import math
+import os
 import glob
 import os
 import tempfile
@@ -18,15 +20,21 @@ from xlsxwriter.utility import xl_cell_to_rowcol
 
 from .compression_cy import compress_filtered_magnetic_data
 from .constants import *
+from .magnet_finding import find_magnet_positions
+from .magnet_finding import format_well_file_data
+from .transforms import create_filter
+from .transforms import apply_sensitivity_calibration
+from .transforms import noise_cancellation
 from .transforms import apply_empty_plate_calibration
 from .transforms import apply_noise_filtering
 from .transforms import apply_sensitivity_calibration
 from .transforms import calculate_displacement_from_voltage
 from .transforms import calculate_force_from_displacement
 from .transforms import calculate_voltage_from_gmr
-from .transforms import create_filter
-from .transforms import noise_cancellation
-
+from .transforms import calculate_displacement_from_voltage
+from .transforms import calculate_force_from_displacement
+from .transforms import calculate_magnetic_flux_density_from_memsic
+from .compression_cy import compress_filtered_magnetic_data
 
 def _get_col_as_array(sheet: Worksheet, zero_based_row: int, zero_based_col: int) -> NDArray[(2, Any), float]:
     col_array = []
@@ -104,59 +112,81 @@ def _load_optical_file_attrs(sheet: Worksheet):
     return attrs
 
 
+class MantarrayH5FileCreator(
+    h5py.File
+):  # pylint: disable=too-many-ancestors # Eli (7/28/20): I don't see a way around this...we need to subclass h5py File
+    """Creates an H5 file with the basic format/layout."""
+
+    def __init__(
+        self,
+        file_name: str,
+        file_format_version: str = CURRENT_BETA2_HDF5_FILE_FORMAT_VERSION,
+    ) -> None:
+        super().__init__(
+            file_name,
+            "w",
+            libver="latest",  # Eli (2/9/20) tried to specify this ('earliest', 'v110') to be more backward compatible but it didn't work for unknown reasons (gave error when trying to set swmr_mode=True)
+            userblock_size=512,  # minimum size is 512 bytes
+        )
+
+        self.attrs[FILE_FORMAT_VERSION_METADATA_KEY] = file_format_version
+
 class WellFile:
     def __init__(self, file_path: str, sampling_period=None):
         if file_path.endswith(".h5"):
-            self.file = h5py.File(file_path, "r")
-            self.file_name = os.path.basename(self.file.filename)
+            with h5py.File(file_path, "r") as h5_file:
+                self.file_name = os.path.basename(h5_file.filename)
+                self.is_force_data = True
+                self.is_magnetic_data = True
 
-            self.is_force_data = True
-            self.is_magnetic_data = True
+                self.attrs = {attr: h5_file.attrs[attr] for attr in list(h5_file.attrs)}
+                self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
 
-            self.attrs = {attr: self.file.attrs[attr] for attr in list(self.file.attrs)}
-            self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
+                # extract datetime
+                self[UTC_BEGINNING_RECORDING_UUID] = self._extract_datetime(UTC_BEGINNING_RECORDING_UUID)
+                self[UTC_BEGINNING_DATA_ACQUISTION_UUID] = self._extract_datetime(
+                    UTC_BEGINNING_DATA_ACQUISTION_UUID
+                )
+                self[UTC_FIRST_TISSUE_DATA_POINT_UUID] = self._extract_datetime(UTC_FIRST_TISSUE_DATA_POINT_UUID)
+                if self.version < VersionInfo.parse("1.0.0"):  # Tanner (12/6/21): Ref data not yet added to these files
+                    self[UTC_FIRST_REF_DATA_POINT_UUID] = self._extract_datetime(UTC_FIRST_REF_DATA_POINT_UUID)
+                
+                # setup noise filter
+                if self.version < VersionInfo.parse("1.0.0"):  # Tanner (12/6/21): should probably add beta 2 file support here and remove this condition
+                    self.tissue_sampling_period = (
+                        sampling_period if sampling_period else self[TISSUE_SAMPLING_PERIOD_UUID]
+                    )
+                    self.noise_filter_uuid = (
+                        TSP_TO_DEFAULT_FILTER_UUID[self.tissue_sampling_period] if self.is_magnetic_data else None
+                    )
+                    self.filter_coefficients = (
+                        create_filter(self.noise_filter_uuid, self.tissue_sampling_period)
+                        if self.noise_filter_uuid
+                        else None
+                    )
+                is_untrimmed = self.get(IS_FILE_ORIGINAL_UNTRIMMED_UUID, True)
+                time_trimmed = None if is_untrimmed else self.attrs[TRIMMED_TIME_FROM_ORIGINAL_START_UUID]
 
-            # extract datetime
-            self[UTC_BEGINNING_RECORDING_UUID] = self._extract_datetime(UTC_BEGINNING_RECORDING_UUID)
-            self[UTC_BEGINNING_DATA_ACQUISTION_UUID] = self._extract_datetime(
-                UTC_BEGINNING_DATA_ACQUISTION_UUID
-            )
-            self[UTC_FIRST_TISSUE_DATA_POINT_UUID] = self._extract_datetime(UTC_FIRST_TISSUE_DATA_POINT_UUID)
-            self[UTC_FIRST_REF_DATA_POINT_UUID] = self._extract_datetime(UTC_FIRST_REF_DATA_POINT_UUID)
-
+                # load sensor data. This is only possible to do for Beta 1 data files
+                if self.version < VersionInfo.parse("1.0.0"):
+                    self[TISSUE_SENSOR_READINGS] = self._load_reading(h5_file, TISSUE_SENSOR_READINGS, time_trimmed)
+                    self[REFERENCE_SENSOR_READINGS] = self._load_reading(h5_file, REFERENCE_SENSOR_READINGS, time_trimmed)
+                    self._load_magnetic_data()
+                else:
+                    for reading_type in (TIME_INDICES, TIME_OFFSETS, TISSUE_SENSOR_READINGS, REFERENCE_SENSOR_READINGS):
+                        self[reading_type] = h5_file[reading_type][:]
+                    # declaring these here so they can be set later
+                    self.displacement: NDArray[(2, Any), np.float64]
+                    self.force: NDArray[(2, Any), np.float64]
         elif file_path.endswith(".xlsx"):
             self._excel_sheet = _get_single_sheet(file_path)
             self.file_name = os.path.basename(file_path)
             self.attrs = {k: v for (k, v) in _load_optical_file_attrs(self._excel_sheet).items()}
             self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
-
             self.is_magnetic_data = False
             self.is_force_data = (
                 "y" in str(_get_excel_metadata_value(self._excel_sheet, TWITCHES_POINT_UP_UUID)).lower()
             )
-
-        # setup noise filter
-        self.tissue_sampling_period = (
-            sampling_period if sampling_period else self[TISSUE_SAMPLING_PERIOD_UUID]
-        )
-        self.noise_filter_uuid = (
-            TSP_TO_DEFAULT_FILTER_UUID[self.tissue_sampling_period] if self.is_magnetic_data else None
-        )
-        self.filter_coefficients = (
-            create_filter(self.noise_filter_uuid, self.tissue_sampling_period)
-            if self.noise_filter_uuid
-            else None
-        )
-
-        is_untrimmed = self.get(IS_FILE_ORIGINAL_UNTRIMMED_UUID, True)
-        time_trimmed = None if is_untrimmed else self.attrs[TRIMMED_TIME_FROM_ORIGINAL_START_UUID]
-
-        if self.is_magnetic_data:
-            # load sensor data
-            self[TISSUE_SENSOR_READINGS] = self._load_reading(TISSUE_SENSOR_READINGS, time_trimmed)
-            self[REFERENCE_SENSOR_READINGS] = self._load_reading(REFERENCE_SENSOR_READINGS, time_trimmed)
-
-        self._load_magnetic_data()
 
     def _load_magnetic_data(self):
         adj_raw_tissue_reading = self[TISSUE_SENSOR_READINGS].copy()
@@ -269,7 +299,7 @@ class WellFile:
             tzinfo=datetime.timezone.utc
         )
 
-    def _load_reading(self, reading_type: str, time_trimmed) -> NDArray[(Any, Any), int]:
+    def _load_reading(self, h5_file, reading_type: str, time_trimmed) -> NDArray[(Any, Any), int]:
         recording_start_index = self[START_RECORDING_TIME_INDEX_UUID]
         beginning_data_acquisition_ts = self[UTC_BEGINNING_DATA_ACQUISTION_UUID]
 
@@ -293,7 +323,7 @@ class WellFile:
         time_step = int(sampling_period / MICROSECONDS_PER_CENTIMILLISECOND)
 
         # adding `[:]` loads the data as a numpy array giving us more flexibility of multi-dimensional arrays
-        data = self.file[reading_type][:]
+        data = h5_file[reading_type][:]
         if len(data.shape) == 1:
             data = data.reshape(1, data.shape[0])
 
@@ -319,29 +349,45 @@ class PlateRecording:
         self._iter = 0
         self.is_optical_recording = False
 
-        if self.path.endswith(".zip"):
-            zf = zipfile.ZipFile(self.path)
-            files = [f for f in zf.namelist() if f.endswith(".h5")]
-            self.wells = [None] * len(files)
-
-            with tempfile.TemporaryDirectory() as tempdir:
-                zf.extractall(path=tempdir, members=files)
-
-                for f in files:
-                    well_file = WellFile(os.path.join(tempdir, f))
-                    self.wells[well_file[WELL_INDEX_UUID]] = well_file
-        elif self.path.endswith(".xlsx"):  # optical file
+        if self.path.endswith('.xlsx'):  # optical file
             self.is_optical_recording = True
             well_file = WellFile(self.path)
             self.wells = [None] * (well_file[WELL_INDEX_UUID] + 1)
             self.wells[well_file[WELL_INDEX_UUID]] = well_file
-        else:  # directory of .h5 files
-            files = glob.glob(os.path.join(self.path, "*.h5"))
-            self.wells = [None] * len(files)
+        else:
+            self.wells, calibration_recordings = load_files(self.path)
+            # Tanner (12/3/21): currently file versions 1.0.0 and above must have all their data processed together
+            if self.wells[0].version >= VersionInfo.parse("1.0.0"):
+                self._process_plate_data(calibration_recordings)
 
-            for hf in files:
-                well_file = WellFile(hf)
-                self.wells[well_file[WELL_INDEX_UUID]] = well_file
+    def _process_plate_data(self, calibration_recordings):
+        if not all(isinstance(well_file, WellFile) for well_file in self.wells) or len(self.wells) != 24:
+            raise NotImplementedError("All 24 wells must have a recording file present")
+        if not all(isinstance(well_file, WellFile) for well_file in calibration_recordings) or len(calibration_recordings) != 24:
+            raise NotImplementedError("All 24 wells must have a calibration file present")
+
+        # load data
+        plate_data_array = format_well_file_data(self.wells)
+        plate_data_array_mt = calculate_magnetic_flux_density_from_memsic(plate_data_array)
+        baseline_data = format_well_file_data(calibration_recordings)
+        baseline_data_mt = calculate_magnetic_flux_density_from_memsic(baseline_data)
+        # extend baseline data (if necessary) so that it has at least as many samples as the recording
+        num_samples_in_recording = plate_data_array_mt.shape[-1]
+        num_samples_in_baseline = baseline_data_mt.shape[-1]
+        num_times_to_duplicate = math.ceil(num_samples_in_recording / num_samples_in_baseline)
+        baseline_data_mt = np.tile(baseline_data_mt, num_times_to_duplicate)
+        # pass data into magnet finding alg
+        estimated_magnet_positions = find_magnet_positions(
+            plate_data_array_mt,
+            baseline_data_mt[:, :, :, :num_samples_in_recording]
+        )
+        # create displace and force arrays for each WellFile
+        for module_id in range(1, 25):
+            well_idx = MODULE_ID_TO_WELL_IDX[module_id]
+            well_file = self.wells[well_idx]
+            x = estimated_magnet_positions["X"][:, module_id - 1]
+            well_file.displacement = np.array([well_file[TIME_INDICES], x])
+            well_file.force = calculate_force_from_displacement(well_file.displacement)
 
     @staticmethod
     def from_directory(path):
@@ -369,6 +415,31 @@ class PlateRecording:
             return value
         else:
             raise StopIteration
+
+
+def load_files(path):
+    with tempfile.TemporaryDirectory() as recording_dir:
+        # get file names
+        if path.endswith('.zip'):
+            zf = zipfile.ZipFile(path)
+            zf.extractall(path=recording_dir)
+        else:
+            recording_dir = path
+        # sort H5 files
+        h5_files = glob.glob(os.path.join(recording_dir, "**", "*.h5"), recursive=True)
+        recording_files = [f for f in h5_files if "Calibration" not in f]
+        calibration_files = [f for f in h5_files if "Calibration" in f]
+        # create WellFiles
+        tissue_well_files = [None] * len(recording_files)
+        baseline_well_files = [None] * len(calibration_files)
+        for file_list, well_file_list in (
+            (recording_files, tissue_well_files),
+            (calibration_files, baseline_well_files)
+        ):
+            for f in file_list:
+                well_file = WellFile(f)
+                well_file_list[well_file[WELL_INDEX_UUID]] = well_file
+    return tissue_well_files, baseline_well_files
 
 
 def _find_start_index(from_start: int, old_data: NDArray[(1, Any), int]) -> int:

@@ -134,23 +134,50 @@ class MantarrayH5FileCreator(
 class WellFile:
     def __init__(self, file_path: str, sampling_period=None):
         if file_path.endswith(".h5"):
-            self.file = h5py.File(file_path, "r")
-            self.file_name = os.path.basename(self.file.filename)
-            self.is_force_data = True
-            self.is_magnetic_data = True
+            with h5py.File(file_path, "r") as h5_file:
+                self.file_name = os.path.basename(h5_file.filename)
+                self.is_force_data = True
+                self.is_magnetic_data = True
 
-            self.attrs = {attr: self.file.attrs[attr] for attr in list(self.file.attrs)}
-            self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
+                self.attrs = {attr: h5_file.attrs[attr] for attr in list(h5_file.attrs)}
+                self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
 
-            # extract datetime
-            self[UTC_BEGINNING_RECORDING_UUID] = self._extract_datetime(UTC_BEGINNING_RECORDING_UUID)
-            self[UTC_BEGINNING_DATA_ACQUISTION_UUID] = self._extract_datetime(
-                UTC_BEGINNING_DATA_ACQUISTION_UUID
-            )
-            self[UTC_FIRST_TISSUE_DATA_POINT_UUID] = self._extract_datetime(UTC_FIRST_TISSUE_DATA_POINT_UUID)
-            if self.version < VersionInfo.parse("1.0.0"):  # Tanner (12/6/21): Ref data not yet added to these files
-                self[UTC_FIRST_REF_DATA_POINT_UUID] = self._extract_datetime(UTC_FIRST_REF_DATA_POINT_UUID)
+                # extract datetime
+                self[UTC_BEGINNING_RECORDING_UUID] = self._extract_datetime(UTC_BEGINNING_RECORDING_UUID)
+                self[UTC_BEGINNING_DATA_ACQUISTION_UUID] = self._extract_datetime(
+                    UTC_BEGINNING_DATA_ACQUISTION_UUID
+                )
+                self[UTC_FIRST_TISSUE_DATA_POINT_UUID] = self._extract_datetime(UTC_FIRST_TISSUE_DATA_POINT_UUID)
+                if self.version < VersionInfo.parse("1.0.0"):  # Tanner (12/6/21): Ref data not yet added to these files
+                    self[UTC_FIRST_REF_DATA_POINT_UUID] = self._extract_datetime(UTC_FIRST_REF_DATA_POINT_UUID)
+                
+                # setup noise filter
+                if self.version < VersionInfo.parse("1.0.0"):  # Tanner (12/6/21): should probably add beta 2 file support here and remove this condition
+                    self.tissue_sampling_period = (
+                        sampling_period if sampling_period else self[TISSUE_SAMPLING_PERIOD_UUID]
+                    )
+                    self.noise_filter_uuid = (
+                        TSP_TO_DEFAULT_FILTER_UUID[self.tissue_sampling_period] if self.is_magnetic_data else None
+                    )
+                    self.filter_coefficients = (
+                        create_filter(self.noise_filter_uuid, self.tissue_sampling_period)
+                        if self.noise_filter_uuid
+                        else None
+                    )
+                is_untrimmed = self.get(IS_FILE_ORIGINAL_UNTRIMMED_UUID, True)
+                time_trimmed = None if is_untrimmed else self.attrs[TRIMMED_TIME_FROM_ORIGINAL_START_UUID]
 
+                # load sensor data. This is only possible to do for Beta 1 data files
+                if self.version < VersionInfo.parse("1.0.0"):
+                    self[TISSUE_SENSOR_READINGS] = self._load_reading(h5_file, TISSUE_SENSOR_READINGS, time_trimmed)
+                    self[REFERENCE_SENSOR_READINGS] = self._load_reading(h5_file, REFERENCE_SENSOR_READINGS, time_trimmed)
+                    self._load_magnetic_data()
+                else:
+                    for reading_type in (TIME_INDICES, TIME_OFFSETS, TISSUE_SENSOR_READINGS, REFERENCE_SENSOR_READINGS):
+                        self[reading_type] = h5_file[reading_type][:]
+                    # declaring these here so they can be set later
+                    self.displacement: NDArray[(2, Any), np.float64]
+                    self.force: NDArray[(2, Any), np.float64]
         elif file_path.endswith(".xlsx"):
             self._excel_sheet = _get_single_sheet(file_path)
             self.file_name = os.path.basename(file_path)
@@ -160,35 +187,6 @@ class WellFile:
             self.is_force_data = (
                 "y" in str(_get_excel_metadata_value(self._excel_sheet, TWITCHES_POINT_UP_UUID)).lower()
             )
-
-        # setup noise filter
-        if self.version < VersionInfo.parse("1.0.0"):  # Tanner (12/6/21): should probably add beta 2 file support here and remove this condition
-            self.tissue_sampling_period = (
-                sampling_period if sampling_period else self[TISSUE_SAMPLING_PERIOD_UUID]
-            )
-            self.noise_filter_uuid = (
-                TSP_TO_DEFAULT_FILTER_UUID[self.tissue_sampling_period] if self.is_magnetic_data else None
-            )
-            self.filter_coefficients = (
-                create_filter(self.noise_filter_uuid, self.tissue_sampling_period)
-                if self.noise_filter_uuid
-                else None
-            )
-        is_untrimmed = self.get(IS_FILE_ORIGINAL_UNTRIMMED_UUID, True)
-        time_trimmed = None if is_untrimmed else self.attrs[TRIMMED_TIME_FROM_ORIGINAL_START_UUID]
-
-        # load sensor data. This is only possible to do for Beta 1 data files
-        if self.version < VersionInfo.parse("1.0.0"):
-            if self.is_magnetic_data:
-                self[TISSUE_SENSOR_READINGS] = self._load_reading(TISSUE_SENSOR_READINGS, time_trimmed)
-                self[REFERENCE_SENSOR_READINGS] = self._load_reading(REFERENCE_SENSOR_READINGS, time_trimmed)
-            self._load_magnetic_data()
-        else:
-            for reading_type in (TIME_INDICES, TIME_OFFSETS, TISSUE_SENSOR_READINGS, REFERENCE_SENSOR_READINGS):
-                self[reading_type] = self.file[reading_type][:]
-            # declaring these here so they can be set later
-            self.displacement: NDArray[(2, Any), np.float64]
-            self.force: NDArray[(2, Any), np.float64]
 
     def _load_magnetic_data(self):
         adj_raw_tissue_reading = self[TISSUE_SENSOR_READINGS].copy()
@@ -301,7 +299,7 @@ class WellFile:
             tzinfo=datetime.timezone.utc
         )
 
-    def _load_reading(self, reading_type: str, time_trimmed) -> NDArray[(Any, Any), int]:
+    def _load_reading(self, h5_file, reading_type: str, time_trimmed) -> NDArray[(Any, Any), int]:
         recording_start_index = self[START_RECORDING_TIME_INDEX_UUID]
         beginning_data_acquisition_ts = self[UTC_BEGINNING_DATA_ACQUISTION_UUID]
 
@@ -325,7 +323,7 @@ class WellFile:
         time_step = int(sampling_period / MICROSECONDS_PER_CENTIMILLISECOND)
 
         # adding `[:]` loads the data as a numpy array giving us more flexibility of multi-dimensional arrays
-        data = self.file[reading_type][:]
+        data = h5_file[reading_type][:]
         if len(data.shape) == 1:
             data = data.reshape(1, data.shape[0])
 

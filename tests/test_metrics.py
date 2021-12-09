@@ -203,7 +203,6 @@ def test_metrics__TwitchFreq():
     ) as f:
         expected = json.load(f)
     expected = np.asarray([float(x) for x in expected])
-    # expected *= MICRO_TO_BASE_CONVERSION
 
     w = WellFile(
         os.path.join(

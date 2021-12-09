@@ -149,6 +149,13 @@ class WellFile:
                 if self.version < VersionInfo.parse("1.0.0"):  # Tanner (12/6/21): Ref data not yet added to these files
                     self[UTC_FIRST_REF_DATA_POINT_UUID] = self._extract_datetime(UTC_FIRST_REF_DATA_POINT_UUID)
 
+                    for reading_type in (TISSUE_SENSOR_READINGS, REFERENCE_SENSOR_READINGS):
+                        self[reading_type] = f[reading_type][:]
+                else:
+                    for reading_type in (TIME_INDICES, TIME_OFFSETS, TISSUE_SENSOR_READINGS, REFERENCE_SENSOR_READINGS):
+                        self[reading_type] = f[reading_type][:]
+
+
         elif file_path.endswith(".xlsx"):
             self._excel_sheet = _get_single_sheet(file_path)
             self.file_name = os.path.basename(file_path)
@@ -181,10 +188,7 @@ class WellFile:
                 self[TISSUE_SENSOR_READINGS] = self._load_reading(TISSUE_SENSOR_READINGS, time_trimmed)
                 self[REFERENCE_SENSOR_READINGS] = self._load_reading(REFERENCE_SENSOR_READINGS, time_trimmed)
             self._load_magnetic_data()
-        else:
-            for reading_type in (TIME_INDICES, TIME_OFFSETS, TISSUE_SENSOR_READINGS, REFERENCE_SENSOR_READINGS):
-                self[reading_type] = self.file[reading_type][:]
-            # declaring these here so they can be set later
+        else: # declaring these here so they can be set later
             self.displacement: NDArray[(2, Any), np.float64]
             self.force: NDArray[(2, Any), np.float64]
 
@@ -323,7 +327,7 @@ class WellFile:
         time_step = int(sampling_period / MICROSECONDS_PER_CENTIMILLISECOND)
 
         # adding `[:]` loads the data as a numpy array giving us more flexibility of multi-dimensional arrays
-        data = self.file[reading_type][:]
+        data = self[reading_type][:]
         if len(data.shape) == 1:
             data = data.reshape(1, data.shape[0])
 
@@ -425,20 +429,24 @@ def load_files(path):
             zf.extractall(path=recording_dir)
         else:
             recording_dir = path
-        # sort H5 files
+
         h5_files = glob.glob(os.path.join(recording_dir, "**", "*.h5"), recursive=True)
+
         recording_files = [f for f in h5_files if "Calibration" not in f]
         calibration_files = [f for f in h5_files if "Calibration" in f]
+
         # create WellFiles
         tissue_well_files = [None] * len(recording_files)
         baseline_well_files = [None] * len(calibration_files)
-        for file_list, well_file_list in (
-            (recording_files, tissue_well_files),
-            (calibration_files, baseline_well_files)
-        ):
-            for f in file_list:
-                well_file = WellFile(os.path.join(recording_dir, f))
-                well_file_list[well_file[WELL_INDEX_UUID]] = well_file
+
+        for f in recording_files:
+            well_file = WellFile(f)
+            tissue_well_files[well_file[WELL_INDEX_UUID]] = well_file
+
+        for f in calibration_files:
+            well_file = WellFile(f)
+            baseline_well_files[well_file[WELL_INDEX_UUID]] = well_file
+
     return tissue_well_files, baseline_well_files
 
 

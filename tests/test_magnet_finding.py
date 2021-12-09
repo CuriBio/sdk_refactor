@@ -21,7 +21,7 @@ from .fixtures_utils import load_h5_folder_as_array
 
 def test_load_files__loads_zipped_folder_with_calibration_recordings_correctly():
     tissue_recordings, baseline_recordings = load_files(
-        "tests/magnet_finding/MA200440001__2020_02_09_190359__with_calibration_recordings.zip"
+        "tests/magnet_finding/MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip"
     )
     assert len(tissue_recordings) == 24
     assert len(baseline_recordings) == 24
@@ -30,7 +30,26 @@ def test_load_files__loads_zipped_folder_with_calibration_recordings_correctly()
 def test_load_files__loads_unzipped_folder_with_calibration_recordings_correctly():
     with tempfile.TemporaryDirectory() as tempdir:
         zf = zipfile.ZipFile(
-            "tests/magnet_finding/MA200440001__2020_02_09_190359__with_calibration_recordings.zip"
+            "tests/magnet_finding/MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip"
+        )
+        zf.extractall(path=tempdir)
+        tissue_recordings, baseline_recordings = load_files(tempdir)
+    assert len(tissue_recordings) == 24
+    assert len(baseline_recordings) == 24
+
+
+def test_load_files__loads_zipped_files_with_calibration_recordings_correctly():
+    tissue_recordings, baseline_recordings = load_files(
+        "tests/magnet_finding/MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_files.zip"
+    )
+    assert len(tissue_recordings) == 24
+    assert len(baseline_recordings) == 24
+
+
+def test_load_files__loads_unzipped_files_with_calibration_recordings_correctly():
+    with tempfile.TemporaryDirectory() as tempdir:
+        zf = zipfile.ZipFile(
+            "tests/magnet_finding/MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_files.zip"
         )
         zf.extractall(path=tempdir)
         tissue_recordings, baseline_recordings = load_files(tempdir)

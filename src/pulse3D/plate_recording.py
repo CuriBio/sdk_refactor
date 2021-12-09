@@ -353,7 +353,7 @@ class PlateRecording:
         for of in glob.glob(os.path.join(path, "*.xlsx")):
             yield PlateRecording(of)
 
-        # directory of .h5 files
+        # directory of .h5 files or single .zip/.xlsx
         yield PlateRecording(path)
 
     def __iter__(self):

@@ -429,12 +429,8 @@ def load_files(path):
             zf.extractall(path=recording_dir)
         else:
             recording_dir = path
-        # remove folder that gets created when zipped on MacOS
-        folders = os.listdir(recording_dir)
-        if "__MACOSX" in folders:
-            folders.remove("__MACOSX")
-        # sort files
-        h5_files = glob.glob(os.path.join(recording_dir, folders[0], "*.h5"))
+        # sort H5 files
+        h5_files = glob.glob(os.path.join(recording_dir, "**", "*.h5"), recursive=True)
         recording_files = [f for f in h5_files if "Calibration" not in f]
         calibration_files = [f for f in h5_files if "Calibration" in f]
         # create WellFiles

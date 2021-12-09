@@ -123,7 +123,6 @@ def get_positions(data: NDArray[(24, 3, 3, Any), float]) -> Dict[str, NDArray[(1
     for module_id in range(0, num_active_module_ids):
         module_slice = slice(module_id * triad.shape[0], (module_id + 1) * triad.shape[0])
         manta[module_slice, :] = triad + module_id // WELLS_PER_ROW * WELL_VERTICAL_SPACING + (module_id % WELLS_PER_ROW) * WELL_HORIZONTAL_SPACING
-    print(manta.shape)
 
     # Kevin (12/1/21): run meas_field with some dummy values so numba compiles it. There needs to be some delay before it's called again for it to compile
     dummy = np.asarray([1])
@@ -142,10 +141,10 @@ def get_positions(data: NDArray[(24, 3, 3, Any), float]) -> Dict[str, NDArray[(1
     params = tuple(initial_guess_values.keys())
     estimations = {param: np.empty((data.shape[-1], num_active_module_ids)) for param in params}
 
+    # Tanner (12/8/21): should probably add some sort of logging eventually 
+
     # Kevin (12/1/21): Run the algorithm on each time index. The algorithm uses its previous outputs as its initial guess for all datapoints but the first one
     for data_idx in range(0, data.shape[-1]):
-        print("###", data_idx)
-
         # Kevin (12/1/21): This sorts the data from processData into something that the algorithm can operate on; it shouldn't be necessary if you combine this method and processData
         b_meas = np.empty(num_active_module_ids * 9)
         for mi_idx, module_id in enumerate(active_module_ids):

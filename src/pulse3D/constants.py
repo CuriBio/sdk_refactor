@@ -6,6 +6,12 @@ import uuid
 from immutabledict import immutabledict
 from labware_domain_models import LabwareDefinition
 
+try:
+    from importlib import metadata
+except ImportError:
+    import importlib_metadata as metadata
+PACKAGE_VERSION = metadata.version("pulse3D")
+
 CURI_BIO_ACCOUNT_UUID = uuid.UUID("73f52be0-368c-42d8-a1fd-660d49ba5604")
 CURI_BIO_USER_ACCOUNT_ID = uuid.UUID("455b93eb-c78f-4494-9f73-d3291130f126")
 

@@ -1,21 +1,25 @@
 # -*- coding: utf-8 -*-
-from h5py import File
-import numpy as np
 import os
-import pytest
 import tempfile
 import zipfile
 
+from h5py import File
+import numpy as np
 from pulse3D import magnet_finding
 from pulse3D import plate_recording
-from pulse3D.constants import MEMSIC_CENTER_OFFSET
-from pulse3D.constants import MEMSIC_FULL_SCALE,MEMSIC_MSB
 from pulse3D.constants import GAUSS_PER_MILLITESLA
-from pulse3D.constants import REFERENCE_SENSOR_READINGS, TIME_INDICES,TIME_OFFSETS
-from pulse3D.constants import TISSUE_SENSOR_READINGS,WELL_IDX_TO_MODULE_ID
-from pulse3D.plate_recording import PlateRecording
+from pulse3D.constants import MEMSIC_CENTER_OFFSET
+from pulse3D.constants import MEMSIC_FULL_SCALE
+from pulse3D.constants import MEMSIC_MSB
+from pulse3D.constants import REFERENCE_SENSOR_READINGS
+from pulse3D.constants import TIME_INDICES
+from pulse3D.constants import TIME_OFFSETS
+from pulse3D.constants import TISSUE_SENSOR_READINGS
+from pulse3D.constants import WELL_IDX_TO_MODULE_ID
 from pulse3D.plate_recording import load_files
+from pulse3D.plate_recording import PlateRecording
 from pulse3D.transforms import calculate_force_from_displacement
+import pytest
 from stdlib_utils import get_current_file_abs_directory
 
 from .fixtures_utils import load_h5_folder_as_array
@@ -28,7 +32,7 @@ def test_load_files__loads_zipped_folder_with_calibration_recordings_correctly()
         os.path.join(
             PATH_OF_CURRENT_FILE,
             "magnet_finding",
-            "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip"
+            "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
         )
     )
     assert len(tissue_recordings) == 24
@@ -41,7 +45,7 @@ def test_load_files__loads_unzipped_folder_with_calibration_recordings_correctly
             os.path.join(
                 PATH_OF_CURRENT_FILE,
                 "magnet_finding",
-                "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip"
+                "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
             )
         )
         zf.extractall(path=tempdir)
@@ -55,7 +59,7 @@ def test_load_files__loads_zipped_files_with_calibration_recordings_correctly():
         os.path.join(
             PATH_OF_CURRENT_FILE,
             "magnet_finding",
-            "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_files.zip"
+            "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_files.zip",
         )
     )
     assert len(tissue_recordings) == 24
@@ -68,7 +72,7 @@ def test_load_files__loads_unzipped_files_with_calibration_recordings_correctly(
             os.path.join(
                 PATH_OF_CURRENT_FILE,
                 "magnet_finding",
-                "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_files.zip"
+                "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_files.zip",
             )
         )
         zf.extractall(path=tempdir)
@@ -81,10 +85,7 @@ def test_load_files__loads_unzipped_files_with_calibration_recordings_correctly(
 def test_get_positions__returns_expected_values():
     loaded_data = load_h5_folder_as_array("Durability_Test_11162021_data_90min")
     loaded_data_mt = (
-        (loaded_data - MEMSIC_CENTER_OFFSET)
-        * MEMSIC_FULL_SCALE
-        / MEMSIC_MSB
-        / GAUSS_PER_MILLITESLA
+        (loaded_data - MEMSIC_CENTER_OFFSET) * MEMSIC_FULL_SCALE / MEMSIC_MSB / GAUSS_PER_MILLITESLA
     )
     outputs = magnet_finding.get_positions(loaded_data_mt[:, :, :, 2:102])
 
@@ -103,10 +104,7 @@ def test_get_positions__returns_expected_values():
         for decimal in range(0, 14):
             try:
                 np.testing.assert_array_almost_equal(
-                    output,
-                    output_file[output_name],
-                    decimal=decimal,
-                    err_msg=f"output_name"
+                    output, output_file[output_name], decimal=decimal, err_msg=f"output_name"
                 )
             except AssertionError:
                 acc[output_name] = decimal - 1
@@ -126,15 +124,12 @@ def test_PlateRecording__creates_correct_displacement_and_force_data_for_beta_2_
             well_file[TIME_INDICES] = well_file[TIME_INDICES][:num_points_to_test]
             well_file[TIME_OFFSETS] = well_file[TIME_OFFSETS][:, :num_points_to_test]
             well_file[TISSUE_SENSOR_READINGS] = well_file[TISSUE_SENSOR_READINGS][:, :num_points_to_test]
-            well_file[REFERENCE_SENSOR_READINGS] = well_file[REFERENCE_SENSOR_READINGS][:, :num_points_to_test]
+            well_file[REFERENCE_SENSOR_READINGS] = well_file[REFERENCE_SENSOR_READINGS][
+                :, :num_points_to_test
+            ]
         return tissue_well_files, baseline_well_files
 
-    mocker.patch.object(
-        plate_recording,
-        "load_files",
-        autospec=True,
-        side_effect=load_files_se
-    )
+    mocker.patch.object(plate_recording, "load_files", autospec=True, side_effect=load_files_se)
 
     # mock this so data doesn't actually get filtered and is easier to test
     mocked_filter = mocker.patch.object(
@@ -148,7 +143,7 @@ def test_PlateRecording__creates_correct_displacement_and_force_data_for_beta_2_
         os.path.join(
             PATH_OF_CURRENT_FILE,
             "magnet_finding",
-            "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip"
+            "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
         )
     )
     assert mocked_filter.call_count == magnet_finding.NUM_PARAMS
@@ -166,10 +161,8 @@ def test_PlateRecording__creates_correct_displacement_and_force_data_for_beta_2_
     for well_idx, well_file in enumerate(pr.wells):
         # test displacement
         module_id = WELL_IDX_TO_MODULE_ID[well_idx]
-        expected_displacement = np.array(
-            [well_file[TIME_INDICES], output_file["X"][:, module_id - 1]]
-        )
-        # Tanner (12/7/21): iterating through different decimal precision here since the precision is different for each well, but 
+        expected_displacement = np.array([well_file[TIME_INDICES], output_file["X"][:, module_id - 1]])
+        # Tanner (12/7/21): iterating through different decimal precision here since the precision is different for each well, but
         np.testing.assert_array_almost_equal(
             well_file.displacement,
             expected_displacement,

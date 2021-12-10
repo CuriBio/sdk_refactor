@@ -28,6 +28,7 @@ SECONDS_PER_CELL = 2.5
 
 log = logging.getLogger(__name__)
 
+
 def add_peak_detection_series(
     waveform_charts,
     continuous_waveform_sheet,
@@ -257,13 +258,13 @@ def write_xlsx(plate_recording, name=None):
         well_index = well_file[WELL_INDEX_UUID]
         well_name = TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_index)
 
-        log.info(f'Finding peaks and valleys for well {well_name}')
+        log.info(f"Finding peaks and valleys for well {well_name}")
         peaks_and_valleys = peak_detector(well_file.noise_filtered_magnetic_data)
 
-        log.info(f'Finding twitch indices for well {well_name}')
+        log.info(f"Finding twitch indices for well {well_name}")
         twitch_indices = find_twitch_indices(peaks_and_valleys)
 
-        log.info(f'Calculating metrics for well {well_name}')
+        log.info(f"Calculating metrics for well {well_name}")
         metrics = data_metrics(peaks_and_valleys, well_file.force, well_name)
 
         first_idx, last_idx = 0, len(time_points) - 1
@@ -305,19 +306,19 @@ def write_xlsx(plate_recording, name=None):
     continuous_waveforms_df = pd.DataFrame(continuous_waveforms)
 
     _write_xlsx(name, metadata_df, continuous_waveforms_df, data, plate_recording.is_optical_recording)
-    log.info('Done')
+    log.info("Done")
 
 
 def _write_xlsx(name: str, metadata_df, continuous_waveforms_df, data, is_optical_recording):
     with pd.ExcelWriter(name) as writer:
-        log.info(f'Writing H5 file metadata')
+        log.info(f"Writing H5 file metadata")
         metadata_df.to_excel(writer, sheet_name="metadata", index=False, header=False)
         ws = writer.sheets["metadata"]
 
         for i_col_idx, i_col_width in ((0, 25), (1, 40), (2, 25)):
             ws.set_column(i_col_idx, i_col_idx, i_col_width)
 
-        log.info(f'Creating waveform data sheet')
+        log.info(f"Creating waveform data sheet")
         continuous_waveforms_df.to_excel(writer, sheet_name="continuous-waveforms", index=False)
         continuous_waveforms_sheet = writer.sheets["continuous-waveforms"]
         continuous_waveforms_sheet.set_column(0, 0, 18)
@@ -344,12 +345,12 @@ def _write_xlsx(name: str, metadata_df, continuous_waveforms_df, data, is_optica
             )
 
         # aggregate metrics sheet
-        log.info('Creating aggregate metrics data sheet')
+        log.info("Creating aggregate metrics data sheet")
         aggregate_df = aggregate_metrics_df(data)
         aggregate_df.to_excel(writer, sheet_name="aggregate-metrics", index=False, header=False)
 
         # per twitch metrics sheet
-        log.info('Creating per-twitch metrics data sheet')
+        log.info("Creating per-twitch metrics data sheet")
         (pdf, num_metrics) = per_twitch_df(data)
         pdf.to_excel(writer, sheet_name="per-twitch-metrics", index=False, header=False)
 
@@ -382,7 +383,7 @@ def _write_xlsx(name: str, metadata_df, continuous_waveforms_df, data, is_optica
                 dm[1][AMPLITUDE_UUID]["n"],  # number of twitches
                 num_metrics,
             )
-        log.info(f'Writing {name}')
+        log.info(f"Writing {name}")
 
 
 def create_waveform_charts(

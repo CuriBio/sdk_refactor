@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import datetime
+import logging
 
 import numpy as np
 import pandas as pd
@@ -24,6 +25,8 @@ PEAK_VALLEY_COLUMN_START = 100
 CHART_WINDOW_NUM_SECONDS = 10
 CHART_WINDOW_NUM_DATA_POINTS = CHART_WINDOW_NUM_SECONDS / INTERPOLATED_DATA_PERIOD_SECONDS
 SECONDS_PER_CELL = 2.5
+
+log = logging.getLogger(__name__)
 
 
 def add_peak_detection_series(
@@ -253,9 +256,16 @@ def write_xlsx(plate_recording, name=None):
             continue
 
         well_index = well_file[WELL_INDEX_UUID]
+        well_name = TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_index)
+
+        log.info(f"Finding peaks and valleys for well {well_name}")
         peaks_and_valleys = peak_detector(well_file.noise_filtered_magnetic_data)
+
+        log.info(f"Finding twitch indices for well {well_name}")
         twitch_indices = find_twitch_indices(peaks_and_valleys)
-        metrics = data_metrics(peaks_and_valleys, well_file.force)
+
+        log.info(f"Calculating metrics for well {well_name}")
+        metrics = data_metrics(peaks_and_valleys, well_file.force, well_name)
 
         first_idx, last_idx = 0, len(time_points) - 1
         while well_file.force[0][-1] < time_points[last_idx]:
@@ -296,17 +306,19 @@ def write_xlsx(plate_recording, name=None):
     continuous_waveforms_df = pd.DataFrame(continuous_waveforms)
 
     _write_xlsx(name, metadata_df, continuous_waveforms_df, data, plate_recording.is_optical_recording)
+    log.info("Done")
 
 
 def _write_xlsx(name: str, metadata_df, continuous_waveforms_df, data, is_optical_recording):
     with pd.ExcelWriter(name) as writer:
+        log.info(f"Writing H5 file metadata")
         metadata_df.to_excel(writer, sheet_name="metadata", index=False, header=False)
-
         ws = writer.sheets["metadata"]
 
         for i_col_idx, i_col_width in ((0, 25), (1, 40), (2, 25)):
             ws.set_column(i_col_idx, i_col_idx, i_col_width)
 
+        log.info(f"Creating waveform data sheet")
         continuous_waveforms_df.to_excel(writer, sheet_name="continuous-waveforms", index=False)
         continuous_waveforms_sheet = writer.sheets["continuous-waveforms"]
         continuous_waveforms_sheet.set_column(0, 0, 18)
@@ -315,12 +327,12 @@ def _write_xlsx(name: str, metadata_df, continuous_waveforms_df, data, is_optica
             continuous_waveforms_sheet.set_column(iter_well_idx, iter_well_idx, 13)
 
         # waveform snapshot/full
-
         wb = writer.book
         snapshot_sheet = wb.add_worksheet("continuous-waveform-snapshot")
         full_sheet = wb.add_worksheet("full-continuous-waveform-plots")
 
         for i, dm in enumerate(data):
+            log.info(f'Creating waveform charts for well {dm["well_name"]}')
             create_waveform_charts(
                 i,
                 dm,
@@ -333,10 +345,12 @@ def _write_xlsx(name: str, metadata_df, continuous_waveforms_df, data, is_optica
             )
 
         # aggregate metrics sheet
+        log.info("Creating aggregate metrics data sheet")
         aggregate_df = aggregate_metrics_df(data)
         aggregate_df.to_excel(writer, sheet_name="aggregate-metrics", index=False, header=False)
 
         # per twitch metrics sheet
+        log.info("Creating per-twitch metrics data sheet")
         (pdf, num_metrics) = per_twitch_df(data)
         pdf.to_excel(writer, sheet_name="per-twitch-metrics", index=False, header=False)
 
@@ -349,6 +363,7 @@ def _write_xlsx(name: str, metadata_df, continuous_waveforms_df, data, is_optica
             force_freq_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
             freq_vs_time_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
 
+            log.info(f'Creating frequency vs time chart for well {d["well_name"]}')
             create_frequency_vs_time_charts(
                 freq_vs_time_sheet,
                 freq_vs_time_chart,
@@ -359,6 +374,7 @@ def _write_xlsx(name: str, metadata_df, continuous_waveforms_df, data, is_optica
                 num_metrics,
             )
 
+            log.info(f'Creating force frequency relationship chart for well {d["well_name"]}')
             create_force_frequency_relationship_charts(
                 force_freq_sheet,
                 force_freq_chart,
@@ -367,6 +383,7 @@ def _write_xlsx(name: str, metadata_df, continuous_waveforms_df, data, is_optica
                 dm[1][AMPLITUDE_UUID]["n"],  # number of twitches
                 num_metrics,
             )
+        log.info(f"Writing {name}")
 
 
 def create_waveform_charts(
@@ -435,6 +452,7 @@ def create_waveform_charts(
     )
 
     (peaks, valleys) = dm["peaks_and_valleys"]
+    log.info(f'Adding peak detection series for well {dm["well_name"]}')
     add_peak_detection_series(
         [snapshot_chart, full_chart],
         continuous_waveforms_sheet,

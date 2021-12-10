@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """Detecting peak and valleys of incoming Mantarray data."""
-
 from typing import Any
 from typing import Dict
 from typing import Iterable

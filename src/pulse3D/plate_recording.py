@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 import datetime
-import math
-import os
 import glob
+import logging
+import math
 import os
 import tempfile
 from typing import Any
@@ -22,99 +22,20 @@ from .compression_cy import compress_filtered_magnetic_data
 from .constants import *
 from .magnet_finding import find_magnet_positions
 from .magnet_finding import format_well_file_data
-from .transforms import create_filter
-from .transforms import apply_sensitivity_calibration
-from .transforms import noise_cancellation
 from .transforms import apply_empty_plate_calibration
 from .transforms import apply_noise_filtering
 from .transforms import apply_sensitivity_calibration
 from .transforms import calculate_displacement_from_voltage
 from .transforms import calculate_force_from_displacement
-from .transforms import calculate_voltage_from_gmr
-from .transforms import calculate_displacement_from_voltage
-from .transforms import calculate_force_from_displacement
 from .transforms import calculate_magnetic_flux_density_from_memsic
-from .compression_cy import compress_filtered_magnetic_data
+from .transforms import calculate_voltage_from_gmr
+from .transforms import create_filter
+from .transforms import noise_cancellation
 
-def _get_col_as_array(sheet: Worksheet, zero_based_row: int, zero_based_col: int) -> NDArray[(2, Any), float]:
-    col_array = []
-    result = _get_cell_value(sheet, zero_based_row, zero_based_col)
-    zero_based_row += 1
-    while result:
-        col_array.append(float(result))
-        result = _get_cell_value(sheet, zero_based_row, zero_based_col)
-        zero_based_row += 1
-    return np.array(col_array)
+log = logging.getLogger(__name__)
 
 
-def _get_single_sheet(file_name: str) -> Any:
-    work_book = load_workbook(file_name)
-    return work_book[work_book.sheetnames[0]]
-
-
-def _get_cell_value(sheet: Worksheet, zero_based_row: int, zero_based_col: int) -> Optional[str]:
-    result = sheet.cell(row=zero_based_row + 1, column=zero_based_col + 1).value
-    if result is None:
-        return result
-    return str(result)
-
-
-def _get_excel_metadata_value(sheet: Worksheet, metadata_uuid: uuid.UUID) -> Optional[str]:
-    """Return a user-entered metadata value."""
-    metadata_description = METADATA_UUID_DESCRIPTIONS[metadata_uuid]
-    cell_name = EXCEL_OPTICAL_METADATA_CELLS.get(metadata_uuid, None)
-    if cell_name is None:
-        raise NotImplementedError(
-            f"Metadata value for {metadata_description} is not contained in excel files of well data"
-        )
-    row, col = xl_cell_to_rowcol(cell_name)
-    result = _get_cell_value(sheet, row, col)
-    if result is None and metadata_uuid != INTERPOLATION_VALUE_UUID:
-        raise MetadataNotFoundError(f"Metadata entry not found for {metadata_description}")
-    return result
-
-
-def _load_optical_file_attrs(sheet: Worksheet):
-    raw_tissue_reading = np.array((_get_col_as_array(sheet, 1, 0), _get_col_as_array(sheet, 1, 1)))
-
-    value = _get_excel_metadata_value(sheet, TISSUE_SAMPLING_PERIOD_UUID)
-    if value is None:
-        raise NotImplementedError(
-            "Tissue Sampling Period should never be None here. A MetadataNotFoundError should have been raised by get_excel_metadata_value"
-        )
-    sampling_period = int(round(1 / float(value), 6) * MICRO_TO_BASE_CONVERSION)
-
-    interpolation_value = _get_excel_metadata_value(sheet, INTERPOLATION_VALUE_UUID)
-    if interpolation_value is None:
-        interpolation_value = sampling_period
-    else:
-        interpolation_value = float(interpolation_value) * MICRO_TO_BASE_CONVERSION
-
-    begin_recording = _get_excel_metadata_value(sheet, UTC_BEGINNING_RECORDING_UUID)
-    begin_recording = datetime.datetime.strptime(begin_recording, "%Y-%m-%d %H:%M:%S")
-
-    twenty_four_well = LabwareDefinition(row_count=4, column_count=6)
-    well_name = _get_excel_metadata_value(sheet, WELL_NAME_UUID)
-
-    attrs = {
-        FILE_FORMAT_VERSION_METADATA_KEY: "0.1.1",
-        TISSUE_SENSOR_READINGS: raw_tissue_reading,
-        REFERENCE_SENSOR_READINGS: np.zeros(raw_tissue_reading.shape),
-        str(INTERPOLATION_VALUE_UUID): interpolation_value,
-        str(TISSUE_SAMPLING_PERIOD_UUID): sampling_period,
-        str(UTC_BEGINNING_RECORDING_UUID): begin_recording,
-        str(MANTARRAY_SERIAL_NUMBER_UUID): _get_excel_metadata_value(sheet, MANTARRAY_SERIAL_NUMBER_UUID),
-        str(PLATE_BARCODE_UUID): _get_excel_metadata_value(sheet, PLATE_BARCODE_UUID),
-        str(WELL_NAME_UUID): well_name,
-        str(WELL_INDEX_UUID): twenty_four_well.get_well_index_from_well_name(well_name),
-    }
-
-    return attrs
-
-
-class MantarrayH5FileCreator(
-    h5py.File
-):  # pylint: disable=too-many-ancestors # Eli (7/28/20): I don't see a way around this...we need to subclass h5py File
+class MantarrayH5FileCreator(h5py.File):
     """Creates an H5 file with the basic format/layout."""
 
     def __init__(
@@ -131,8 +52,12 @@ class MantarrayH5FileCreator(
 
         self.attrs[FILE_FORMAT_VERSION_METADATA_KEY] = file_format_version
 
+
 class WellFile:
     def __init__(self, file_path: str, sampling_period=None):
+        self.displacement: NDArray[(2, Any), np.float64]
+        self.force: NDArray[(2, Any), np.float64]
+
         if file_path.endswith(".h5"):
             with h5py.File(file_path, "r") as h5_file:
                 self.file_name = os.path.basename(h5_file.filename)
@@ -147,17 +72,27 @@ class WellFile:
                 self[UTC_BEGINNING_DATA_ACQUISTION_UUID] = self._extract_datetime(
                     UTC_BEGINNING_DATA_ACQUISTION_UUID
                 )
-                self[UTC_FIRST_TISSUE_DATA_POINT_UUID] = self._extract_datetime(UTC_FIRST_TISSUE_DATA_POINT_UUID)
-                if self.version < VersionInfo.parse("1.0.0"):  # Tanner (12/6/21): Ref data not yet added to these files
-                    self[UTC_FIRST_REF_DATA_POINT_UUID] = self._extract_datetime(UTC_FIRST_REF_DATA_POINT_UUID)
-                
+                self[UTC_FIRST_TISSUE_DATA_POINT_UUID] = self._extract_datetime(
+                    UTC_FIRST_TISSUE_DATA_POINT_UUID
+                )
+                if self.version < VersionInfo.parse(
+                    "1.0.0"
+                ):  # Tanner (12/6/21): Ref data not yet added to these files
+                    self[UTC_FIRST_REF_DATA_POINT_UUID] = self._extract_datetime(
+                        UTC_FIRST_REF_DATA_POINT_UUID
+                    )
+
                 # setup noise filter
-                if self.version < VersionInfo.parse("1.0.0"):  # Tanner (12/6/21): should probably add beta 2 file support here and remove this condition
+                if self.version < VersionInfo.parse(
+                    "1.0.0"
+                ):  # Tanner (12/6/21): should probably add beta 2 file support here and remove this condition
                     self.tissue_sampling_period = (
                         sampling_period if sampling_period else self[TISSUE_SAMPLING_PERIOD_UUID]
                     )
                     self.noise_filter_uuid = (
-                        TSP_TO_DEFAULT_FILTER_UUID[self.tissue_sampling_period] if self.is_magnetic_data else None
+                        TSP_TO_DEFAULT_FILTER_UUID[self.tissue_sampling_period]
+                        if self.is_magnetic_data
+                        else None
                     )
                     self.filter_coefficients = (
                         create_filter(self.noise_filter_uuid, self.tissue_sampling_period)
@@ -169,15 +104,21 @@ class WellFile:
 
                 # load sensor data. This is only possible to do for Beta 1 data files
                 if self.version < VersionInfo.parse("1.0.0"):
-                    self[TISSUE_SENSOR_READINGS] = self._load_reading(h5_file, TISSUE_SENSOR_READINGS, time_trimmed)
-                    self[REFERENCE_SENSOR_READINGS] = self._load_reading(h5_file, REFERENCE_SENSOR_READINGS, time_trimmed)
+                    self[TISSUE_SENSOR_READINGS] = self._load_reading(
+                        h5_file, TISSUE_SENSOR_READINGS, time_trimmed
+                    )
+                    self[REFERENCE_SENSOR_READINGS] = self._load_reading(
+                        h5_file, REFERENCE_SENSOR_READINGS, time_trimmed
+                    )
                     self._load_magnetic_data()
                 else:
-                    for reading_type in (TIME_INDICES, TIME_OFFSETS, TISSUE_SENSOR_READINGS, REFERENCE_SENSOR_READINGS):
+                    for reading_type in (
+                        TIME_INDICES,
+                        TIME_OFFSETS,
+                        TISSUE_SENSOR_READINGS,
+                        REFERENCE_SENSOR_READINGS,
+                    ):
                         self[reading_type] = h5_file[reading_type][:]
-                    # declaring these here so they can be set later
-                    self.displacement: NDArray[(2, Any), np.float64]
-                    self.force: NDArray[(2, Any), np.float64]
         elif file_path.endswith(".xlsx"):
             self._excel_sheet = _get_single_sheet(file_path)
             self.file_name = os.path.basename(file_path)
@@ -241,8 +182,8 @@ class WellFile:
         self.voltage: NDArray[(2, Any), np.float32] = calculate_voltage_from_gmr(
             self.noise_filtered_magnetic_data
         )
-        self.displacement: NDArray[(2, Any), np.float32] = calculate_displacement_from_voltage(self.voltage)
-        self.force: NDArray[(2, Any), np.float32] = calculate_force_from_displacement(self.displacement)
+        self.displacement: NDArray[(2, Any), np.float64] = calculate_displacement_from_voltage(self.voltage)
+        self.force: NDArray[(2, Any), np.float64] = calculate_force_from_displacement(self.displacement)
 
     def get(self, key, default):
         try:
@@ -337,9 +278,7 @@ class WellFile:
             start_index = _find_start_index(time_trimmed, new_times)
             time_delta_centimilliseconds = int(new_times[start_index])
 
-        return np.concatenate(  # pylint: disable=unexpected-keyword-arg # Tanner (5/6/21): unsure why pylint thinks dtype is an unexpected kwarg for np.concatenate
-            (times + time_delta_centimilliseconds, data), dtype=np.int32
-        )
+        return np.concatenate((times + time_delta_centimilliseconds, data), dtype=np.int32)
 
 
 class PlateRecording:
@@ -349,21 +288,32 @@ class PlateRecording:
         self._iter = 0
         self.is_optical_recording = False
 
-        if self.path.endswith('.xlsx'):  # optical file
+        if self.path.endswith(".zip"):
+            with tempfile.TemporaryDirectory() as tmpdir:
+                zf = zipfile.ZipFile(path)
+                zf.extractall(path=tmpdir)
+                self.wells, calibration_recordings = load_files(tmpdir)
+        elif self.path.endswith(".xlsx"):  # optical file
             self.is_optical_recording = True
             well_file = WellFile(self.path)
             self.wells = [None] * (well_file[WELL_INDEX_UUID] + 1)
             self.wells[well_file[WELL_INDEX_UUID]] = well_file
-        else:
+        else:  # .h5 files
             self.wells, calibration_recordings = load_files(self.path)
+
+        if self.wells:  # might not be any well files in the path
             # Tanner (12/3/21): currently file versions 1.0.0 and above must have all their data processed together
-            if self.wells[0].version >= VersionInfo.parse("1.0.0"):
+            if not self.is_optical_recording and self.wells[0].version >= VersionInfo.parse("1.0.0"):
                 self._process_plate_data(calibration_recordings)
 
     def _process_plate_data(self, calibration_recordings):
         if not all(isinstance(well_file, WellFile) for well_file in self.wells) or len(self.wells) != 24:
             raise NotImplementedError("All 24 wells must have a recording file present")
-        if not all(isinstance(well_file, WellFile) for well_file in calibration_recordings) or len(calibration_recordings) != 24:
+
+        if (
+            not all(isinstance(well_file, WellFile) for well_file in calibration_recordings)
+            or len(calibration_recordings) != 24
+        ):
             raise NotImplementedError("All 24 wells must have a calibration file present")
 
         # load data
@@ -371,20 +321,21 @@ class PlateRecording:
         plate_data_array_mt = calculate_magnetic_flux_density_from_memsic(plate_data_array)
         baseline_data = format_well_file_data(calibration_recordings)
         baseline_data_mt = calculate_magnetic_flux_density_from_memsic(baseline_data)
+
         # extend baseline data (if necessary) so that it has at least as many samples as the recording
         num_samples_in_recording = plate_data_array_mt.shape[-1]
         num_samples_in_baseline = baseline_data_mt.shape[-1]
         num_times_to_duplicate = math.ceil(num_samples_in_recording / num_samples_in_baseline)
         baseline_data_mt = np.tile(baseline_data_mt, num_times_to_duplicate)
+
         # pass data into magnet finding alg
         estimated_magnet_positions = find_magnet_positions(
-            plate_data_array_mt,
-            baseline_data_mt[:, :, :, :num_samples_in_recording]
+            plate_data_array_mt, baseline_data_mt[:, :, :, :num_samples_in_recording]
         )
+
         # create displace and force arrays for each WellFile
         for module_id in range(1, 25):
-            well_idx = MODULE_ID_TO_WELL_IDX[module_id]
-            well_file = self.wells[well_idx]
+            well_file = self.wells[MODULE_ID_TO_WELL_IDX[module_id]]
             x = estimated_magnet_positions["X"][:, module_id - 1]
             well_file.displacement = np.array([well_file[TIME_INDICES], x])
             well_file.force = calculate_force_from_displacement(well_file.displacement)
@@ -392,15 +343,18 @@ class PlateRecording:
     @staticmethod
     def from_directory(path):
         # multi zip files
-        for zf in glob.glob(os.path.join(path, "*.zip")):
+        for zf in glob.glob(os.path.join(path, "*.zip"), recursive=True):
+            log.info(f"Loading recording from file {zf}")
             yield PlateRecording(zf)
 
         # multi optical files
-        for of in glob.glob(os.path.join(path, "*.xlsx")):
+        for of in glob.glob(os.path.join(path, "*.xlsx"), recursive=True):
+            log.info(f"Loading optical data from file {of}")
             yield PlateRecording(of)
 
-        # directory of .h5 files or single .zip/.xlsx
-        yield PlateRecording(path)
+        # directory of .h5 files
+        if glob.glob(os.path.join(path, "**", "*.h5"), recursive=True):
+            yield PlateRecording(path)
 
     def __iter__(self):
         self._iter = 0
@@ -417,28 +371,26 @@ class PlateRecording:
             raise StopIteration
 
 
+# helpers
 def load_files(path):
-    with tempfile.TemporaryDirectory() as recording_dir:
-        # get file names
-        if path.endswith('.zip'):
-            zf = zipfile.ZipFile(path)
-            zf.extractall(path=recording_dir)
-        else:
-            recording_dir = path
-        # sort H5 files
-        h5_files = glob.glob(os.path.join(recording_dir, "**", "*.h5"), recursive=True)
-        recording_files = [f for f in h5_files if "Calibration" not in f]
-        calibration_files = [f for f in h5_files if "Calibration" in f]
-        # create WellFiles
-        tissue_well_files = [None] * len(recording_files)
-        baseline_well_files = [None] * len(calibration_files)
-        for file_list, well_file_list in (
-            (recording_files, tissue_well_files),
-            (calibration_files, baseline_well_files)
-        ):
-            for f in file_list:
-                well_file = WellFile(f)
-                well_file_list[well_file[WELL_INDEX_UUID]] = well_file
+    h5_files = glob.glob(os.path.join(path, "**", "*.h5"), recursive=True)
+
+    recording_files = [f for f in h5_files if "Calibration" not in f]
+    calibration_files = [f for f in h5_files if "Calibration" in f]
+
+    tissue_well_files = [None] * len(recording_files)
+    baseline_well_files = [None] * len(calibration_files)
+
+    for f in recording_files:
+        log.info(f"Loading data from {os.path.basename(f)}")
+        well_file = WellFile(f)
+        tissue_well_files[well_file[WELL_INDEX_UUID]] = well_file
+
+    for f in calibration_files:
+        log.info(f"Loading calibration data from {os.path.basename(f)}")
+        well_file = WellFile(f)
+        baseline_well_files[well_file[WELL_INDEX_UUID]] = well_file
+
     return tissue_well_files, baseline_well_files
 
 
@@ -450,3 +402,79 @@ def _find_start_index(from_start: int, old_data: NDArray[(1, Any), int]) -> int:
         start_index += 1
 
     return start_index - 1  # loop iterates 1 past the desired index, so subtract 1
+
+
+def _get_col_as_array(sheet: Worksheet, zero_based_row: int, zero_based_col: int) -> NDArray[(2, Any), float]:
+    col_array = []
+    result = _get_cell_value(sheet, zero_based_row, zero_based_col)
+    zero_based_row += 1
+    while result:
+        col_array.append(float(result))
+        result = _get_cell_value(sheet, zero_based_row, zero_based_col)
+        zero_based_row += 1
+    return np.array(col_array)
+
+
+def _get_single_sheet(file_name: str) -> Any:
+    work_book = load_workbook(file_name)
+    return work_book[work_book.sheetnames[0]]
+
+
+def _get_cell_value(sheet: Worksheet, zero_based_row: int, zero_based_col: int) -> Optional[str]:
+    result = sheet.cell(row=zero_based_row + 1, column=zero_based_col + 1).value
+    if result is None:
+        return result
+    return str(result)
+
+
+def _get_excel_metadata_value(sheet: Worksheet, metadata_uuid: uuid.UUID) -> Optional[str]:
+    """Return a user-entered metadata value."""
+    metadata_description = METADATA_UUID_DESCRIPTIONS[metadata_uuid]
+    cell_name = EXCEL_OPTICAL_METADATA_CELLS.get(metadata_uuid, None)
+    if cell_name is None:
+        raise NotImplementedError(
+            f"Metadata value for {metadata_description} is not contained in excel files of well data"
+        )
+    row, col = xl_cell_to_rowcol(cell_name)
+    result = _get_cell_value(sheet, row, col)
+    if result is None and metadata_uuid != INTERPOLATION_VALUE_UUID:
+        raise MetadataNotFoundError(f"Metadata entry not found for {metadata_description}")
+    return result
+
+
+def _load_optical_file_attrs(sheet: Worksheet):
+    raw_tissue_reading = np.array((_get_col_as_array(sheet, 1, 0), _get_col_as_array(sheet, 1, 1)))
+
+    value = _get_excel_metadata_value(sheet, TISSUE_SAMPLING_PERIOD_UUID)
+    if value is None:
+        raise NotImplementedError(
+            "Tissue Sampling Period should never be None here. A MetadataNotFoundError should have been raised by get_excel_metadata_value"
+        )
+    sampling_period = int(round(1 / float(value), 6) * MICRO_TO_BASE_CONVERSION)
+
+    interpolation_value = _get_excel_metadata_value(sheet, INTERPOLATION_VALUE_UUID)
+    if interpolation_value is None:
+        interpolation_value = sampling_period
+    else:
+        interpolation_value = float(interpolation_value) * MICRO_TO_BASE_CONVERSION
+
+    begin_recording = _get_excel_metadata_value(sheet, UTC_BEGINNING_RECORDING_UUID)
+    begin_recording = datetime.datetime.strptime(begin_recording, "%Y-%m-%d %H:%M:%S")
+
+    twenty_four_well = LabwareDefinition(row_count=4, column_count=6)
+    well_name = _get_excel_metadata_value(sheet, WELL_NAME_UUID)
+
+    attrs = {
+        FILE_FORMAT_VERSION_METADATA_KEY: "0.1.1",
+        TISSUE_SENSOR_READINGS: raw_tissue_reading,
+        REFERENCE_SENSOR_READINGS: np.zeros(raw_tissue_reading.shape),
+        str(INTERPOLATION_VALUE_UUID): interpolation_value,
+        str(TISSUE_SAMPLING_PERIOD_UUID): sampling_period,
+        str(UTC_BEGINNING_RECORDING_UUID): begin_recording,
+        str(MANTARRAY_SERIAL_NUMBER_UUID): _get_excel_metadata_value(sheet, MANTARRAY_SERIAL_NUMBER_UUID),
+        str(PLATE_BARCODE_UUID): _get_excel_metadata_value(sheet, PLATE_BARCODE_UUID),
+        str(WELL_NAME_UUID): well_name,
+        str(WELL_INDEX_UUID): twenty_four_well.get_well_index_from_well_name(well_name),
+    }
+
+    return attrs

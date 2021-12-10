@@ -15,6 +15,10 @@ from .constants import BESSEL_BANDPASS_UUID
 from .constants import BESSEL_LOWPASS_10_UUID
 from .constants import BESSEL_LOWPASS_30_UUID
 from .constants import BUTTERWORTH_LOWPASS_30_UUID
+from .constants import GAUSS_PER_MILLITESLA
+from .constants import MEMSIC_CENTER_OFFSET
+from .constants import MEMSIC_FULL_SCALE
+from .constants import MEMSIC_MSB
 from .constants import MICRO_TO_BASE_CONVERSION
 from .constants import MILLI_TO_BASE_CONVERSION
 from .constants import MILLIMETERS_PER_MILLITESLA
@@ -22,12 +26,6 @@ from .constants import MILLIVOLTS_PER_MILLITESLA
 from .constants import NEWTONS_PER_MILLIMETER
 from .constants import RAW_TO_SIGNED_CONVERSION_VALUE
 from .constants import REFERENCE_VOLTAGE
-from .constants import MEMSIC_CENTER_OFFSET
-from .constants import MEMSIC_FULL_SCALE
-from .constants import MEMSIC_MSB
-from .constants import GAUSS_PER_MILLITESLA
-from .constants import REFERENCE_SENSOR_READINGS
-from .constants import TISSUE_SENSOR_READINGS
 from .exceptions import FilterCreationNotImplementedError
 from .exceptions import UnrecognizedFilterUuidError
 

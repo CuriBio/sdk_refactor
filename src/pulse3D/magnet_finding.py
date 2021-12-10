@@ -6,10 +6,11 @@ from typing import List
 from typing import TYPE_CHECKING
 
 import numpy as np
-from scipy.optimize import least_squares
 import scipy.signal as signal
-from numba import njit
+
 from nptyping import NDArray
+from numba import njit
+from scipy.optimize import least_squares
 
 from .constants import WELL_IDX_TO_MODULE_ID
 from .constants import TISSUE_SENSOR_READINGS

@@ -46,7 +46,6 @@ def add_peak_detection_series(
     offset = 1 if detector_type == "Valley" else 0
     marker_color = "#D95F02" if detector_type == "Valley" else "#7570B3"
 
-    # continuous_waveform_sheet = self._workbook.get_worksheet_by_name(CONTINUOUS_WAVEFORM_SHEET_NAME)
     result_column = xl_col_to_name(PEAK_VALLEY_COLUMN_START + (well_index * 2) + offset)
     continuous_waveform_sheet.write(f"{result_column}1", f"{well_name} {detector_type} Values")
 
@@ -60,7 +59,7 @@ def add_peak_detection_series(
         if is_optical_recording:
             row = int(
                 shifted_time_seconds * MICRO_TO_BASE_CONVERSION / INTERPOLATED_DATA_PERIOD_US
-            )  # self._interpolated_data_period)
+            )
 
             value = (
                 interpolated_data_function(uninterpolated_time_seconds * MICRO_TO_BASE_CONVERSION)
@@ -72,7 +71,7 @@ def add_peak_detection_series(
             interpolated_data = interpolated_data_function(
                 uninterpolated_time_seconds * MICRO_TO_BASE_CONVERSION
             )
-            # interpolated_data *= -1  # magnetic waveform is flipped
+
             interpolated_data -= minimum_value
             value = interpolated_data * MICRO_TO_BASE_CONVERSION
 
@@ -85,7 +84,6 @@ def add_peak_detection_series(
                     "name": label,
                     "categories": f"='continuous-waveforms'!$A$2:$A${upper_x_bound_cell}",
                     "values": f"='continuous-waveforms'!${result_column}$2:${result_column}${upper_x_bound_cell}",
-                    # "values": f"='continuous-waveforms'!$CY$2:$CY${upper_x_bound_cell}",
                     "marker": {
                         "type": "circle",
                         "size": 8,
@@ -227,7 +225,7 @@ def write_xlsx(plate_recording, name=None):
         "C": [
             "",
             w[PLATE_BARCODE_UUID],
-            w[UTC_BEGINNING_RECORDING_UUID].replace(tzinfo=None),
+            str(w[UTC_BEGINNING_RECORDING_UUID].replace(tzinfo=None)),
             "",
             "",
             w["File Format Version"],
@@ -236,8 +234,8 @@ def write_xlsx(plate_recording, name=None):
             w.get(SOFTWARE_BUILD_NUMBER_UUID, ""),
             w.get(MAIN_FIRMWARE_VERSION_UUID, ""),
             "",
-            "0.1",
-            datetime.datetime.utcnow().replace(microsecond=0),
+            PACKAGE_VERSION,
+            str(datetime.datetime.utcnow().replace(microsecond=0)),
         ],
     }
     metadata_df = pd.DataFrame(metadata)

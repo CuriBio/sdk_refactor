@@ -265,7 +265,7 @@ def write_xlsx(plate_recording, name=None):
         twitch_indices = find_twitch_indices(peaks_and_valleys)
 
         log.info(f"Calculating metrics for well {well_name}")
-        metrics = data_metrics(peaks_and_valleys, well_file.force, well_name)
+        metrics = data_metrics(peaks_and_valleys, well_file.force)
 
         first_idx, last_idx = 0, len(time_points) - 1
         while well_file.force[0][-1] < time_points[last_idx]:

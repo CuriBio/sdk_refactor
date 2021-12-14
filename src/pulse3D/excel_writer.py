@@ -502,7 +502,7 @@ def create_waveform_charts(
 
 
 def aggregate_metrics_df(data):
-    dms = [d["metrics"] for d in data]
+    #dms = [d["metrics"] for d in data if d["metrics"]]
 
     df = pd.DataFrame()
     df = df.append(pd.Series(["", ""] + [d["well_name"] for d in data]), ignore_index=True)
@@ -517,7 +517,8 @@ def aggregate_metrics_df(data):
 
     for m in ALL_METRICS:
         if m in [WIDTH_UUID, RELAXATION_TIME_UUID, CONTRACTION_TIME_UUID]:
-            for k in dms[0][1][m].keys():
+            #for k in dms[0][1][m].keys():
+            for k in TWITCH_WIDTH_PERCENTS:
                 nm = CALCULATED_METRIC_DISPLAY_NAMES[m].format(k)
 
                 series_mean = ["N/A" if d["error_msg"] else d["metrics"][1][m][k]["mean"] for d in data]

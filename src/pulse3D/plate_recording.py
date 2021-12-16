@@ -282,7 +282,7 @@ class WellFile:
 
 
 class PlateRecording:
-    def __init__(self, path):
+    def __init__(self, path, use_mean_of_baseline=True):
         self.path = path
         self.wells = []
         self._iter = 0
@@ -304,9 +304,9 @@ class PlateRecording:
         if self.wells:  # might not be any well files in the path
             # Tanner (12/3/21): currently file versions 1.0.0 and above must have all their data processed together
             if not self.is_optical_recording and self.wells[0].version >= VersionInfo.parse("1.0.0"):
-                self._process_plate_data(calibration_recordings)
+                self._process_plate_data(calibration_recordings, use_mean_of_baseline=use_mean_of_baseline)
 
-    def _process_plate_data(self, calibration_recordings):
+    def _process_plate_data(self, calibration_recordings, use_mean_of_baseline):
         if not all(isinstance(well_file, WellFile) for well_file in self.wells) or len(self.wells) != 24:
             raise NotImplementedError("All 24 wells must have a recording file present")
 
@@ -322,16 +322,20 @@ class PlateRecording:
         baseline_data = format_well_file_data(calibration_recordings)
         baseline_data_mt = calculate_magnetic_flux_density_from_memsic(baseline_data)
 
-        # extend baseline data (if necessary) so that it has at least as many samples as the recording
-        num_samples_in_recording = plate_data_array_mt.shape[-1]
-        num_samples_in_baseline = baseline_data_mt.shape[-1]
-        num_times_to_duplicate = math.ceil(num_samples_in_recording / num_samples_in_baseline)
-        baseline_data_mt = np.tile(baseline_data_mt, num_times_to_duplicate)
+        # create baseline data array
+        if use_mean_of_baseline:
+            baseline_data_mt = np.mean(
+                baseline_data_mt[:, :, :, -BASELINE_MEAN_NUM_DATA_POINTS:], axis=3
+            ).reshape((24, 3, 3, 1))
+        else:
+            # extend baseline data (if necessary) so that it has at least as many samples as the recording
+            num_samples_in_recording = plate_data_array_mt.shape[-1]
+            num_samples_in_baseline = baseline_data_mt.shape[-1]
+            num_times_to_duplicate = math.ceil(num_samples_in_recording / num_samples_in_baseline)
+            baseline_data_mt = np.tile(baseline_data_mt, num_times_to_duplicate)[:, :, :, :num_samples_in_recording]
 
         # pass data into magnet finding alg
-        estimated_magnet_positions = find_magnet_positions(
-            plate_data_array_mt, baseline_data_mt[:, :, :, :num_samples_in_recording]
-        )
+        estimated_magnet_positions = find_magnet_positions(plate_data_array_mt, baseline_data_mt)
 
         # create displace and force arrays for each WellFile
         for module_id in range(1, 25):

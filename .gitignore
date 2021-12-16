@@ -1,6 +1,7 @@
 # IDE
 .idea/
 .~c9*
+.vscode/
 
 # CI caches
 .npm_cache/

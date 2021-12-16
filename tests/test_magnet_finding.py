@@ -7,6 +7,7 @@ from h5py import File
 import numpy as np
 from pulse3D import magnet_finding
 from pulse3D import plate_recording
+from pulse3D.constants import BASELINE_MEAN_NUM_DATA_POINTS
 from pulse3D.constants import GAUSS_PER_MILLITESLA
 from pulse3D.constants import MEMSIC_CENTER_OFFSET
 from pulse3D.constants import MEMSIC_FULL_SCALE
@@ -91,8 +92,55 @@ def test_get_positions__returns_expected_values():
     assert all(val >= 3 for val in acc.values())
 
 
+def test_PlateRecording__uses_mean_of_baseline_by_default(mocker):
+    # mock instead of spy so magnet finding alg doesn't run
+    mocked_process_data = mocker.patch.object(PlateRecording, "_process_plate_data", autospec=True)
+
+    pr = PlateRecording(
+        os.path.join(
+            PATH_OF_CURRENT_FILE,
+            "magnet_finding",
+            "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
+        )
+    )
+
+    mocked_process_data.assert_called_once_with(pr, mocker.ANY, use_mean_of_baseline=True)
+
+
+def test_PlateRecording__creates_mean_of_baseline_data_correctly(mocker):
+    # spy for easy access to baseline data array
+    spied_mfd_from_memsic = mocker.spy(plate_recording, "calculate_magnetic_flux_density_from_memsic")
+    # mock instead of spy so magnet finding alg doesn't run
+    mocked_find_positions = mocker.patch.object(
+        plate_recording,
+        "find_magnet_positions",
+        autospec=True,
+        side_effect=lambda x, y: {"X": np.zeros((x.shape[-1], 24))}
+    )
+
+    pr = PlateRecording(
+        os.path.join(
+            PATH_OF_CURRENT_FILE,
+            "magnet_finding",
+            "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
+        )
+    )
+    raw_baseline_data = spied_mfd_from_memsic.spy_return
+
+    actual_baseline_mean_arr = mocked_find_positions.call_args[0][1]
+    assert actual_baseline_mean_arr.shape == (24, 3, 3, 1)
+    for well_idx in range(actual_baseline_mean_arr.shape[0]):
+        for sensor_idx in range(actual_baseline_mean_arr.shape[1]):
+            for axis_idx in range(actual_baseline_mean_arr.shape[2]):
+                expected_mean = np.mean(raw_baseline_data[well_idx, sensor_idx, axis_idx, -BASELINE_MEAN_NUM_DATA_POINTS:])
+                assert (
+                    actual_baseline_mean_arr[well_idx, sensor_idx, axis_idx]
+                    == expected_mean
+                ), (well_idx, sensor_idx, axis_idx)
+
+
 @pytest.mark.slow
-def test_PlateRecording__creates_correct_displacement_and_force_data_for_beta_2_files(mocker):
+def test_PlateRecording__creates_correct_displacement_and_force_data_for_beta_2_files__using_elementwise_removal_of_baseline_data(mocker):
     num_points_to_test = 100
 
     def load_files_se(*args):
@@ -122,7 +170,8 @@ def test_PlateRecording__creates_correct_displacement_and_force_data_for_beta_2_
             PATH_OF_CURRENT_FILE,
             "magnet_finding",
             "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
-        )
+        ),
+        use_mean_of_baseline=False
     )
     assert mocked_filter.call_count == magnet_finding.NUM_PARAMS
 

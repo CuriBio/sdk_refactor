@@ -325,7 +325,7 @@ EXCEL_OPTICAL_METADATA_CELLS = immutabledict(
 
 
 """
-Misc
+Magnet Finding
 """
 
 WELL_IDX_TO_MODULE_ID = immutabledict(
@@ -334,3 +334,6 @@ WELL_IDX_TO_MODULE_ID = immutabledict(
 MODULE_ID_TO_WELL_IDX = immutabledict(
     {module_id: well_idx for well_idx, module_id in WELL_IDX_TO_MODULE_ID.items()}
 )
+
+# 10 seconds at sampling rate of 100Hz
+BASELINE_MEAN_NUM_DATA_POINTS = 10 * 100

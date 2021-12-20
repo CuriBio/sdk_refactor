@@ -315,7 +315,7 @@ def write_xlsx(plate_recording, name=None):
     # waveform table
     continuous_waveforms = {"Time (seconds)": time_points[first_idx:last_idx] / MICRO_TO_BASE_CONVERSION}
     for d in data:
-        continuous_waveforms[f"{d['well_name']} - Active Twitch Force (μN)"] = d["interp_data"]
+        continuous_waveforms[f"{d['well_name']} - Active Twitch Force (μN)"] = pd.Series(d["interp_data"])
     continuous_waveforms_df = pd.DataFrame(continuous_waveforms)
 
     _write_xlsx(name, metadata_df, continuous_waveforms_df, data, plate_recording.is_optical_recording)

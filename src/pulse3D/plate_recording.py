@@ -340,7 +340,7 @@ class PlateRecording:
 
         # create displace and force arrays for each WellFile
         for module_id in range(1, 25):
-            log.info("Create diplacement and force arrays for module {module_id}")
+            log.info(f"Create diplacement and force arrays for module {module_id}")
 
             well_file = self.wells[MODULE_ID_TO_WELL_IDX[module_id]]
             x = estimated_magnet_positions["X"][:, module_id - 1]

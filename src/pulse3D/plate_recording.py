@@ -335,12 +335,16 @@ class PlateRecording:
             baseline_data_mt = np.tile(baseline_data_mt, num_times_to_duplicate)[:, :, :, :num_samples_in_recording]
 
         # pass data into magnet finding alg
+        log.info("Estimate magnet positions")
         estimated_magnet_positions = find_magnet_positions(plate_data_array_mt, baseline_data_mt)
 
         # create displace and force arrays for each WellFile
         for module_id in range(1, 25):
+            log.info("Create diplacement and force arrays for module {module_id}")
+
             well_file = self.wells[MODULE_ID_TO_WELL_IDX[module_id]]
             x = estimated_magnet_positions["X"][:, module_id - 1]
+
             well_file.displacement = np.array([well_file[TIME_INDICES], x])
             well_file.force = calculate_force_from_displacement(well_file.displacement)
 

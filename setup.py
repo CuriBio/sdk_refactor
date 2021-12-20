@@ -40,7 +40,7 @@ setup(
     install_requires=[
         "h5py>=3.2.1",
         "nptyping>=1.4.1",
-        "numpy==1.20.2",  # Tanner (12/3/21): pinned for numba compatibility
+        "numpy==1.21.5",  # Tanner (12/3/21): pinned for numba compatibility
         "scipy==1.6.2",
         "numba>=0.54.1",
         "immutabledict>=1.2.0",

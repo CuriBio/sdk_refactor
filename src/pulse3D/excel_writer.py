@@ -241,7 +241,7 @@ def write_xlsx(plate_recording, name=None):
     metadata_df = pd.DataFrame(metadata)
 
     # get max_time from all wells
-    max_time = max([w.raw_tissue_magnetic_data[0][-1] for w in plate_recording if w])
+    max_time = max([w.force[0][-1] for w in plate_recording if w])
     interpolated_data_period = (
         w[INTERPOLATION_VALUE_UUID] if plate_recording.is_optical_recording else INTERPOLATED_DATA_PERIOD_US
     )

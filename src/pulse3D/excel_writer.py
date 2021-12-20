@@ -263,7 +263,8 @@ def write_xlsx(plate_recording, name=None):
 
         try:
             log.info(f"Finding peaks and valleys for well {well_name}")
-            peaks_and_valleys = peak_detector(well_file.noise_filtered_magnetic_data)
+            #peaks_and_valleys = peak_detector(well_file.noise_filtered_magnetic_data)
+            peaks_and_valleys = peak_detector(well_file.force)
 
             log.info(f"Finding twitch indices for well {well_name}")
             twitch_indices = find_twitch_indices(peaks_and_valleys)

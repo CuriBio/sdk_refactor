@@ -5,7 +5,7 @@ If a new metric is requested, you must implement `fit`,
 `add_per_twitch_metrics`, and `add_aggregate_metrics`.
 """
 
-from functools import partial
+from functools import partial, lru_cache
 from typing import Any
 from typing import Dict
 from typing import List
@@ -16,6 +16,8 @@ from uuid import UUID
 
 from nptyping import Float64
 from nptyping import NDArray
+import pandas as pd
+from pandas import DataFrame
 import numpy as np
 
 from .constants import CENTIMILLISECONDS_PER_SECOND, MICRO_TO_BASE_CONVERSION
@@ -60,72 +62,66 @@ class BaseMetric:
 
     @staticmethod
     def add_per_twitch_metrics(
-        main_twitch_dict: Dict[Any, Any], metric_id: UUID, metrics: Union[NDArray[int], NDArray[float]]
+        main_df: DataFrame, 
+        metric_id: UUID, 
+        metrics: Union[NDArray[int], NDArray[float]]
     ) -> None:
-        """Add estimated per-twitch metrics to per-twitch dictionary.
+        """Add estimated per-twitch metrics to per-twitch DataFrame.
 
         Args:
-            main_twitch_dict (Dict[Any, Any]): dictionary storing per-twitch metrics
+            main_df (DataFrame): DataFrame storing per-twitch metrics
             metric_id (UUID): UUID of metric to add
             metrics (Union[NDArray[int], NDArray[float]]): estimated per-twitch metrics
         """
-        for i, twitch_dict in enumerate(main_twitch_dict.values()):
-            twitch_dict[metric_id] = metrics[i]
+
+        main_df[metric_id] = metrics
 
     def add_aggregate_metrics(
         self,
-        aggregate_dict: Dict[
-            UUID,
-            Any,
-        ],
+        aggregate_df: DataFrame,
         metric_id: UUID,
         metrics: Union[NDArray[int], NDArray[float]],
     ) -> None:
-        """Add estimated metrics to aggregate dictionary.
+        """Add estimated metrics to aggregate DataFrame.
 
         Args:
-            aggregate_dict (Dict[UUID,Any,]): dictionary storing aggregate metrics
+            aggregate_df (DataFrame): DataFrame storing aggregate metrics
             metric_id (UUID): UUID of metric to add
             metrics (Union[NDArray[int], NDArray[float]]): estimated per-twitch metrics
         """
-        aggregate_dict[metric_id] = self.create_statistics_dict(metrics, rounded=self.rounded)
+        aggregate_metrics = self.create_statistics_df(metrics, rounded=self.rounded)
+        aggregate_df[metric_id] = aggregate_metrics
 
     @classmethod
-    def create_statistics_dict(
+    def create_statistics_df(
         cls, metric: NDArray[int], rounded: bool = False
-    ) -> Dict[str, Union[Float64, int]]:
+    ) -> DataFrame:
         """Calculate various statistics for a specific metric.
 
         Args:
         metric: a 1D array of integer values of a specific metric results
 
         Returns:
-        a dictionary of the average statistics of that metric in which the metrics are the key and
+        d: of the average statistics of that metric in which the metrics are the key and
         average statistics are the value
         """
-        d: Dict[str, Union[Float64, int]] = dict()
-        d["n"] = len(metric)
+        statistics = pd.DataFrame(data=np.asarray([None]*7)[None,:],
+                                  columns=['n','mean','std','min','max','cov','sem'])
+        statistics["n"] = len(metric)
+
         if len(metric) > 0:
-            d["mean"] = np.mean(metric)
-            d["std"] = np.std(metric)
-            d["min"] = np.min(metric)
-            d["max"] = np.max(metric)
-            d["cov"] = d["std"] / d["mean"]
-            d["sem"] = d["std"] / d["n"] ** 0.5
+            statistics["mean"] = np.mean(metric)
+            statistics["std"] = np.std(metric)
+            statistics["min"] = np.min(metric)
+            statistics["max"] = np.max(metric)
+            statistics["cov"] = statistics["std"] / statistics["mean"]
+            statistics["sem"] = statistics["std"] / statistics["n"] ** 0.5
 
             if rounded:
-                for iter_key, iter_value in d.items():
-                    d[iter_key] = int(round(iter_value))
+                for iter_key, iter_value in statistics.items():
+                    statistics[iter_key] = int(round(iter_value))
 
-        else:
-            d["mean"] = None
-            d["std"] = None
-            d["min"] = None
-            d["max"] = None
-            d["cov"] = None
-            d["sem"] = None
-
-        return d
+        return statistics
 
 
 class TwitchAmplitude(BaseMetric):
@@ -220,6 +216,38 @@ class TwitchFractionAmplitude(BaseMetric):
         return fraction_amplitude
 
 
+class TwitchWidthCoordinates(BaseMetric):
+
+    """Calculate contraction (or relaxation) percent-width coordinates."""
+    def __init__(
+        self,
+        rounded: bool = False,
+        twitch_width_percents: Optional[List[int]] = None,
+        **kwargs: Dict[str, Any],
+    ):
+        super().__init__(rounded=rounded, **kwargs)
+
+        if twitch_width_percents is None:
+            twitch_width_percents = TWITCH_WIDTH_PERCENTS
+
+        self.twitch_width_percents = twitch_width_percents
+
+    def fit(
+        self,
+        peak_and_valley_indices: Tuple[NDArray[int], NDArray[int]],
+        filtered_data: NDArray[(2, Any), int],
+        twitch_indices: NDArray[int],
+        **kwargs: Dict[str, Any],
+    ) -> DataFrame:
+
+        _,coordinates = TwitchWidth.calculate_twitch_widths(twitch_indices=twitch_indices,
+                                                             filtered_data=filtered_data,
+                                                             rounded=self.rounded,
+                                                             twitch_width_percents=self.twitch_width_percents)
+
+        return coordinates
+
+
 class TwitchWidth(BaseMetric):
     """Calculate the width of each twitch at fraction of twitch."""
 
@@ -242,40 +270,27 @@ class TwitchWidth(BaseMetric):
         filtered_data: NDArray[(2, Any), int],
         twitch_indices: NDArray[int],
         **kwargs: Dict[str, Any],
-    ) -> List[Dict[int, Dict[UUID, Any]]]:
-        widths = self.calculate_twitch_widths(
-            twitch_indices=twitch_indices,
-            filtered_data=filtered_data,
-            rounded=self.rounded,
-            twitch_width_percents=self.twitch_width_percents,
-        )
+    ) -> DataFrame:
+        widths,_ = self.calculate_twitch_widths(
+                        twitch_indices=twitch_indices,
+                        filtered_data=filtered_data,
+                        rounded=self.rounded,
+                        twitch_width_percents=self.twitch_width_percents,
+                        )
 
         return widths
 
     def add_aggregate_metrics(
         self,
-        aggregate_dict: Dict[UUID, Any],
+        aggregate_df: Dict[UUID, Any],
         metric_id: UUID,
         metrics: Union[NDArray[int], NDArray[float]],
     ) -> None:
 
-        width_stats_dict: Dict[int, Dict[str, Union[float, int]]] = dict()
-
         for iter_percent in self.twitch_width_percents:
-            iter_list_of_width_values: List[Union[float, int]] = []
-            for iter_twitch in metrics:
-                iter_width_value = iter_twitch[iter_percent][WIDTH_VALUE_UUID]
-                if not isinstance(iter_width_value, (float, int)):  # making mypy happy
-                    raise NotImplementedError(
-                        f"The width value under key {WIDTH_VALUE_UUID} must be a float or an int. It was: {iter_width_value}"
-                    )
-                iter_list_of_width_values.append(iter_width_value)
-            iter_stats_dict = self.create_statistics_dict(
-                metric=iter_list_of_width_values, rounded=self.rounded
-            )
-            width_stats_dict[iter_percent] = iter_stats_dict
-
-        aggregate_dict[metric_id] = width_stats_dict
+            estimates = metrics[iter_percent]
+            aggregate_estimates = self.create_statistics_df(estimates, rounded=self.rounded)
+            aggregate_df[metric_id, iter_percent] = aggregate_estimates
 
     @staticmethod
     def calculate_twitch_widths(
@@ -283,7 +298,7 @@ class TwitchWidth(BaseMetric):
         filtered_data: NDArray[(2, Any), int],
         rounded: bool = True,
         twitch_width_percents: List[int] = np.arange(10, 95, 5),
-    ) -> List[Dict[int, Dict[UUID, Any]]]:
+    ) -> List[DataFrame]:
         """Determine twitch width between 10-90% down to the nearby valleys.
 
         Args:
@@ -300,13 +315,18 @@ class TwitchWidth(BaseMetric):
             or falling coordinates. The final value is either an int (for value) or a tuple of ints for
             the x/y coordinates
         """
-        widths: List[Dict[int, Dict[UUID, Any]]] = list()
+        width_df = pd.DataFrame(index=list(twitch_indices.keys()), 
+                            columns=list(np.arange(10,95,5)))
+    
+        columns = pd.MultiIndex.from_product([['force', 'time'], 
+                                            ['rising', 'falling'], 
+                                            list(np.arange(10,95,5))])
+        coordinate_df = pd.DataFrame(index=list(twitch_indices.keys()), 
+                                    columns=columns)
 
         value_series = filtered_data[1, :]
         time_series = filtered_data[0, :]
         for iter_twitch_peak_idx, iter_twitch_indices_info in twitch_indices.items():
-
-            iter_width_dict: Dict[int, Dict[UUID, Any]] = dict()
 
             peak_value = value_series[iter_twitch_peak_idx]
             prior_valley_value = value_series[iter_twitch_indices_info[PRIOR_VALLEY_INDEX_UUID]]
@@ -318,7 +338,7 @@ class TwitchWidth(BaseMetric):
             rising_idx = iter_twitch_peak_idx - 1
             falling_idx = iter_twitch_peak_idx + 1
             for iter_percent in twitch_width_percents:
-                iter_percent_dict: Dict[UUID, Union[Tuple[Union[float, int], Union[float, int]], Union[float, int]]] = dict()
+
                 rising_threshold = peak_value - iter_percent / 100 * rising_amplitude
                 falling_threshold = peak_value - iter_percent / 100 * falling_amplitude
 
@@ -352,19 +372,19 @@ class TwitchWidth(BaseMetric):
                     rising_threshold = int(round(rising_threshold, 0))
                     falling_threshold = int(round(falling_threshold, 0))
 
-                iter_percent_dict[WIDTH_VALUE_UUID] = width_val / MICRO_TO_BASE_CONVERSION
-                iter_percent_dict[WIDTH_RISING_COORDS_UUID] = (
-                    interpolated_rising_timepoint,
-                    rising_threshold,
-                )
-                iter_percent_dict[WIDTH_FALLING_COORDS_UUID] = (
-                    interpolated_falling_timepoint,
-                    falling_threshold,
-                )
-                iter_width_dict[iter_percent] = iter_percent_dict
-            widths.append(iter_width_dict)
+                coordinate_df.loc[iter_twitch_peak_idx]['force', 'rising', iter_percent] = \
+                    rising_threshold
+                coordinate_df.loc[iter_twitch_peak_idx]['force', 'falling', iter_percent] = \
+                    falling_threshold
+                coordinate_df.loc[iter_twitch_peak_idx]['time', 'rising', iter_percent] = \
+                    interpolated_rising_timepoint
+                coordinate_df.loc[iter_twitch_peak_idx]['time', 'falling', iter_percent] = \
+                    interpolated_falling_timepoint
 
-        return widths
+                width_df.loc[iter_twitch_peak_idx, iter_percent] = \
+                    width_val / MICRO_TO_BASE_CONVERSION
+
+        return [width_df, coordinate_df]
 
 
 class TwitchVelocity(BaseMetric):
@@ -497,7 +517,7 @@ class TwitchIrregularity(BaseMetric):
         metric_id: UUID,
         metrics: Union[NDArray[int], NDArray[float]],
     ) -> None:
-        statistics_dict = self.create_statistics_dict(metric=metrics[1:-1], rounded=self.rounded)
+        statistics_dict = self.create_statistics_df(metric=metrics[1:-1], rounded=self.rounded)
         statistics_dict["n"] += 2
 
         aggregate_dict[metric_id] = statistics_dict
@@ -861,10 +881,7 @@ class TwitchPeakTime(BaseMetric):
 
     def add_aggregate_metrics(
         self,
-        aggregate_dict: Dict[
-            UUID,
-            Any,
-        ],
+        aggregate_df: DataFrame,
         metric_id: UUID,
         metrics: Union[NDArray[int], NDArray[float]],
     ) -> None:
@@ -880,7 +897,7 @@ class TwitchPeakTime(BaseMetric):
                         f"The width value under key {TIME_VALUE_UUID} must be a float or an int. It was: {iter_width_value}"
                     )
                 iter_list_of_width_values.append(iter_width_value)
-            iter_stats_dict = self.create_statistics_dict(
+            iter_stats_dict = self.create_statistics_df(
                 metric=iter_list_of_width_values, rounded=self.rounded
             )
             width_stats_dict[iter_percent] = iter_stats_dict

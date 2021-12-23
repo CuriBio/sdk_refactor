@@ -241,7 +241,7 @@ def write_xlsx(plate_recording, name=None):
     metadata_df = pd.DataFrame(metadata)
 
     # get max_time from all wells
-    max_time = max([w.raw_tissue_magnetic_data[0][-1] for w in plate_recording if w])
+    max_time = max([w.force[0][-1] for w in plate_recording if w])
     interpolated_data_period = (
         w[INTERPOLATION_VALUE_UUID] if plate_recording.is_optical_recording else INTERPOLATED_DATA_PERIOD_US
     )
@@ -263,7 +263,8 @@ def write_xlsx(plate_recording, name=None):
 
         try:
             log.info(f"Finding peaks and valleys for well {well_name}")
-            peaks_and_valleys = peak_detector(well_file.noise_filtered_magnetic_data)
+            #peaks_and_valleys = peak_detector(well_file.noise_filtered_magnetic_data)
+            peaks_and_valleys = peak_detector(well_file.force)
 
             log.info(f"Finding twitch indices for well {well_name}")
             twitch_indices = find_twitch_indices(peaks_and_valleys)
@@ -570,8 +571,11 @@ def aggregate_metrics_df(data):
 def per_twitch_df(data):
     dms = [d["metrics"] for d in data if not d["error_msg"]]
 
-    idx = list(dms[0][0].keys())[0]
-    keys = list(dms[0][0][idx].keys())
+    keys = []
+    if dms:
+        idx = list(dms[0][0].keys())[0]
+        keys = list(dms[0][0][idx].keys())
+
     num_per_twitch_metrics = 0  # len(labels)
 
     df = pd.DataFrame()

@@ -46,7 +46,9 @@ class MantarrayH5FileCreator(h5py.File):
         super().__init__(
             file_name,
             "w",
-            libver="latest",  # Eli (2/9/20) tried to specify this ('earliest', 'v110') to be more backward compatible but it didn't work for unknown reasons (gave error when trying to set swmr_mode=True)
+            # tried to specify this ('earliest', 'v110') to be more backward compatible
+            # but it didn't work for unknown reasons (gave error when trying to set swmr_mode=True)
+            libver="latest",
             userblock_size=512,  # minimum size is 512 bytes
         )
 
@@ -77,15 +79,14 @@ class WellFile:
                 )
                 if self.version < VersionInfo.parse(
                     "1.0.0"
-                ):  # Tanner (12/6/21): Ref data not yet added to these files
+                ):  # Ref data not yet added to these files
                     self[UTC_FIRST_REF_DATA_POINT_UUID] = self._extract_datetime(
                         UTC_FIRST_REF_DATA_POINT_UUID
                     )
 
                 # setup noise filter
-                if self.version < VersionInfo.parse(
-                    "1.0.0"
-                ):  # Tanner (12/6/21): should probably add beta 2 file support here and remove this condition
+                if self.version < VersionInfo.parse("1.0.0"):
+                    # should probably add beta 2 file support here and remove this condition
                     self.tissue_sampling_period = (
                         sampling_period if sampling_period else self[TISSUE_SAMPLING_PERIOD_UUID]
                     )
@@ -99,6 +100,14 @@ class WellFile:
                         if self.noise_filter_uuid
                         else None
                     )
+                else:
+                    self.noise_filter_uuid = None
+                    self.filter_coefficients = None
+                    self.tissue_sampling_period = (
+                        sampling_period if sampling_period else self[TISSUE_SAMPLING_PERIOD_UUID]
+                    )
+                    self.is_magnetic_data = False
+
                 is_untrimmed = self.get(IS_FILE_ORIGINAL_UNTRIMMED_UUID, True)
                 time_trimmed = None if is_untrimmed else self.attrs[TRIMMED_TIME_FROM_ORIGINAL_START_UUID]
 
@@ -112,13 +121,11 @@ class WellFile:
                     )
                     self._load_magnetic_data()
                 else:
-                    for reading_type in (
-                        TIME_INDICES,
-                        TIME_OFFSETS,
-                        TISSUE_SENSOR_READINGS,
-                        REFERENCE_SENSOR_READINGS,
-                    ):
-                        self[reading_type] = h5_file[reading_type][:]
+                    self[TIME_INDICES] = h5_file[TIME_INDICES][:]
+                    self[TIME_OFFSETS] = h5_file[TIME_OFFSETS][:]
+                    self[TISSUE_SENSOR_READINGS] = h5_file[TISSUE_SENSOR_READINGS][:]
+                    self[REFERENCE_SENSOR_READINGS] = h5_file[REFERENCE_SENSOR_READINGS][:]
+
         elif file_path.endswith(".xlsx"):
             self._excel_sheet = _get_single_sheet(file_path)
             self.file_name = os.path.basename(file_path)
@@ -182,6 +189,7 @@ class WellFile:
         self.voltage: NDArray[(2, Any), np.float32] = calculate_voltage_from_gmr(
             self.noise_filtered_magnetic_data
         )
+
         self.displacement: NDArray[(2, Any), np.float64] = calculate_displacement_from_voltage(self.voltage)
         self.force: NDArray[(2, Any), np.float64] = calculate_force_from_displacement(self.displacement)
 
@@ -302,7 +310,7 @@ class PlateRecording:
             self.wells, calibration_recordings = load_files(self.path)
 
         if self.wells:  # might not be any well files in the path
-            # Tanner (12/3/21): currently file versions 1.0.0 and above must have all their data processed together
+            # currently file versions 1.0.0 and above must have all their data processed together
             if not self.is_optical_recording and self.wells[0].version >= VersionInfo.parse("1.0.0"):
                 self._process_plate_data(calibration_recordings, use_mean_of_baseline=use_mean_of_baseline)
 
@@ -324,9 +332,7 @@ class PlateRecording:
 
         # create baseline data array
         if use_mean_of_baseline:
-            baseline_data_mt = np.mean(
-                baseline_data_mt[:, :, :, -BASELINE_MEAN_NUM_DATA_POINTS:], axis=3
-            ).reshape((24, 3, 3, 1))
+            baseline_data_mt = np.mean(baseline_data_mt[:, :, :, -BASELINE_MEAN_NUM_DATA_POINTS:], axis=3).reshape((24, 3, 3, 1))
         else:
             # extend baseline data (if necessary) so that it has at least as many samples as the recording
             num_samples_in_recording = plate_data_array_mt.shape[-1]
@@ -335,12 +341,16 @@ class PlateRecording:
             baseline_data_mt = np.tile(baseline_data_mt, num_times_to_duplicate)[:, :, :, :num_samples_in_recording]
 
         # pass data into magnet finding alg
+        log.info("Estimate magnet positions")
         estimated_magnet_positions = find_magnet_positions(plate_data_array_mt, baseline_data_mt)
 
         # create displace and force arrays for each WellFile
         for module_id in range(1, 25):
+            log.info(f"Create diplacement and force arrays for module {module_id}")
+
             well_file = self.wells[MODULE_ID_TO_WELL_IDX[module_id]]
             x = estimated_magnet_positions["X"][:, module_id - 1]
+
             well_file.displacement = np.array([well_file[TIME_INDICES], x])
             well_file.force = calculate_force_from_displacement(well_file.displacement)
 
@@ -452,7 +462,7 @@ def _load_optical_file_attrs(sheet: Worksheet):
     value = _get_excel_metadata_value(sheet, TISSUE_SAMPLING_PERIOD_UUID)
     if value is None:
         raise NotImplementedError(
-            "Tissue Sampling Period should never be None here. A MetadataNotFoundError should have been raised by get_excel_metadata_value"
+            "Tissue Sampling Period should not be None. A MetadataNotFoundError should have been raised"
         )
     sampling_period = int(round(1 / float(value), 6) * MICRO_TO_BASE_CONVERSION)
 

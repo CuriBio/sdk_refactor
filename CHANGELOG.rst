@@ -1,5 +1,12 @@
 Changelog for Curi Bio Software Development Kit
 ===============================================
+
+
+0.20.0 (2022-01-07)
+-------------------
+- Added Beta 2.2 support
+
+
 0.19.0 (2021-12-08)
 -------------------
 - refactor, rename

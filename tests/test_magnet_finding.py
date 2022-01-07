@@ -115,7 +115,7 @@ def test_PlateRecording__creates_mean_of_baseline_data_correctly(mocker):
         plate_recording,
         "find_magnet_positions",
         autospec=True,
-        side_effect=lambda x, y: {"X": np.zeros((x.shape[-1], 24))}
+        side_effect=lambda x, y: {"X": np.zeros((x.shape[-1], 24))},
     )
 
     pr = PlateRecording(
@@ -132,15 +132,20 @@ def test_PlateRecording__creates_mean_of_baseline_data_correctly(mocker):
     for well_idx in range(actual_baseline_mean_arr.shape[0]):
         for sensor_idx in range(actual_baseline_mean_arr.shape[1]):
             for axis_idx in range(actual_baseline_mean_arr.shape[2]):
-                expected_mean = np.mean(raw_baseline_data[well_idx, sensor_idx, axis_idx, -BASELINE_MEAN_NUM_DATA_POINTS:])
-                assert (
-                    actual_baseline_mean_arr[well_idx, sensor_idx, axis_idx]
-                    == expected_mean
-                ), (well_idx, sensor_idx, axis_idx)
+                expected_mean = np.mean(
+                    raw_baseline_data[well_idx, sensor_idx, axis_idx, -BASELINE_MEAN_NUM_DATA_POINTS:]
+                )
+                assert actual_baseline_mean_arr[well_idx, sensor_idx, axis_idx] == expected_mean, (
+                    well_idx,
+                    sensor_idx,
+                    axis_idx,
+                )
 
 
 @pytest.mark.slow
-def test_PlateRecording__creates_correct_displacement_and_force_data_for_beta_2_files__using_elementwise_removal_of_baseline_data(mocker):
+def test_PlateRecording__creates_correct_displacement_and_force_data_for_beta_2_files__using_elementwise_removal_of_baseline_data(
+    mocker,
+):
     num_points_to_test = 100
 
     def load_files_se(*args):
@@ -171,7 +176,7 @@ def test_PlateRecording__creates_correct_displacement_and_force_data_for_beta_2_
             "magnet_finding",
             "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
         ),
-        use_mean_of_baseline=False
+        use_mean_of_baseline=False,
     )
     assert mocked_filter.call_count == magnet_finding.NUM_PARAMS
 

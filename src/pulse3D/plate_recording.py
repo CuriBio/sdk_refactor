@@ -77,9 +77,7 @@ class WellFile:
                 self[UTC_FIRST_TISSUE_DATA_POINT_UUID] = self._extract_datetime(
                     UTC_FIRST_TISSUE_DATA_POINT_UUID
                 )
-                if self.version < VersionInfo.parse(
-                    "1.0.0"
-                ):  # Ref data not yet added to these files
+                if self.version < VersionInfo.parse("1.0.0"):  # Ref data not yet added to these files
                     self[UTC_FIRST_REF_DATA_POINT_UUID] = self._extract_datetime(
                         UTC_FIRST_REF_DATA_POINT_UUID
                     )
@@ -332,13 +330,17 @@ class PlateRecording:
 
         # create baseline data array
         if use_mean_of_baseline:
-            baseline_data_mt = np.mean(baseline_data_mt[:, :, :, -BASELINE_MEAN_NUM_DATA_POINTS:], axis=3).reshape((24, 3, 3, 1))
+            baseline_data_mt = np.mean(
+                baseline_data_mt[:, :, :, -BASELINE_MEAN_NUM_DATA_POINTS:], axis=3
+            ).reshape((24, 3, 3, 1))
         else:
             # extend baseline data (if necessary) so that it has at least as many samples as the recording
             num_samples_in_recording = plate_data_array_mt.shape[-1]
             num_samples_in_baseline = baseline_data_mt.shape[-1]
             num_times_to_duplicate = math.ceil(num_samples_in_recording / num_samples_in_baseline)
-            baseline_data_mt = np.tile(baseline_data_mt, num_times_to_duplicate)[:, :, :, :num_samples_in_recording]
+            baseline_data_mt = np.tile(baseline_data_mt, num_times_to_duplicate)[
+                :, :, :, :num_samples_in_recording
+            ]
 
         # pass data into magnet finding alg
         log.info("Estimate magnet positions")

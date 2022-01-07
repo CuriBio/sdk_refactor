@@ -216,7 +216,7 @@ def filter_magnet_positions(magnet_positions: NDArray[(Any, 24), float]) -> NDAr
     filtered_magnet_positions = np.empty(magnet_positions.shape)
     # Tanner (1/7/22): need to filter each well individually, can't filter over the entire axis of the array at once
     for well_arr_idx in range(magnet_positions.shape[1]):
-      filtered_magnet_positions[:, well_arr_idx] = signal.filtfilt(b, a, magnet_positions[:, well_arr_idx])
+        filtered_magnet_positions[:, well_arr_idx] = signal.filtfilt(b, a, magnet_positions[:, well_arr_idx])
     return filtered_magnet_positions
 
 

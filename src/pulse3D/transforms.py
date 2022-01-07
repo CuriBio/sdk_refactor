@@ -229,22 +229,26 @@ def calculate_displacement_from_voltage(
 
 def calculate_force_from_displacement(
     displacement_data: NDArray[(2, Any), np.float64],
+    in_mm: bool = True,
 ) -> NDArray[(2, Any), np.float64]:
     """Convert displacement to force.
 
     Conversion values were obtained 03/09/2021 by Kevin Grey
 
     Args:
-        displacement_data: time and Displacement numpy array. Typically coming from calculate_displacement_from_voltage
+        displacement_data: time and Displacement numpy array. Typically coming from calculate_displacement_from_voltage or the magnet finding alg
+        in_mm: whether this data is in units of mm or not. If coming from calculate_displacement_from_voltage, it is likely in meters and this value should be set to True
 
     Returns:
         A 2D array of time vs Force (Newtons)
     """
-    sample_in_millimeters = displacement_data[1, :] * MILLI_TO_BASE_CONVERSION
+    displacement = displacement_data[1, :]
+    if not in_mm:
+        displacement *= MILLI_TO_BASE_CONVERSION
     time = displacement_data[0, :]
 
     # calculate force
-    sample_in_newtons = sample_in_millimeters * NEWTONS_PER_MILLIMETER
+    sample_in_newtons = displacement * NEWTONS_PER_MILLIMETER
 
     return np.vstack((time, sample_in_newtons)).astype(np.float64)
 

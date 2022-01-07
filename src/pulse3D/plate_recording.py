@@ -181,7 +181,7 @@ class WellFile:
             self.compressed_voltage
         )
         self.compressed_force: NDArray[(2, Any), np.float32] = calculate_force_from_displacement(
-            self.compressed_displacement
+            self.compressed_displacement, in_mm=False
         )
 
         self.voltage: NDArray[(2, Any), np.float32] = calculate_voltage_from_gmr(
@@ -189,7 +189,9 @@ class WellFile:
         )
 
         self.displacement: NDArray[(2, Any), np.float64] = calculate_displacement_from_voltage(self.voltage)
-        self.force: NDArray[(2, Any), np.float64] = calculate_force_from_displacement(self.displacement)
+        self.force: NDArray[(2, Any), np.float64] = calculate_force_from_displacement(
+            self.displacement, in_mm=False
+        )
 
     def get(self, key, default):
         try:

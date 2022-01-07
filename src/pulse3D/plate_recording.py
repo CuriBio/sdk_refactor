@@ -353,7 +353,10 @@ class PlateRecording:
             well_file = self.wells[MODULE_ID_TO_WELL_IDX[module_id]]
             x = estimated_magnet_positions["X"][:, module_id - 1]
 
-            well_file.displacement = np.array([well_file[TIME_INDICES], x])
+            # have time indices start at 0
+            adjusted_time_indices = well_file[TIME_INDICES] - well_file[TIME_INDICES][0]
+
+            well_file.displacement = np.array([adjusted_time_indices, x])
             well_file.force = calculate_force_from_displacement(well_file.displacement)
 
     @staticmethod

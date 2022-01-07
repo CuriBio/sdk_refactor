@@ -209,6 +209,7 @@ def fixture_sample_reference_reading():
 
 
 def load_h5_folder_as_array(recording_name):
+    # TODO move this to magnet finding repo and then remove module ID mentions
     plate_data_array = None
     for module_id in range(1, 25):
         file_path = os.path.join(

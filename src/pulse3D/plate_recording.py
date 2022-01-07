@@ -77,9 +77,7 @@ class WellFile:
                 self[UTC_FIRST_TISSUE_DATA_POINT_UUID] = self._extract_datetime(
                     UTC_FIRST_TISSUE_DATA_POINT_UUID
                 )
-                if self.version < VersionInfo.parse(
-                    "1.0.0"
-                ):  # Ref data not yet added to these files
+                if self.version < VersionInfo.parse("1.0.0"):  # Ref data not yet added to these files
                     self[UTC_FIRST_REF_DATA_POINT_UUID] = self._extract_datetime(
                         UTC_FIRST_REF_DATA_POINT_UUID
                     )
@@ -183,7 +181,7 @@ class WellFile:
             self.compressed_voltage
         )
         self.compressed_force: NDArray[(2, Any), np.float32] = calculate_force_from_displacement(
-            self.compressed_displacement
+            self.compressed_displacement, in_mm=False
         )
 
         self.voltage: NDArray[(2, Any), np.float32] = calculate_voltage_from_gmr(
@@ -191,7 +189,9 @@ class WellFile:
         )
 
         self.displacement: NDArray[(2, Any), np.float64] = calculate_displacement_from_voltage(self.voltage)
-        self.force: NDArray[(2, Any), np.float64] = calculate_force_from_displacement(self.displacement)
+        self.force: NDArray[(2, Any), np.float64] = calculate_force_from_displacement(
+            self.displacement, in_mm=False
+        )
 
     def get(self, key, default):
         try:
@@ -332,13 +332,17 @@ class PlateRecording:
 
         # create baseline data array
         if use_mean_of_baseline:
-            baseline_data_mt = np.mean(baseline_data_mt[:, :, :, -BASELINE_MEAN_NUM_DATA_POINTS:], axis=3).reshape((24, 3, 3, 1))
+            baseline_data_mt = np.mean(
+                baseline_data_mt[:, :, :, -BASELINE_MEAN_NUM_DATA_POINTS:], axis=3
+            ).reshape((24, 3, 3, 1))
         else:
             # extend baseline data (if necessary) so that it has at least as many samples as the recording
             num_samples_in_recording = plate_data_array_mt.shape[-1]
             num_samples_in_baseline = baseline_data_mt.shape[-1]
             num_times_to_duplicate = math.ceil(num_samples_in_recording / num_samples_in_baseline)
-            baseline_data_mt = np.tile(baseline_data_mt, num_times_to_duplicate)[:, :, :, :num_samples_in_recording]
+            baseline_data_mt = np.tile(baseline_data_mt, num_times_to_duplicate)[
+                :, :, :, :num_samples_in_recording
+            ]
 
         # pass data into magnet finding alg
         log.info("Estimate magnet positions")
@@ -351,7 +355,10 @@ class PlateRecording:
             well_file = self.wells[MODULE_ID_TO_WELL_IDX[module_id]]
             x = estimated_magnet_positions["X"][:, module_id - 1]
 
-            well_file.displacement = np.array([well_file[TIME_INDICES], x])
+            # have time indices start at 0
+            adjusted_time_indices = well_file[TIME_INDICES] - well_file[TIME_INDICES][0]
+
+            well_file.displacement = np.array([adjusted_time_indices, x])
             well_file.force = calculate_force_from_displacement(well_file.displacement)
 
     @staticmethod

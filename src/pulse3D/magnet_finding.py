@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 
 # Kevin (12/1/21): Sensor locations relative to origin
-SENSOR_DISTANCES_FROM_CENTER_POINT = np.asarray([[-2.15, 1.7, 0], [2.15, 1.7, 0], [0, -2.743, 0]])
+SENSOR_DISTANCES_FROM_CENTER_POINT = np.asarray([[-2.25, 2.25, 0], [2.25, 2.25, 0], [0, -2.25, 0]])
 
 ADJACENT_WELL_DISTANCE_MM = 19.5  # TODO Tanner (12/2/21): make sure this constant is named correctly
 WELL_VERTICAL_SPACING = np.asarray([0, -ADJACENT_WELL_DISTANCE_MM, 0])
@@ -210,10 +210,13 @@ def find_magnet_positions(
     return output_dict
 
 
-def filter_magnet_positions(magnet_positions: NDArray[(1, Any), float]) -> NDArray[(1, Any), float]:
+def filter_magnet_positions(magnet_positions: NDArray[(Any, 24), float]) -> NDArray[(Any, 24), float]:
     high_cut_hz = 30
     b, a = signal.butter(4, high_cut_hz, "low", fs=100)
-    filtered_magnet_positions = signal.filtfilt(b, a, magnet_positions)
+    filtered_magnet_positions = np.empty(magnet_positions.shape)
+    # Tanner (1/7/22): need to filter each well individually, can't filter over the entire axis of the array at once
+    for well_arr_idx in range(magnet_positions.shape[1]):
+        filtered_magnet_positions[:, well_arr_idx] = signal.filtfilt(b, a, magnet_positions[:, well_arr_idx])
     return filtered_magnet_positions
 
 

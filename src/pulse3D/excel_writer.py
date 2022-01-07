@@ -263,7 +263,7 @@ def write_xlsx(plate_recording, name=None):
 
         try:
             log.info(f"Finding peaks and valleys for well {well_name}")
-            #peaks_and_valleys = peak_detector(well_file.noise_filtered_magnetic_data)
+            # peaks_and_valleys = peak_detector(well_file.noise_filtered_magnetic_data)
             peaks_and_valleys = peak_detector(well_file.force)
 
             log.info(f"Finding twitch indices for well {well_name}")
@@ -503,7 +503,7 @@ def create_waveform_charts(
 
 
 def aggregate_metrics_df(data):
-    #dms = [d["metrics"] for d in data if d["metrics"]]
+    # dms = [d["metrics"] for d in data if d["metrics"]]
 
     df = pd.DataFrame()
     df = df.append(pd.Series(["", ""] + [d["well_name"] for d in data]), ignore_index=True)
@@ -518,7 +518,7 @@ def aggregate_metrics_df(data):
 
     for m in ALL_METRICS:
         if m in [WIDTH_UUID, RELAXATION_TIME_UUID, CONTRACTION_TIME_UUID]:
-            #for k in dms[0][1][m].keys():
+            # for k in dms[0][1][m].keys():
             for k in TWITCH_WIDTH_PERCENTS:
                 nm = CALCULATED_METRIC_DISPLAY_NAMES[m].format(k)
 

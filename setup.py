@@ -27,7 +27,7 @@ if USE_CYTHON:
 
 setup(
     name="Pulse3D",
-    version="0.20.0",
+    version="0.20.1",
     description="Pulse3D Analysis Platform",
     url="https://github.com/CuriBio/Pulse3D",
     project_urls={"Documentation": "https://pulse3D.readthedocs.io/en/latest/"},
@@ -53,6 +53,7 @@ setup(
         "semver>=2.13.0",
         "pandas>=1.3.4",
         'importlib-metadata >= 3.7.3 ; python_version < "3.8"',
+        "mantarray_magnet_finding @ https://github.com/CuriBio/mantarray-magnet-finding/archive/refs/tags/0.1.0.zip",
     ],
     zip_safe=False,
     include_package_data=True,

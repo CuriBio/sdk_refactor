@@ -15,10 +15,6 @@ from .constants import BESSEL_BANDPASS_UUID
 from .constants import BESSEL_LOWPASS_10_UUID
 from .constants import BESSEL_LOWPASS_30_UUID
 from .constants import BUTTERWORTH_LOWPASS_30_UUID
-from .constants import GAUSS_PER_MILLITESLA
-from .constants import MEMSIC_CENTER_OFFSET
-from .constants import MEMSIC_FULL_SCALE
-from .constants import MEMSIC_MSB
 from .constants import MICRO_TO_BASE_CONVERSION
 from .constants import MILLI_TO_BASE_CONVERSION
 from .constants import MILLIMETERS_PER_MILLITESLA
@@ -251,25 +247,3 @@ def calculate_force_from_displacement(
     sample_in_newtons = displacement * NEWTONS_PER_MILLIMETER
 
     return np.vstack((time, sample_in_newtons)).astype(np.float64)
-
-
-def calculate_magnetic_flux_density_from_memsic(  # pylint: disable=invalid-name  # Tanner (11/22/21): Can't think of a shorter name that is better
-    memsic_data: NDArray[(1, Any), int],
-) -> NDArray[(1, Any), np.float64]:
-    """Convert raw data from memsic sensor into magnetic flux density.
-
-    Conversion values are valid as of 11/19/2021
-
-    Args:
-        memsic_data: A 1D array of raw memsic signal
-
-    Returns:
-        A 1D array of magnetic flux density
-    """
-    samples_in_milliteslas = (
-        (memsic_data.astype(np.int64) - MEMSIC_CENTER_OFFSET)
-        * MEMSIC_FULL_SCALE
-        / MEMSIC_MSB
-        / GAUSS_PER_MILLITESLA
-    )
-    return samples_in_milliteslas.astype(np.float64)

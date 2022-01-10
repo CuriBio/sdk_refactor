@@ -11,6 +11,7 @@ import uuid
 import zipfile
 
 import h5py
+from mantarray_magnet_finding.utils import calculate_magnetic_flux_density_from_memsic
 from nptyping import NDArray
 import numpy as np
 from openpyxl import load_workbook
@@ -27,7 +28,6 @@ from .transforms import apply_noise_filtering
 from .transforms import apply_sensitivity_calibration
 from .transforms import calculate_displacement_from_voltage
 from .transforms import calculate_force_from_displacement
-from .transforms import calculate_magnetic_flux_density_from_memsic
 from .transforms import calculate_voltage_from_gmr
 from .transforms import create_filter
 from .transforms import noise_cancellation
@@ -336,24 +336,24 @@ class PlateRecording:
                 baseline_data_mt[:, :, :, -BASELINE_MEAN_NUM_DATA_POINTS:], axis=3
             ).reshape((24, 3, 3, 1))
         else:
-            # extend baseline data (if necessary) so that it has at least as many samples as the recording
+            # extend baseline data (if necessary) so that it has at least as many samples as the tissue data
             num_samples_in_recording = plate_data_array_mt.shape[-1]
             num_samples_in_baseline = baseline_data_mt.shape[-1]
             num_times_to_duplicate = math.ceil(num_samples_in_recording / num_samples_in_baseline)
+            # truncate so baseline data has exactly as many samples as the tissue data
             baseline_data_mt = np.tile(baseline_data_mt, num_times_to_duplicate)[
                 :, :, :, :num_samples_in_recording
             ]
 
         # pass data into magnet finding alg
-        log.info("Estimate magnet positions")
+        log.info("Estimating magnet positions")
         estimated_magnet_positions = find_magnet_positions(plate_data_array_mt, baseline_data_mt)
 
-        # create displace and force arrays for each WellFile
-        for module_id in range(1, 25):
-            log.info(f"Create diplacement and force arrays for module {module_id}")
-
-            well_file = self.wells[MODULE_ID_TO_WELL_IDX[module_id]]
-            x = estimated_magnet_positions["X"][:, module_id - 1]
+        # create displacement and force arrays for each WellFile
+        log.info("Create diplacement and force data for ")
+        for well_idx in range(24):
+            well_file = self.wells[well_idx]
+            x = estimated_magnet_positions["X"][:, well_idx]
 
             # have time indices start at 0
             adjusted_time_indices = well_file[TIME_INDICES] - well_file[TIME_INDICES][0]

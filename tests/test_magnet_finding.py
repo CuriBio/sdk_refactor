@@ -3,7 +3,10 @@ import os
 import tempfile
 import zipfile
 
+from mantarray_magnet_finding.utils import calculate_magnetic_flux_density_from_memsic
+from mantarray_magnet_finding.utils import load_h5_folder_as_array
 import numpy as np
+from pulse3D import magnet_finding
 from pulse3D import plate_recording
 from pulse3D.constants import BASELINE_MEAN_NUM_DATA_POINTS
 from pulse3D.plate_recording import load_files
@@ -43,38 +46,6 @@ def test_load_files__loads_zipped_files_with_calibration_recordings_correctly():
 
     assert len(tissue_recordings) == 24
     assert len(baseline_recordings) == 24
-
-
-# @pytest.mark.slow
-# def test_get_positions__returns_expected_values():
-#     loaded_data = load_h5_folder_as_array("Durability_Test_11162021_data_90min")
-#     loaded_data_mt = (
-#         (loaded_data - MEMSIC_CENTER_OFFSET) * MEMSIC_FULL_SCALE / MEMSIC_MSB / GAUSS_PER_MILLITESLA
-#     )
-#     outputs = magnet_finding.get_positions(loaded_data_mt[:, :, :, 2:102])
-
-#     output_file = File(
-#         os.path.join(
-#             PATH_OF_CURRENT_FILE,
-#             "magnet_finding",
-#             "magnet_finding_output_100pts.h5",
-#         ),
-#         "r",
-#         libver="latest",
-#     )
-
-#     acc = {output_name: -1 for output_name in outputs.keys()}
-#     for output_name, output in outputs.items():
-#         for decimal in range(0, 14):
-#             try:
-#                 np.testing.assert_array_almost_equal(
-#                     output, output_file[output_name], decimal=decimal, err_msg=f"output_name"
-#                 )
-#             except AssertionError:
-#                 acc[output_name] = decimal - 1
-#                 break
-#     print(acc)
-#     assert all(val >= 3 for val in acc.values())
 
 
 def test_PlateRecording__uses_mean_of_baseline_by_default(mocker):
@@ -127,69 +98,38 @@ def test_PlateRecording__creates_mean_of_baseline_data_correctly(mocker):
                 )
 
 
-# @pytest.mark.slow
-# def test_PlateRecording__creates_correct_displacement_and_force_data_for_beta_2_files__using_elementwise_removal_of_baseline_data(
-#     mocker,
-# ):
-#     num_points_to_test = 100
+def test_PlateRecording__passes_data_to_magnet_finding_alg_correctly__using_mean_of_baseline_data(
+    mocker,
+):
+    # mock so slow function doesn't actually run
+    mocked_get_positions = mocker.patch.object(
+        magnet_finding,
+        "get_positions",
+        autospec=True,
+        side_effect=lambda x: {"X": np.zeros((x.shape[-1], 24))},
+    )
 
-#     def load_files_se(*args):
-#         tissue_well_files, baseline_well_files = load_files(*args)
-#         all_well_files = set(tissue_well_files) | set(baseline_well_files)
-#         for well_file in all_well_files:
-#             well_file[TIME_INDICES] = well_file[TIME_INDICES][:num_points_to_test]
-#             well_file[TIME_OFFSETS] = well_file[TIME_OFFSETS][:, :num_points_to_test]
-#             well_file[TISSUE_SENSOR_READINGS] = well_file[TISSUE_SENSOR_READINGS][:, :num_points_to_test]
-#             well_file[REFERENCE_SENSOR_READINGS] = well_file[REFERENCE_SENSOR_READINGS][
-#                 :, :num_points_to_test
-#             ]
-#         return tissue_well_files, baseline_well_files
+    test_zip_file_path = os.path.join(
+        PATH_OF_CURRENT_FILE,
+        "magnet_finding",
+        "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
+    )
 
-#     mocker.patch.object(plate_recording, "load_files", autospec=True, side_effect=load_files_se)
+    # create expected input
+    with tempfile.TemporaryDirectory() as tmpdir:
+        zf = zipfile.ZipFile(test_zip_file_path)
+        zf.extractall(path=tmpdir)
+        tissue_data_memsic, baseline_data_memsic = load_h5_folder_as_array(
+            os.path.join(tmpdir, "MA200440001__2020_02_09_190359")
+        )
+    tissue_data_mt = calculate_magnetic_flux_density_from_memsic(tissue_data_memsic)
+    baseline_data_mt = calculate_magnetic_flux_density_from_memsic(baseline_data_memsic)
+    baseline_data_mt_mean = np.mean(
+        baseline_data_mt[:, :, :, -BASELINE_MEAN_NUM_DATA_POINTS:], axis=3
+    ).reshape((24, 3, 3, 1))
+    expected_input_data = tissue_data_mt - baseline_data_mt_mean
 
-#     # mock this so data doesn't actually get filtered and is easier to test
-#     mocked_filter = mocker.patch.object(
-#         magnet_finding,
-#         "filter_magnet_positions",
-#         autospec=True,
-#         side_effect=lambda x: x,
-#     )
-
-#     pr = PlateRecording(
-#         os.path.join(
-#             PATH_OF_CURRENT_FILE,
-#             "magnet_finding",
-#             "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
-#         ),
-#         use_mean_of_baseline=False,
-#     )
-#     assert mocked_filter.call_count == magnet_finding.NUM_PARAMS
-
-#     output_file = File(
-#         os.path.join(
-#             PATH_OF_CURRENT_FILE,
-#             "magnet_finding",
-#             "magnet_finding_output_100pts__baseline_removed.h5",
-#         ),
-#         "r",
-#         libver="latest",
-#     )
-
-#     for well_idx, well_file in enumerate(pr.wells):
-#         # test displacement
-#         module_id = WELL_IDX_TO_MODULE_ID[well_idx]
-#         expected_displacement = np.array([well_file[TIME_INDICES], output_file["X"][:, module_id - 1]])
-#         # Tanner (12/7/21): iterating through different decimal precision here since the precision is different for each well, but
-#         np.testing.assert_array_almost_equal(
-#             well_file.displacement,
-#             expected_displacement,
-#             decimal=5,
-#             err_msg=f"{well_idx}",
-#         )
-#         # test force
-#         expected_force = calculate_force_from_displacement(well_file.displacement)
-#         np.testing.assert_array_almost_equal(
-#             well_file.force,
-#             expected_force,
-#             err_msg=f"{well_idx}",
-#         )
+    # test alg input
+    pr = PlateRecording(test_zip_file_path)
+    mocked_get_positions.assert_called_once()
+    np.testing.assert_array_almost_equal(mocked_get_positions.call_args[0][0], expected_input_data)

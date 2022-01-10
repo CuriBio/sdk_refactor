@@ -328,12 +328,5 @@ EXCEL_OPTICAL_METADATA_CELLS = immutabledict(
 Magnet Finding
 """
 
-WELL_IDX_TO_MODULE_ID = immutabledict(
-    {well_idx: well_idx % 4 * 6 + well_idx // 4 + 1 for well_idx in range(24)}
-)
-MODULE_ID_TO_WELL_IDX = immutabledict(
-    {module_id: well_idx for well_idx, module_id in WELL_IDX_TO_MODULE_ID.items()}
-)
-
 # 10 seconds at sampling rate of 100Hz
 BASELINE_MEAN_NUM_DATA_POINTS = 10 * 100

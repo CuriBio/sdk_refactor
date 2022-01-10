@@ -171,7 +171,7 @@ class TwitchAmplitude(BaseMetric):
             Pandas Series of float values representing the amplitude of each twitch
         """
         num_twitches = len(twitch_indices)
-        amplitudes = Series(index=twitch_indices.keys(), dtype=np.float32)
+        amplitudes = Series(index=twitch_indices.keys(), dtype=np.float64)
 
         data_series = filtered_data[1, :]
 
@@ -563,7 +563,7 @@ class TwitchIrregularity(BaseMetric):
         iter_list_of_intervals.append(None)
         irregularity = Series(iter_list_of_intervals, 
                               index=twitch_indices.keys(), 
-                              dtype=np.float32)
+                              dtype=np.float64)
 
         return irregularity
 
@@ -630,7 +630,7 @@ class TwitchAUC(BaseMetric):
             Pandas Series of floats representing area under the curve for each twitch
         """
         width_percent = 90  # what percent of repolarization to use as the bottom limit for calculating AUC
-        auc_per_twitch = Series(index=twitch_indices.keys(), dtype=np.float32)
+        auc_per_twitch = Series(index=twitch_indices.keys(), dtype=np.float64)
         
         value_series = filtered_data[1, :]
         time_series = filtered_data[0, :]
@@ -812,7 +812,7 @@ class TwitchPeriod(BaseMetric):
 
         period = Series(period, 
                         index=twitch_indices.keys(), 
-                        dtype=np.float32)
+                        dtype=np.float64)
 
         return period
 
@@ -941,7 +941,7 @@ class TwitchPeakTime(BaseMetric):
 
         peak_times = Series(data=filtered_data[0, list(twitch_indices.keys())],
                             index=twitch_indices.keys(),
-                            dtype=np.float32)
+                            dtype=np.float64)
 
         for iter_percent in self.twitch_width_percents:
             if is_contraction:
@@ -984,7 +984,7 @@ class TwitchPeakToBaseline(BaseMetric):
 
         num_twitches = len(twitch_indices)
         full_differences = Series(index=twitch_indices.keys(), 
-                                  dtype=np.float32)
+                                  dtype=np.float64)
 
         time_series = filtered_data[0, :]
 

@@ -1,7 +1,7 @@
 Changelog for Curi Bio Software Development Kit
 ===============================================
 
-0.20.1 (2022-01-10)
+0.20.1 (2022-01-11)
 -------------------
 - Improved magnet finding algorithm performance
 

@@ -323,14 +323,14 @@ class TwitchWidth(BaseMetric):
             width_df: DataFrame, where each index is an integer representing the time points, and each column is a      percent-twitch width of all the peaks of interest
             coordinate_df: MultiIndex DataFrame, where each index is an integer representing the time points, and each  column level corresponds to the time (X) / force(Y), contration (rising) / relaxation (falling), and percent-twitch width coordinates
         """
-        width_df = pd.DataFrame(index=list(twitch_indices.index), 
-                            columns=list(np.arange(10,95,5)))
+        width_df = pd.DataFrame(index=list(twitch_indices.index),
+                                columns=list(np.arange(10,95,5)))
     
         columns = pd.MultiIndex.from_product([['force', 'time'], 
                                             ['contraction', 'relaxation'], 
                                             list(np.arange(10,95,5))])
-        coordinate_df = pd.DataFrame(index=list(twitch_indices.index), 
-                                    columns=columns)
+        coordinate_df = pd.DataFrame(index=list(twitch_indices.index),
+                                     columns=columns)
 
         time_series = filtered_data[0]
         value_series = filtered_data[1]
@@ -338,18 +338,23 @@ class TwitchWidth(BaseMetric):
         for iter_twitch_peak_idx in twitch_indices.index:
 
             peak_value = value_series[iter_twitch_peak_idx]
-            prior_valley_value = twitch_indices.loc[iter_twitch_peak_idx, PRIOR_VALLEY_INDEX_UUID]
-            subsequent_valley_value = twitch_indices.loc[iter_twitch_peak_idx, SUBSEQUENT_VALLEY_INDEX_UUID]
+
+            prior_valley_idx = int(twitch_indices[PRIOR_VALLEY_INDEX_UUID][iter_twitch_peak_idx])
+            prior_valley_value = value_series[prior_valley_idx]
+            
+            subsequent_valley_idx = int(twitch_indices[SUBSEQUENT_VALLEY_INDEX_UUID][iter_twitch_peak_idx])
+            subsequent_valley_value = value_series[subsequent_valley_idx]
 
             rising_amplitude = peak_value - prior_valley_value
             falling_amplitude = peak_value - subsequent_valley_value
 
             rising_idx = iter_twitch_peak_idx - 1
             falling_idx = iter_twitch_peak_idx + 1
+
             for iter_percent in twitch_width_percents:
 
-                rising_threshold = peak_value - iter_percent / 100 * rising_amplitude
-                falling_threshold = peak_value - iter_percent / 100 * falling_amplitude
+                rising_threshold = peak_value - (iter_percent / 100) * rising_amplitude
+                falling_threshold = peak_value - (iter_percent / 100) * falling_amplitude
 
                 # move to the left from the twitch peak until the threshold is reached
                 while abs(value_series[rising_idx] - prior_valley_value) > abs(rising_threshold - prior_valley_value):

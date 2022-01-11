@@ -386,39 +386,39 @@ def aggregate_metrics_df(data):
     return df
 
 
-def per_twitch_df(data):
+def per_twitch_df(data, widths=tuple(50,90)):
+    """Compule the per-twitch metrics for each well into single data frame.
+
+    Args:
+        data (list): list of data metrics and metadata associated with each well
+        widths (tuple of ints, optional): twitch-widths to return data for. Defaults to tuple(50,90).
+
+    Returns:
+        [type]: [description]
+    """
+    # list of data metrics for each well
     dms = [d['metrics'] for d in data]
 
-    idx = list(dms[0][0].keys())[0]
-    keys = list(dms[0][0][idx].keys())
-    num_per_twitch_metrics = 0 #len(labels)
-
     df = pd.DataFrame()
-    for j,d in enumerate(data): #for each well
+    for j,d in enumerate(data[:2]): #for each well
+        print(f'Well: {j}')
         num_per_twitch_metrics = 0 #len(labels)
+        # get metrics for single well
         dm = d['metrics']
         df = df.append(pd.Series([d['well_name']] + [f'Twitch {i+1}' for i in range( len(dm[0] ))]), ignore_index=True)
-        df = df.append(pd.Series(['Timepoint of Twitch Contraction'] + [k / MICRO_TO_BASE_CONVERSION for k in dm[0].keys()]), ignore_index=True)
+        df = df.append(pd.Series(['Timepoint of Twitch Contraction'] + [k / MICRO_TO_BASE_CONVERSION for k in dm[0].index]), ignore_index=True)
         num_per_twitch_metrics += 2
-
-        for m in ALL_METRICS:
-            if m in keys:
-                if m == WIDTH_UUID:
-                    key = list(dm[0].keys())[0]
-                    for q in dm[0][key][m].keys():
-                        values = [f'{CALCULATED_METRIC_DISPLAY_NAMES[m].format(q)}']
-                        df = df.append(pd.Series(values + [dm[0][k][m][q][WIDTH_VALUE_UUID] for k in dm[0].keys()]), ignore_index=True)
-                        num_per_twitch_metrics += 1
-                elif m in [RELAXATION_TIME_UUID, CONTRACTION_TIME_UUID]:
-                    key = list(dm[0].keys())[0]
-                    for q in dm[0][key][m].keys():
-                        values = [f'{CALCULATED_METRIC_DISPLAY_NAMES[m].format(q)}']
-                        df = df.append(pd.Series(values + [dm[0][k][m][q][TIME_VALUE_UUID] for k in dm[0].keys()]), ignore_index=True)
-                        num_per_twitch_metrics += 1
-                else:
-                    values = [CALCULATED_METRIC_DISPLAY_NAMES[m]]
-                    df = df.append(pd.Series(values + [dm[0][k][m] for k in dm[0].keys()]), ignore_index=True)
+        
+        for metric_id in ALL_METRICS:
+            if metric_id in [WIDTH_UUID, RELAXATION_TIME_UUID, CONTRACTION_TIME_UUID]:
+                for q in widths:
+                    values = [f'{CALCULATED_METRIC_DISPLAY_NAMES[metric_id].format(q)}']
+                    df = df.append(pd.Series(values + list(dm[0][metric_id][q])), ignore_index=True)
                     num_per_twitch_metrics += 1
+            else:
+                values = [CALCULATED_METRIC_DISPLAY_NAMES[metric_id]]
+                df = df.append(pd.Series(values + list(dm[0][metric_id])), ignore_index=True)
+                num_per_twitch_metrics += 1
 
         for _ in range(5):
             df = df.append(pd.Series(['']),ignore_index=True)

@@ -23,22 +23,6 @@ TWITCH_WIDTH_PERCENTS = np.arange(10, 95, 5)
 TWITCH_WIDTH_INDEX_OF_CONTRACTION_VELOCITY_START = np.where(TWITCH_WIDTH_PERCENTS == 10)[0]
 TWITCH_WIDTH_INDEX_OF_CONTRACTION_VELOCITY_END = np.where(TWITCH_WIDTH_PERCENTS == 90)[0]
 
-BY_WIDTH_METRICS = [WIDTH_UUID, 
-                    CONTRACTION_TIME_UUID, 
-                    RELAXATION_TIME_UUID]
-
-SCALAR_METRICS = [AMPLITUDE_UUID, 
-                  AUC_UUID, 
-                  BASELINE_TO_PEAK_UUID, 
-                  CONTRACTION_VELOCITY_UUID, 
-                  FRACTION_MAX_UUID, 
-                  IRREGULARITY_INTERVAL_UUID, 
-                  PEAK_TO_BASELINE_UUID, 
-                  RELAXATION_VELOCITY_UUID, 
-                  TWITCH_FREQUENCY_UUID, 
-                  TWITCH_PERIOD_UUID]
-
-
 def peak_detector(
     filtered_magnetic_signal: NDArray[(2, Any), int],
     twitches_point_up: bool = True,
@@ -232,22 +216,30 @@ def data_metrics(
 
     # create empty output DataFrames
     # per-twitch metrics data-frames
-    per_twitch_scalar = pd.DataFrame(index=list(twitch_indices.keys()), columns=SCALAR_METRICS)
-    columns = pd.MultiIndex.from_product(
-        [BY_WIDTH_METRICS, np.arange(10,95,5)],
-        names=['metric', 'width'])
+    per_twitch_scalar = pd.DataFrame(index=list(twitch_indices.keys()), 
+                                     columns=CALCULATED_METRICS['scalar'])
+    columns = pd.MultiIndex.from_product([CALCULATED_METRICS['by-width'], 
+                                          np.arange(10,95,5)],
+                                         names=['metric', 'width'])
     per_twitch_by_width = pd.DataFrame(index=list(twitch_indices.keys()), columns=columns)
 
     # aggregate metrics data-frames
-    columns = pd.MultiIndex.from_product(
-        [SCALAR_METRICS, ['n','mean','std','min','max','cov','sem']],
-        names=['metric', 'statistic'])
+    columns = pd.MultiIndex.from_product([CALCULATED_METRICS['scalar'], 
+                                         ['n','mean','std','min','max','cov','sem']],
+                                         names=['metric', 'statistic'])
     aggregate_scalar = pd.DataFrame(index=[0], columns=columns)
 
-    columns = pd.MultiIndex.from_product(
-        [BY_WIDTH_METRICS, np.arange(10,95,5), ['n','mean','std','min','max','cov','sem']],
-        names=['metric', 'width', 'statistic'])
-    aggregate_by_width = pd.DataFrame(index=[0], columns=columns)
+    columns = pd.MultiIndex.from_product([CALCULATED_METRICS['by-width'], 
+                                          np.arange(10,95,5), 
+                                          ['n','mean','std','min','max','cov','sem']],
+                                          names=['metric', 'width', 'statistic'])
+    aggregate_by_width = pd.DataFrame(index=[0], 
+                                      columns=columns)
+
+    data_frames = {'by-width': {'per-twitch': per_twitch_by_width,
+                                'aggregate': aggregate_by_width},
+                   'scalar': {'per-twitch': per_twitch_scalar,
+                              'aggregate': aggregate_scalar}}
 
     # Krisian 10/26/21
     # dictionary of metric functions
@@ -271,24 +263,15 @@ def data_metrics(
 
     # Kristian 12/27/21
     # add scalar metrics to corresponding DataFrames
-    print('Scalar')
-    for i, metric_id in enumerate(SCALAR_METRICS):
-        if metric_id in metrics_to_create:
-            print(metric_id)
-            metric = metric_mapper[metric_id]
-            estimate = metric.fit(**metric_parameters)
-            metric.add_per_twitch_metrics(per_twitch_scalar, metric_id, estimate)
-            metric.add_aggregate_metrics(aggregate_scalar, metric_id, estimate)
-
-    # add by-width metrics to corresponding DataFrames
-    print('By-width')
-    for i, metric_id in enumerate(BY_WIDTH_METRICS):
-        if metric_id in metrics_to_create:
-            print(metric_id)
-            metric = metric_mapper[metric_id]
-            estimate = metric.fit(**metric_parameters)
-            metric.add_per_twitch_metrics(per_twitch_by_width, metric_id, estimate)
-            metric.add_aggregate_metrics(aggregate_by_width, metric_id, estimate)
+    for metric_type, metrics in CALCULATED_METRICS.items():
+        per_twitch_df = data_frames[metric_type]['per-twitch']
+        aggregate_df = data_frames[metric_type]['aggregate']
+        for metric_id in metrics:
+            if metric_id in metrics_to_create:
+                metric = metric_mapper[metric_id]
+                estimate = metric.fit(**metric_parameters)
+                metric.add_per_twitch_metrics(per_twitch_df, metric_id, estimate)
+                metric.add_aggregate_metrics(aggregate_df, metric_id, estimate)
 
     per_twitch_df = concat([per_twitch_scalar, per_twitch_by_width], axis=1)
     aggregate_df = concat([aggregate_scalar, aggregate_by_width], axis=1)

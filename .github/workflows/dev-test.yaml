@@ -84,8 +84,14 @@ jobs:
       - name: Install Dev Dependencies
         run: pip install -r requirements-dev.txt
 
-      - name: Install Local Dependencies
-        run: pip install -r requirements.txt
+      - name: Move python packages in git submodule to correct location (Linux/MacOS)
+        if: runner.os == 'Linux' || runner.os == 'macOS'
+        run: cp -r ./mantarray-magnet-finding/src/mantarray_magnet_finding/ src/mantarray_magnet_finding
+
+      - name: Move python packages in git submodule to correct location (Windows)
+        if: runner.os == 'Windows'
+        run: Xcopy .\mantarray-magnet-finding\src\mantarray_magnet_finding src\mantarray_magnet_finding\
+
       - name: Install Main Package
         run: pip install -e .
       - name: Log full installed packages

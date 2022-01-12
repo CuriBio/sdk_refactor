@@ -2,8 +2,9 @@ import numpy as np
 import datetime
 import pandas as pd
 from scipy import interpolate
+from uuid import UUID
 
-from .plate_recording import WellFile
+from .plate_recording import WellFile, PlateRecording
 from .peak_detection import peak_detector, find_twitch_indices, data_metrics
 from .constants import *
 from .utils import xl_col_to_name
@@ -11,6 +12,7 @@ from .utils import xl_col_to_name
 from typing import Any
 from typing import List
 from typing import Tuple
+from nptyping import NDArray
 
 INTERPOLATED_DATA_PERIOD_SECONDS = 1 / 100
 INTERPOLATED_DATA_PERIOD_US = INTERPOLATED_DATA_PERIOD_SECONDS * MICRO_TO_BASE_CONVERSION
@@ -98,7 +100,7 @@ def create_force_frequency_relationship_charts(
     well_index: int,
     well_name: str,
     num_data_points: int,
-    num_per_twitch_metrics,
+    num_per_twitch_metrics: int,
 ) -> None:
     well_row = well_index * num_per_twitch_metrics
     last_column = xl_col_to_name(num_data_points)
@@ -140,7 +142,7 @@ def create_frequency_vs_time_charts(
     well_index: int,
     well_name: str,
     num_data_points: int,
-    time_values,
+    time_values: NDArray[int],
     num_per_twitch_metrics,
 ) -> None:
     well_row = well_index * num_per_twitch_metrics
@@ -162,7 +164,7 @@ def create_frequency_vs_time_charts(
 
     x_axis_settings: Dict[str, Any] = {"name": "Time (seconds)"}
     x_axis_settings["min"] = 0
-    x_axis_settings["max"] = time_values[-1] // MICRO_TO_BASE_CONVERSION
+    x_axis_settings["max"] = time_values[-1]
 
     frequency_chart.set_x_axis(x_axis_settings)
 
@@ -182,7 +184,9 @@ def create_frequency_vs_time_charts(
     )
 
 
-def write_xlsx(plate_recording, twitch_widths: Tuple[int] = tuple([50,90])):
+def write_xlsx(filename: str, 
+               plate_recording: PlateRecording, 
+               twitch_widths: Tuple[int] = tuple([50,90])):
     # get metadata from first well file
     w = plate_recording.wells[0]
     metadata = {
@@ -199,10 +203,13 @@ def write_xlsx(plate_recording, twitch_widths: Tuple[int] = tuple([50,90])):
 
     data = []
     # calculate metrics for each well
+    print('Computing data metrics for each well.')
     for i,well_file in enumerate(plate_recording):
+        if i > 3:
+            continue
         well_index = well_file[WELL_INDEX_UUID]
         peaks_and_valleys = peak_detector(well_file.noise_filtered_magnetic_data)
-        twitch_indices = find_twitch_indices(peaks_and_valleys)
+        twitch_indices = list(find_twitch_indices(peaks_and_valleys).keys())
         metrics = data_metrics(peaks_and_valleys, well_file.force)
 
         interp_data_fn = interpolate.interp1d(well_file.force[0], well_file.force[1])
@@ -213,10 +220,12 @@ def write_xlsx(plate_recording, twitch_widths: Tuple[int] = tuple([50,90])):
         interp_data -= min_value
         interp_data *= MICRO_TO_BASE_CONVERSION
 
+        twitch_time_values = well_file.force[0][twitch_indices] / MICRO_TO_BASE_CONVERSION
 
         data.append({
             'peaks_and_valleys': peaks_and_valleys,
             'twitch_indices': twitch_indices,
+            'twitch_time_values': twitch_time_values,
             'metrics': metrics,
             'well_index': well_index,
             'well_name': TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_index),
@@ -234,14 +243,18 @@ def write_xlsx(plate_recording, twitch_widths: Tuple[int] = tuple([50,90])):
         continuous_waveforms[f"{d['well_name']} - Active Twitch Force"] = d['interp_data']
     continuous_waveforms_df = pd.DataFrame(continuous_waveforms)
 
-    _write_xlsx('test.xlsx', 
-                metadata_df, 
-                continuous_waveforms_df, 
-                data, 
+    _write_xlsx(name=filename, 
+                metadata_df=metadata_df, 
+                continuous_waveforms_df=continuous_waveforms_df, 
+                data=data, 
                 twitch_widths=twitch_widths)
 
 
-def _write_xlsx(name: str, metadata_df, continuous_waveforms_df, data, twitch_widths: Tuple[int] = tuple([50,90])):
+def _write_xlsx(name: str, 
+                metadata_df: pd.DataFrame, 
+                continuous_waveforms_df: pd.DataFrame, 
+                data: List[Dict[Any,Any]], 
+                twitch_widths: Tuple[int] = tuple([50,90])):
     with pd.ExcelWriter(name) as writer:
         metadata_df.to_excel(writer, sheet_name='metadata', index=False, header=False)
 
@@ -250,6 +263,7 @@ def _write_xlsx(name: str, metadata_df, continuous_waveforms_df, data, twitch_wi
         for i_col_idx, i_col_width in ((0,25), (1,40), (2,25)):
             ws.set_column(i_col_idx, i_col_idx, i_col_width)
 
+        print('Writing continuous waveforms.')
         continuous_waveforms_df.to_excel(writer, sheet_name='continuous-waveforms', index=False)
         continuous_waveforms_sheet = writer.sheets['continuous-waveforms']
         continuous_waveforms_sheet.set_column(0, 0, 18)
@@ -267,15 +281,18 @@ def _write_xlsx(name: str, metadata_df, continuous_waveforms_df, data, twitch_wi
             create_waveform_charts(i, dm, continuous_waveforms_df, wb, continuous_waveforms_sheet, snapshot_sheet, full_sheet)
 
         # aggregate metrics sheet
+        print('Writing aggregate metrics.')
         aggregate_df = aggregate_metrics_df(data)
         aggregate_df.to_excel(writer, sheet_name='aggregate-metrics', index=False, header=False)
 
         # per twitch metrics sheet
+        print('Writing per-twitch metrics.')
         (pdf, num_metrics) = per_twitch_df(data, twitch_widths)
         pdf.to_excel(writer, sheet_name='per-twitch-metrics', index=False, header=False)
 
 
         # freq/force charts
+        print('Writing force / frequency charts.')
         freq_vs_time_sheet = wb.add_worksheet(FORCE_FREQUENCY_RELATIONSHIP_SHEET)
         force_freq_sheet = wb.add_worksheet(TWITCH_FREQUENCIES_CHART_SHEET_NAME)
 
@@ -284,8 +301,8 @@ def _write_xlsx(name: str, metadata_df, continuous_waveforms_df, data, twitch_wi
             force_freq_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
             freq_vs_time_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
 
-            num_twitches = int(dm[1][AMPLITUDE_UUID]["n"][0])
-            time_values = list(dm[0].index)
+            num_twitches: int = int(dm[1][AMPLITUDE_UUID]["n"][0])
+            time_values: NDArray = d['twitch_time_values']
 
             create_frequency_vs_time_charts(
                 freq_vs_time_sheet,
@@ -360,19 +377,24 @@ def create_waveform_charts(iter_idx, dm, continuous_waveforms_df, wb, continuous
     full_sheet.insert_chart(1 + iter_idx * (CHART_HEIGHT_CELLS + 1), 1, full_chart)
 
 
-def aggregate_metrics_df(data, widths: Tuple[int] = tuple([50,90])):
-    """Combine aggregate metrics for each well into single DataFrame.
+def aggregate_metrics_df(data: List[Dict[Any,Any]], widths: Tuple[int] = tuple([50,90])):
+    """Combine aggregate metrics for each well into single DataFrame for writing.
 
     Args:
         data (list): list of data metrics and metadata associated with each well
         widths (tuple of ints, optional): twitch-widths to return data for. Defaults to tuple(50,90).
 
     Returns:
-        [type]: [description]
+        df (DataFrame): aggregate data frame of all metric aggregate measures
     """
-    def add2df(main_df, metrics):
-        """
-        
+    def append2df(main_df: pd.DataFrame, metrics: pd.DataFrame):
+        """Wrapper to append metric-specific aggregate measures to aggregate data frame.
+
+        Args:
+            main_df (DataFrame): aggregate data frame
+            metrics (DataFrame): metric-specific aggregate measures
+        Returns:
+            main_df (DataFrame): aggregate data frame
         """
         metrics.reset_index(inplace=True)
         metrics.insert(0, 'level_0', [nm] + ['']*5)
@@ -391,52 +413,53 @@ def aggregate_metrics_df(data, widths: Tuple[int] = tuple([50,90])):
     df = df.append(pd.Series(['', 'n (twitches)'] + [len(d['metrics'][0]) for d in data]), ignore_index=True)
     df = df.append(pd.Series(['']), ignore_index=True)  # empty row
 
-    temp = pd.concat([d['metrics'][1] for d in data])
+    combined = pd.concat([d['metrics'][1] for d in data])
 
-    for m in ALL_METRICS:
-        if m in [WIDTH_UUID, RELAXATION_TIME_UUID, CONTRACTION_TIME_UUID]:
+    for metric_id in ALL_METRICS:
+        if metric_id in [WIDTH_UUID, RELAXATION_TIME_UUID, CONTRACTION_TIME_UUID]:
             for k in widths:
-                nm = CALCULATED_METRIC_DISPLAY_NAMES[m].format(k)
-                metric_df = temp[m][k].drop(columns=['n']).T
-                df = add2df(df, metric_df)
+                nm = CALCULATED_METRIC_DISPLAY_NAMES[metric_id].format(k)
+                metric_df = combined[metric_id][k].drop(columns=['n']).T
+                df = append2df(df, metric_df)
         else:
-            nm = CALCULATED_METRIC_DISPLAY_NAMES[m]
-            metric_df = temp[m].drop(columns=['n']).T.droplevel(level=-1, axis=0)
-            df = add2df(df, metric_df)
+            nm = CALCULATED_METRIC_DISPLAY_NAMES[metric_id]
+            metric_df = combined[metric_id].drop(columns=['n']).T.droplevel(level=-1, axis=0)
+            df = append2df(df, metric_df)
 
     return df
 
 
 def per_twitch_df(data: List[Dict[Any,Any]], widths: Tuple[int] = tuple([50,90])):
-    """Combine per-twitch metrics for each well into single DataFrame.
+    """Combine per-twitch metrics for each well into single DataFrame for writing.
 
     Args:
         data (list): list of data metrics and metadata associated with each well
         widths (tuple of ints, optional): twitch-widths to return data for. Defaults to tuple([50,90]).
 
     Returns:
-        [type]: [description]
+        df (DataFrame): per-twitch data frame of all metrics
     """
 
     df = pd.DataFrame()
-    for j,d in enumerate(data): #for each well
-        print(f'Well: {j}')
+    for j, d in enumerate(data): #for each well
         num_per_twitch_metrics = 0 #len(labels)
+        twitch_times = list(d['twitch_time_values'])
+
         # get metrics for single well
-        dm = d['metrics']
-        df = df.append(pd.Series([d['well_name']] + [f'Twitch {i+1}' for i in range( len(dm[0] ))]), ignore_index=True)
-        df = df.append(pd.Series(['Timepoint of Twitch Contraction'] + [k / MICRO_TO_BASE_CONVERSION for k in dm[0].index]), ignore_index=True)
+        dm = d['metrics'][0]
+        df = df.append(pd.Series([d['well_name']] + [f'Twitch {i+1}' for i in range( len(dm))]), ignore_index=True)
+        df = df.append(pd.Series(['Timepoint of Twitch Contraction'] + twitch_times), ignore_index=True)
         num_per_twitch_metrics += 2
         
         for metric_id in ALL_METRICS:
             if metric_id in [WIDTH_UUID, RELAXATION_TIME_UUID, CONTRACTION_TIME_UUID]:
-                for q in widths:
-                    values = [f'{CALCULATED_METRIC_DISPLAY_NAMES[metric_id].format(q)}']
-                    df = df.append(pd.Series(values + list(dm[0][metric_id][q])), ignore_index=True)
+                for twitch_width in widths:
+                    values = [f'{CALCULATED_METRIC_DISPLAY_NAMES[metric_id].format(twitch_width)}']
+                    df = df.append(pd.Series(values + list(dm[metric_id][twitch_width])), ignore_index=True)
                     num_per_twitch_metrics += 1
             else:
                 values = [CALCULATED_METRIC_DISPLAY_NAMES[metric_id]]
-                df = df.append(pd.Series(values + list(dm[0][metric_id])), ignore_index=True)
+                df = df.append(pd.Series(values + list(dm[metric_id])), ignore_index=True)
                 num_per_twitch_metrics += 1
 
         for _ in range(5):

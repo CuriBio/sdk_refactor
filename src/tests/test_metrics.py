@@ -447,20 +447,20 @@ def test_metrics__create_statistics():
 
     statistics = metrics.BaseMetric.create_statistics_df(estimates, rounded=False)
 
-    assert statistics["mean"][0] == np.nanmean(estimates)
-    assert statistics["std"][0] == np.nanstd(estimates)
-    assert statistics["min"][0] == np.nanmin(estimates)
-    assert statistics["max"][0] == np.nanmax(estimates)
+    assert statistics["Mean"][0] == np.nanmean(estimates)
+    assert statistics["StDev"][0] == np.nanstd(estimates)
+    assert statistics["Min"][0] == np.nanmin(estimates)
+    assert statistics["Max"][0] == np.nanmax(estimates)
 
     statistics = metrics.BaseMetric.create_statistics_df(estimates, rounded=True)
-    assert statistics["mean"][0] == int(round(np.nanmean(estimates)))
-    assert statistics["std"][0] == int(round(np.nanstd(estimates)))
-    assert statistics["min"][0] == int(round(np.nanmin(estimates)))
-    assert statistics["max"][0] == int(round(np.nanmax(estimates)))
+    assert statistics["Mean"][0] == int(round(np.nanmean(estimates)))
+    assert statistics["StDev"][0] == int(round(np.nanstd(estimates)))
+    assert statistics["Min"][0] == int(round(np.nanmin(estimates)))
+    assert statistics["Max"][0] == int(round(np.nanmax(estimates)))
 
     estimates = []
     statistics = metrics.BaseMetric.create_statistics_df(estimates, rounded=False)
-    assert statistics["mean"][0] is None
-    assert statistics["std"][0] is None
-    assert statistics["min"][0] is None
-    assert statistics["max"][0] is None
+    assert statistics["Mean"][0] is None
+    assert statistics["StDev"][0] is None
+    assert statistics["Min"][0] is None
+    assert statistics["Max"][0] is None

@@ -205,8 +205,6 @@ def write_xlsx(filename: str,
     # calculate metrics for each well
     print('Computing data metrics for each well.')
     for i,well_file in enumerate(plate_recording):
-        if i > 3:
-            continue
         well_index = well_file[WELL_INDEX_UUID]
         peaks_and_valleys = peak_detector(well_file.noise_filtered_magnetic_data)
         twitch_indices = list(find_twitch_indices(peaks_and_valleys).keys())

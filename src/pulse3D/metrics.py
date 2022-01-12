@@ -24,7 +24,7 @@ import pandas as pd
 from pandas import DataFrame, Series
 import numpy as np
 
-from .constants import CENTIMILLISECONDS_PER_SECOND, MICRO_TO_BASE_CONVERSION
+from .constants import MICRO_TO_BASE_CONVERSION
 from .constants import PRIOR_VALLEY_INDEX_UUID
 from .constants import SUBSEQUENT_VALLEY_INDEX_UUID
 from .constants import TIME_VALUE_UUID
@@ -357,7 +357,9 @@ class TwitchWidth(BaseMetric):
                 falling_threshold = peak_value - (iter_percent / 100) * falling_amplitude
 
                 # move to the left from the twitch peak until the threshold is reached
-                while abs(value_series[rising_idx] - prior_valley_value) > abs(rising_threshold - prior_valley_value):
+                while abs(value_series[rising_idx] - prior_valley_value) > abs(
+                    rising_threshold - prior_valley_value
+                ):
                     rising_idx -= 1
                 # move to the right from the twitch peak until the falling threshold is reached
                 while abs(value_series[falling_idx] - subsequent_valley_value) > abs(

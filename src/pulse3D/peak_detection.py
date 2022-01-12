@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """Detecting peak and valleys of incoming Mantarray data."""
-
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -14,10 +13,10 @@ import numpy as np
 from scipy import signal
 
 from .constants import *
-from .metrics import *
 from .exceptions import TooFewPeaksDetectedError
 from .exceptions import TwoPeaksInARowError
 from .exceptions import TwoValleysInARowError
+from .metrics import *
 
 TWITCH_WIDTH_PERCENTS = np.arange(10, 95, 5)
 TWITCH_WIDTH_INDEX_OF_CONTRACTION_VELOCITY_START = np.where(TWITCH_WIDTH_PERCENTS == 10)[0]
@@ -186,6 +185,7 @@ def find_twitch_indices(
 
     return twitches
 
+
 def data_metrics(
     peak_and_valley_indices: Tuple[NDArray[int], NDArray[int]],
     filtered_data: NDArray[(2, Any), int],
@@ -194,6 +194,7 @@ def data_metrics(
 ) -> Tuple[DataFrame]:
     # pylint:disable=too-many-locals # Eli (9/8/20): there are a lot of metrics to calculate that need local variables
     """Find all data metrics for individual twitches and averages.
+
     Args:
         peak_and_valley_indices: a tuple of integer value arrays representing the time indices of peaks and valleys within the data
         filtered_data: a 2D array of the time and voltage data after it has gone through noise cancellation

@@ -1,0 +1,72 @@
+# IDE
+.idea/
+.~c9*
+.vscode/
+
+# CI caches
+.npm_cache/
+.precommit_cache/
+.pipenv_cache/
+
+# Python
+*.py[cod]
+__pycache__/
+
+# Cython
+*.c
+*.so
+*.html
+
+# Venv
+.venv/
+venv/
+*.egg-info
+
+# sphinx html
+docs/build
+
+# Testing
+.pytest_cache/
+.mypy_cache/
+.coverage
+tests/**/snapshots/*_actual.png
+tests/**/snapshots/*_diff.png
+tests/**/visual-regression-testing/*-actual.png
+tests/**/visual-regression-testing/*-diff.png
+
+dist/
+build/
+
+# test coverage
+tests/__coverage__
+test/__coverage__
+coverage-report-pytest
+.pytest_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+coverage.xml
+
+# test profiling
+prof/
+
+# Local files
+downloads/
+pipeline_outputs/
+*.gz
+*.tsv
+*.csv
+./*.xlsx
+tests/*.xlsx
+tmp/
+
+# Cython
+*.so
+*.c
+*.html
+
+
+secrets.json
+
+# MacOS
+*.DS_Store

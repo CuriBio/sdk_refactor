@@ -1,0 +1,52 @@
+# -*- coding: utf-8 -*-
+"""More accurate estimation of magnet positions."""
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import TYPE_CHECKING
+
+from mantarray_magnet_finding.magnet_finding import get_positions
+from nptyping import NDArray
+import numpy as np
+import scipy.signal as signal
+
+from .constants import TISSUE_SENSOR_READINGS
+
+
+if TYPE_CHECKING:
+    from .plate_recording import WellFile
+
+
+def find_magnet_positions(
+    fields: NDArray[(24, 3, 3, Any), float],
+    baseline: NDArray[(24, 3, 3, Any), float],
+    filter_outputs: bool = True,
+) -> Dict[str, NDArray[(1, Any), float]]:
+    output_dict = get_positions(fields - baseline)
+    if filter_outputs:
+        for param, output_arr in output_dict.items():
+            output_dict[param] = filter_magnet_positions(output_arr)
+    return output_dict
+
+
+def filter_magnet_positions(magnet_positions: NDArray[(Any, 24), float]) -> NDArray[(Any, 24), float]:
+    high_cut_hz = 30
+    b, a = signal.butter(4, high_cut_hz, "low", fs=100)
+    filtered_magnet_positions = np.empty(magnet_positions.shape)
+    # Tanner (1/7/22): need to filter each well individually, can't filter over the entire axis of the array at once
+    for well_arr_idx in range(magnet_positions.shape[1]):
+        filtered_magnet_positions[:, well_arr_idx] = signal.filtfilt(b, a, magnet_positions[:, well_arr_idx])
+    return filtered_magnet_positions
+
+
+def format_well_file_data(well_files: List["WellFile"]) -> NDArray[(24, 3, 3, Any), float]:
+    # convert well data into the array format that the magnet finding alg uses
+    plate_data_array = None
+    for well_idx, well_file in enumerate(well_files):
+        tissue_data = well_file[TISSUE_SENSOR_READINGS][:]
+        if plate_data_array is None:
+            num_samples = tissue_data.shape[-1]
+            plate_data_array = np.empty((24, 3, 3, num_samples))
+        reshaped_data = tissue_data.reshape((3, 3, num_samples))
+        plate_data_array[well_idx, :, :, :] = reshaped_data
+    return plate_data_array

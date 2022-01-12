@@ -27,8 +27,8 @@ if USE_CYTHON:
 
 setup(
     name="Pulse3D",
-    version="0.18.1",
-    description="CREATE A DESCRIPTION",
+    version="0.20.1",
+    description="Pulse3D Analysis Platform",
     url="https://github.com/CuriBio/Pulse3D",
     project_urls={"Documentation": "https://pulse3D.readthedocs.io/en/latest/"},
     author="Curi Bio",
@@ -40,7 +40,9 @@ setup(
     install_requires=[
         "h5py>=3.2.1",
         "nptyping>=1.4.1",
-        "numpy>=1.20.1",
+        "numpy==1.20.2",  # Tanner (12/3/21): pinned for numba compatibility
+        "scipy==1.6.2",
+        "numba>=0.54.1",
         "immutabledict>=1.2.0",
         "XlsxWriter>=1.3.8",
         "openpyxl>=3.0.7",
@@ -48,6 +50,8 @@ setup(
         "stdlib_utils>=0.4.4",
         "labware-domain-models>=0.3.1",
         "requests>=2.25.1",
+        "semver>=2.13.0",
+        "pandas>=1.3.4",
         'importlib-metadata >= 3.7.3 ; python_version < "3.8"',
     ],
     zip_safe=False,

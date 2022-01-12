@@ -1,0 +1,30 @@
+recursive-include src/pulse3D *.py
+recursive-include src/pulse3D *.pyx
+recursive-include src/mantarray-magnet-finding/src/mantarray_magnet_finding *.py
+include LICENSE
+include *rst
+include *py
+include src/mantarray-magnet-finding/setup.py
+global-exclude *.c
+global-exclude *.so
+global-exclude *.pyc
+global-exclude *.txt
+global-exclude src/pylintrc
+global-exclude .flake8
+global-exclude mypy.ini
+global-exclude docs/**
+global-exclude pytest.ini
+global-exclude tests/**
+global-exclude *.yaml
+global-exclude tests/pylintrc
+global-exclude prerelease.py
+global-exclude conftest.py
+global-exclude .bash_scripts/**
+global-exclude Dockerfile
+global-exclude *.ipynb
+global-exclude *.xlsx
+global-exclude src/mantarray-magnet-finding *.rst
+global-exclude src/mantarray-magnet-finding *.in
+global-exclude src/mantarray-magnet-finding/LICENSE
+global-exclude src/mantarray-magnet-finding/.github/**
+global-exclude .gitmodules

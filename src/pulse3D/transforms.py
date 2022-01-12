@@ -25,6 +25,7 @@ from .constants import REFERENCE_VOLTAGE
 from .exceptions import FilterCreationNotImplementedError
 from .exceptions import UnrecognizedFilterUuidError
 
+
 FILTER_CHARACTERISTICS: Dict[uuid.UUID, Dict[str, Union[str, float, int]]] = {
     BESSEL_BANDPASS_UUID: {
         "filter_type": "bessel",
@@ -177,7 +178,7 @@ def calculate_voltage_from_gmr(
     gmr_data: NDArray[(2, Any), int],
     reference_voltage: Union[float, int] = REFERENCE_VOLTAGE,
     adc_gain: int = ADC_GAIN,
-) -> NDArray[(2, Any), np.float32]:
+) -> NDArray[(2, Any), np.float64]:
     """Convert 'signed' 24-bit values from an ADC to measured voltage.
 
     Conversion values were obtained 03/09/2021 by Kevin Grey
@@ -191,14 +192,14 @@ def calculate_voltage_from_gmr(
         A 2D array of time vs Voltage
     """
     millivolts_per_lsb = 1000 * reference_voltage / RAW_TO_SIGNED_CONVERSION_VALUE
-    sample_in_millivolts = gmr_data[1, :].astype(np.float32) * millivolts_per_lsb * (1 / adc_gain)
+    sample_in_millivolts = gmr_data[1, :].astype(np.float64) * millivolts_per_lsb * (1 / adc_gain)
     sample_in_volts = sample_in_millivolts / MILLI_TO_BASE_CONVERSION
-    return np.vstack((gmr_data[0, :].astype(np.float32), sample_in_volts))
+    return np.vstack((gmr_data[0, :].astype(np.float64), sample_in_volts))
 
 
 def calculate_displacement_from_voltage(
-    voltage_data: NDArray[(2, Any), np.float32],
-) -> NDArray[(2, Any), np.float32]:
+    voltage_data: NDArray[(2, Any), np.float64],
+) -> NDArray[(2, Any), np.float64]:
     """Convert voltage to displacement.
 
     Conversion values were obtained 03/09/2021 by Kevin Grey
@@ -219,26 +220,30 @@ def calculate_displacement_from_voltage(
     sample_in_millimeters = sample_in_milliteslas * MILLIMETERS_PER_MILLITESLA
     sample_in_meters = sample_in_millimeters / MILLI_TO_BASE_CONVERSION
 
-    return np.vstack((time, sample_in_meters)).astype(np.float32)
+    return np.vstack((time, sample_in_meters)).astype(np.float64)
 
 
 def calculate_force_from_displacement(
-    displacement_data: NDArray[(2, Any), np.float32],
-) -> NDArray[(2, Any), np.float32]:
+    displacement_data: NDArray[(2, Any), np.float64],
+    in_mm: bool = True,
+) -> NDArray[(2, Any), np.float64]:
     """Convert displacement to force.
 
     Conversion values were obtained 03/09/2021 by Kevin Grey
 
     Args:
-        displacement_data: time and Displacement numpy array. Typically coming from calculate_displacement_from_voltage
+        displacement_data: time and Displacement numpy array. Typically coming from calculate_displacement_from_voltage or the magnet finding alg
+        in_mm: whether this data is in units of mm or not. If coming from calculate_displacement_from_voltage, it is likely in meters and this value should be set to True
 
     Returns:
         A 2D array of time vs Force (Newtons)
     """
-    sample_in_millimeters = displacement_data[1, :] * MILLI_TO_BASE_CONVERSION
+    displacement = displacement_data[1, :]
+    if not in_mm:
+        displacement *= MILLI_TO_BASE_CONVERSION
     time = displacement_data[0, :]
 
     # calculate force
-    sample_in_newtons = sample_in_millimeters * NEWTONS_PER_MILLIMETER
+    sample_in_newtons = displacement * NEWTONS_PER_MILLIMETER
 
-    return np.vstack((time, sample_in_newtons)).astype(np.float32)
+    return np.vstack((time, sample_in_newtons)).astype(np.float64)

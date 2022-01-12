@@ -1,13 +1,16 @@
+# -*- coding: utf-8 -*-
 """Constants for the Mantarray File Manager."""
+from typing import Dict
 import uuid
 
-from collections import OrderedDict
-from typing import Dict
-from typing import Tuple
-from typing import Union
-
-from labware_domain_models import LabwareDefinition
 from immutabledict import immutabledict
+from labware_domain_models import LabwareDefinition
+
+try:
+    from importlib import metadata
+except ImportError:
+    import importlib_metadata as metadata
+PACKAGE_VERSION = metadata.version("pulse3D")
 
 CURI_BIO_ACCOUNT_UUID = uuid.UUID("73f52be0-368c-42d8-a1fd-660d49ba5604")
 CURI_BIO_USER_ACCOUNT_ID = uuid.UUID("455b93eb-c78f-4494-9f73-d3291130f126")
@@ -125,15 +128,19 @@ MICRO_TO_BASE_CONVERSION = int(1e6)
 MICROSECONDS_PER_CENTIMILLISECOND = 10
 TISSUE_SENSOR_READINGS = "tissue_sensor_readings"
 REFERENCE_SENSOR_READINGS = "reference_sensor_readings"
+TIME_INDICES = "time_indices"
+TIME_OFFSETS = "time_offsets"
 
 
 """
 constants from mantarray_waveform_analysis library
 """
+MILLI_TO_BASE_CONVERSION = 1000
+
 TWITCH_PERIOD_UUID = uuid.UUID("6e0cd81c-7861-4c49-ba14-87b2739d65fb")
 
-#This is just the reciprocal of twitch period, but is pre-computed to make downstream pipelines
-#simpler. Frequency is reported in Hz
+# This is just the reciprocal of twitch period, but is pre-computed to make downstream pipelines
+# simpler. Frequency is reported in Hz
 TWITCH_FREQUENCY_UUID = uuid.UUID("472d0707-ff87-4198-9374-c28900bb216c")
 AMPLITUDE_UUID = uuid.UUID("89cf1105-a015-434f-b527-4169b9400e26")
 AUC_UUID = uuid.UUID("e7b9a6e4-c43d-4e8b-af7e-51742e252030")
@@ -198,16 +205,22 @@ BESSEL_LOWPASS_10_UUID = uuid.UUID("7d64cac3-b841-4912-b734-c0cf20a81e7a")
 BESSEL_LOWPASS_30_UUID = uuid.UUID("eee66c75-4dc4-4eb4-8d48-6c608bf28d91")
 BUTTERWORTH_LOWPASS_30_UUID = uuid.UUID("de8d8cef-65bf-4119-ada7-bdecbbaa897a")
 
-# GMR conversion factors
-# Conversion values were obtained 03/09/2021 by Kevin Grey
-MIDSCALE_CODE = 0x800000
-RAW_TO_SIGNED_CONVERSION_VALUE = 2 ** 23  # subtract this value from raw hardware data
-MILLIVOLTS_PER_MILLITESLA = 1073.6
+# General mangetic field to force conversion factor. Obtained 03/09/2021 by Kevin Grey, Valid as of 11/19/21
 MILLIMETERS_PER_MILLITESLA = 23.25
 NEWTONS_PER_MILLIMETER = 0.000159
+
+# Beta 1 GMR to magnetic field conversion values. Valid as of 11/19/21
+MILLIVOLTS_PER_MILLITESLA = 1073.6  # Obtained 03/09/2021 by Kevin Grey
+MIDSCALE_CODE = 0x800000
+RAW_TO_SIGNED_CONVERSION_VALUE = 2 ** 23  # subtract this value from raw hardware data
 REFERENCE_VOLTAGE = 2.5
 ADC_GAIN = 2
-MILLI_TO_BASE_CONVERSION = 1000
+
+# Beta 2 Memsic to magnetic field conversion factors. Valid as of 11/19/21
+MEMSIC_CENTER_OFFSET = 2 ** 15
+MEMSIC_MSB = 2 ** 16
+MEMSIC_FULL_SCALE = 16
+GAUSS_PER_MILLITESLA = 10
 
 
 MIN_NUMBER_PEAKS = 3
@@ -323,3 +336,11 @@ EXCEL_OPTICAL_METADATA_CELLS = immutabledict(
         INTERPOLATION_VALUE_UUID: "E8",
     }
 )
+
+
+"""
+Magnet Finding
+"""
+
+# 10 seconds at sampling rate of 100Hz
+BASELINE_MEAN_NUM_DATA_POINTS = 10 * 100

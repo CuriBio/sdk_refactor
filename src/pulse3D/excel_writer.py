@@ -284,13 +284,16 @@ def _write_xlsx(name: str, metadata_df, continuous_waveforms_df, data, twitch_wi
             force_freq_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
             freq_vs_time_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
 
+            num_twitches = int(dm[1][AMPLITUDE_UUID]["n"][0])
+            time_values = list(dm[0].index)
+
             create_frequency_vs_time_charts(
                 freq_vs_time_sheet,
                 freq_vs_time_chart,
                 i,
                 d['well_name'],
-                dm[1][AMPLITUDE_UUID]["n"], #number of twitches
-                list(dm[0]), # time values
+                num_twitches, #number of twitches
+                time_values, # time values
                 num_metrics,
             )
 
@@ -299,7 +302,7 @@ def _write_xlsx(name: str, metadata_df, continuous_waveforms_df, data, twitch_wi
                 force_freq_chart,
                 i,
                 d['well_name'],
-                dm[1][AMPLITUDE_UUID]["n"], #number of twitches
+                num_twitches, #number of twitches
                 num_metrics,
             )
 

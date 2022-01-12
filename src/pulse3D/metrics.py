@@ -110,16 +110,16 @@ class BaseMetric:
         average statistics are the value
         """
         statistics = pd.DataFrame(data=np.asarray([None]*7)[None,:],
-                                  columns=['n','mean','std','min','max','cov','sem'])
+                                  columns=['n','Mean','StDev','CoV', 'SEM', 'Min','Max'])
         statistics["n"] = len(metric)
 
         if len(metric) > 0:
-            statistics["mean"] = np.nanmean(metric)
-            statistics["std"] = np.nanstd(metric)
-            statistics["min"] = np.nanmin(metric)
-            statistics["max"] = np.nanmax(metric)
-            statistics["cov"] = statistics["std"] / statistics["mean"]
-            statistics["sem"] = statistics["std"] / statistics["n"] ** 0.5
+            statistics["Mean"] = np.nanmean(metric)
+            statistics["StDev"] = np.nanstd(metric)
+            statistics["CoV"] = statistics["StDev"] / statistics["Mean"]
+            statistics["SEM"] = statistics["StDev"] / statistics["n"] ** 0.5
+            statistics["Min"] = np.nanmin(metric)
+            statistics["Max"] = np.nanmax(metric)
 
             if rounded:
                 for iter_key, iter_value in statistics.items():

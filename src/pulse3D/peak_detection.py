@@ -225,13 +225,13 @@ def data_metrics(
 
     # aggregate metrics data-frames
     columns = pd.MultiIndex.from_product([CALCULATED_METRICS['scalar'], 
-                                         ['n','mean','std','min','max','cov','sem']],
+                                         ['n','Mean','StDev','CoV', 'SEM', 'Min','Max']],
                                          names=['metric', 'statistic'])
     aggregate_scalar = pd.DataFrame(index=[0], columns=columns)
 
     columns = pd.MultiIndex.from_product([CALCULATED_METRICS['by-width'], 
                                           np.arange(10,95,5), 
-                                          ['n','mean','std','min','max','cov','sem']],
+                                          ['n','Mean','StDev','CoV', 'SEM', 'Min','Max']],
                                           names=['metric', 'width', 'statistic'])
     aggregate_by_width = pd.DataFrame(index=[0], 
                                       columns=columns)

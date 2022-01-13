@@ -134,7 +134,7 @@ jobs:
 
       - name: Move python packages in git submodule to correct location (Windows)
         if: runner.os == 'Windows'
-        run: Xcopy .\mantarray-magnet-finding\src\mantarray_magnet_finding\ src\mantarray_magnet_finding\
+        run: Xcopy .\mantarray-magnet-finding\src\mantarray_magnet_finding src\mantarray_magnet_finding\
 
       - name: Install Main Package
         run: pip install -e .

@@ -29,6 +29,7 @@ from pulse3D.peak_detection import data_metrics
 from pulse3D.peak_detection import find_twitch_indices
 from pulse3D.peak_detection import peak_detector
 from pulse3D.plate_recording import WellFile
+import pytest
 from stdlib_utils import get_current_file_abs_directory
 
 from .fixtures import fixture_generic_deserialized_per_twitch_metrics_output_0_3_1
@@ -348,6 +349,10 @@ def test_metrics__TwitchWidth():
 
     pv = peak_detector(w.noise_filtered_magnetic_data)
     twitch_indices = find_twitch_indices(pv)
+
+    metric = metrics.TwitchWidth()
+    estimate = metric.fit(pv, w.force, twitch_indices)
+
     assert np.all(expected == estimate)
 
 

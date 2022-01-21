@@ -1,3 +1,3 @@
 # pip install -r requirements.txt
 
-src/mantarray-magnet-finding/
+mantarray-magnet-finding/

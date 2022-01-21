@@ -128,8 +128,14 @@ jobs:
       - name: Install Dev Dependencies
         run: pip install -r requirements-dev.txt
 
-      - name: Install Local Dependencies
-        run: pip install -r requirements.txt
+      - name: Move python packages in git submodule to correct location (Linux/MacOS)
+        if: runner.os == 'Linux' || runner.os == 'macOS'
+        run: cp -r ./mantarray-magnet-finding/src/mantarray_magnet_finding/ src/mantarray_magnet_finding
+
+      - name: Move python packages in git submodule to correct location (Windows)
+        if: runner.os == 'Windows'
+        run: Xcopy .\mantarray-magnet-finding\src\mantarray_magnet_finding src\mantarray_magnet_finding\
+
       - name: Install Main Package
         run: pip install -e .
       - name: Log full installed packages
@@ -159,8 +165,8 @@ jobs:
         if: matrix.IS_FASTEST_JOB == true
         run: SPHINXOPTS="-W" make --directory=docs html # the -W flag treats warnings as errors to cause build failures
 
-      - name: Run prerelease to check packaging compatibilty
-        run: python prerelease.py --no-input
+      # - name: Run prerelease to check packaging compatibilty
+      #   run: python prerelease.py --no-input
 
       - name: Build wheel for release
         run: python setup.py bdist_wheel

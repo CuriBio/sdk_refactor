@@ -70,3 +70,6 @@ secrets.json
 
 # MacOS
 *.DS_Store
+
+# submodules
+src/mantarray_magnet_finding/

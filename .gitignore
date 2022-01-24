@@ -12,6 +12,9 @@
 *.py[cod]
 __pycache__/
 
+# Jupyter
+*.ipynb
+
 # Cython
 *.c
 *.so

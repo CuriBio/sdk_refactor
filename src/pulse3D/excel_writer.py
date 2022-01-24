@@ -334,6 +334,7 @@ def write_xlsx(plate_recording: PlateRecording,
                 metadata_df=metadata_df,
                 continuous_waveforms_df=continuous_waveforms_df,
                 data=data,
+                is_optical_recording=plate_recording.is_optical_recording,
                 twitch_widths=twitch_widths)
     log.info("Done")
 
@@ -342,6 +343,7 @@ def _write_xlsx(name: str,
                 metadata_df: pd.DataFrame,
                 continuous_waveforms_df: pd.DataFrame,
                 data: List[Dict[Any,Any]],
+                is_optical_recording: bool = False,
                 twitch_widths: Tuple[int] = tuple([50,90])):
 
     with pd.ExcelWriter(name) as writer:

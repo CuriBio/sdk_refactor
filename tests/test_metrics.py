@@ -36,7 +36,7 @@ from .fixtures import fixture_generic_deserialized_per_twitch_metrics_output_0_3
 
 
 def get_force_metrics_from_well_file(w: WellFile, metrics_to_create=ALL_METRICS):
-    peak_and_valley_indices = peak_detector(w.noise_filtered_magnetic_data)
+    peak_and_valley_indices = peak_detector(w.force)
     return data_metrics(peak_and_valley_indices, w.force)
 
 
@@ -87,7 +87,7 @@ def test_metrics__TwitchAmplitude():
                               "MA201110001__2020_09_03_213024",
                               "MA201110001__2020_09_03_213024__A1.h5"))
 
-    pv = peak_detector(w.noise_filtered_magnetic_data)
+    pv = peak_detector(w.force)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchAmplitude()
@@ -113,7 +113,7 @@ def test_metrics__TwitchAUC():
                               "h5", "v0.3.1",
                               "MA201110001__2020_09_03_213024", 
                               "MA201110001__2020_09_03_213024__A1.h5"))
-    pv = peak_detector(w.noise_filtered_magnetic_data)
+    pv = peak_detector(w.force)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchAUC()
@@ -138,7 +138,7 @@ def test_metrics__TwitchBaselineToPeak():
                               "h5", "v0.3.1",
                               "MA201110001__2020_09_03_213024", 
                               "MA201110001__2020_09_03_213024__A1.h5"))
-    pv = peak_detector(w.noise_filtered_magnetic_data)
+    pv = peak_detector(w.force)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchPeakToBaseline(is_contraction=True)
@@ -163,7 +163,7 @@ def test_metrics__TwitchPeakToBaseline():
                               "h5", "v0.3.1",
                               "MA201110001__2020_09_03_213024", 
                               "MA201110001__2020_09_03_213024__A1.h5"))
-    pv = peak_detector(w.noise_filtered_magnetic_data)
+    pv = peak_detector(w.force)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchPeakToBaseline(is_contraction=False)
@@ -189,7 +189,7 @@ def test_metrics__TwitchFracAmp():
                               "h5", "v0.3.1",
                               "MA201110001__2020_09_03_213024", 
                               "MA201110001__2020_09_03_213024__A1.h5"))
-    pv = peak_detector(w.noise_filtered_magnetic_data)
+    pv = peak_detector(w.force)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchFractionAmplitude()
@@ -215,7 +215,7 @@ def test_metrics__TwitchFreq():
                               "h5", "v0.3.1",
                               "MA201110001__2020_09_03_213024", 
                               "MA201110001__2020_09_03_213024__A1.h5"))
-    pv = peak_detector(w.noise_filtered_magnetic_data)
+    pv = peak_detector(w.force)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchFrequency()
@@ -241,7 +241,7 @@ def test_metrics__TwitchIrregularity():
                               "h5", "v0.3.1",
                               "MA201110001__2020_09_03_213024", 
                               "MA201110001__2020_09_03_213024__A1.h5"))
-    pv = peak_detector(w.noise_filtered_magnetic_data)
+    pv = peak_detector(w.force)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchIrregularity()
@@ -267,7 +267,7 @@ def test_metrics__TwitchPeriod():
                               "h5", "v0.3.1",
                               "MA201110001__2020_09_03_213024", 
                               "MA201110001__2020_09_03_213024__A1.h5"))
-    pv = peak_detector(w.noise_filtered_magnetic_data)
+    pv = peak_detector(w.force)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchPeriod()
@@ -293,7 +293,7 @@ def test_metrics__TwitchContractionVelocity():
                               "h5", "v0.3.1",
                               "MA201110001__2020_09_03_213024", 
                               "MA201110001__2020_09_03_213024__A1.h5"))
-    pv = peak_detector(w.noise_filtered_magnetic_data)
+    pv = peak_detector(w.force)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchVelocity(rounded=False, is_contraction=True)
@@ -319,7 +319,7 @@ def test_metrics__TwitchRelaxationVelocity():
                               "h5", "v0.3.1",
                               "MA201110001__2020_09_03_213024", 
                               "MA201110001__2020_09_03_213024__A1.h5"))
-    pv = peak_detector(w.noise_filtered_magnetic_data)
+    pv = peak_detector(w.force)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchVelocity(rounded=False, is_contraction=False)
@@ -347,7 +347,7 @@ def test_metrics__TwitchWidth():
                               "MA201110001__2020_09_03_213024", 
                               "MA201110001__2020_09_03_213024__A1.h5"))
 
-    pv = peak_detector(w.noise_filtered_magnetic_data)
+    pv = peak_detector(w.force)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchWidth()
@@ -373,7 +373,7 @@ def test_metrics__TwitchContractionTime():
                               "h5", "v0.3.1",
                               "MA201110001__2020_09_03_213024", 
                               "MA201110001__2020_09_03_213024__A1.h5"))
-    pv = peak_detector(w.noise_filtered_magnetic_data)
+    pv = peak_detector(w.force)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchPeakTime(is_contraction=True)
@@ -399,7 +399,7 @@ def test_metrics__TwitchRelaxationTime():
                               "h5", "v0.3.1",
                               "MA201110001__2020_09_03_213024", 
                               "MA201110001__2020_09_03_213024__A1.h5"))
-    pv = peak_detector(w.noise_filtered_magnetic_data)
+    pv = peak_detector(w.force)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchPeakTime(is_contraction=False)

@@ -2,6 +2,7 @@
 """General utility/helpers."""
 import json
 import logging
+import numpy as np
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -13,11 +14,54 @@ from uuid import UUID
 from .constants import CONTRACTION_TIME_UUID
 from .constants import RELAXATION_TIME_UUID
 from .constants import TIME_DIFFERENCE_UUID
+from .constants import TWENTY_FOUR_WELL_PLATE
+from .constants import WELL_INDEX_UUID
 from .constants import WIDTH_FALLING_COORDS_UUID
 from .constants import WIDTH_RISING_COORDS_UUID
 from .constants import WIDTH_UUID
 
 logger = logging.getLogger(__name__)
+
+def get_start_and_end_times(plate_recording, 
+                            start_time: Union[int, float, Dict[str, Union[int, float]]]=0, 
+                            end_time: Union[int, float, Dict[str, Union[int, float]]]=np.inf):
+    """[summary]
+
+    Args:
+        plate_recording ([type]): [description]
+        start_time ([type]): [description]
+        end_time ([type]): [description]
+    """
+
+    assert isinstance(start_time, (float, int)), 'Windowing only supports plate-specific start times -- provide a float or int value.'
+    assert isinstance(end_time, (float, int)), 'Windowing only supports plate-specific start times -- provide a float or int value.'
+
+    start_times = {TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_file[WELL_INDEX_UUID]): 0 \
+                   for well_file in plate_recording}
+    end_times = {TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_file[WELL_INDEX_UUID]): np.inf \
+                 for well_file in plate_recording}
+
+    if isinstance(start_time, (float, int)):
+        start_times = {k: start_time for k in start_times.keys()}
+    elif isinstance(start_time, dict):
+        print('Windowing does not yet support well-specific start and end times.')
+    
+    if isinstance(end_time, (float, int)):
+        end_times = {k: end_time for k in end_times.keys()}
+    elif isinstance(end_time, dict):
+        print('Windowing does not yet support well-specific start and end times.')
+
+    for well_file in plate_recording:
+        well_name=TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_file[WELL_INDEX_UUID])
+        if start_times[well_name] > end_times[well_name]:
+            print(f'Start time for well {well_name} is after end time -- resetting to full waveform.')
+            start_times[well_name] = 0
+            end_times[well_name] = np.inf
+
+    windows = {k: {'start': start_times[k], 
+                   'end': end_times[k]} for k in start_times.keys()}
+
+    return windows
 
 
 def serialize_main_dict(per_twitch_dict: Dict[int, Any], metrics_to_create: Iterable[UUID]) -> Dict[str, Any]:

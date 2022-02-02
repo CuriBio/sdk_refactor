@@ -65,6 +65,8 @@ tmp/
 *.c
 *.html
 
+# Jupyter Notebooks
+*.ipnyb
 
 secrets.json
 

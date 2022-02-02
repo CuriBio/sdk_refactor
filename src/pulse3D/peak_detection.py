@@ -43,16 +43,17 @@ def peak_detector(
     Returns:
         A tuple containing a list of the indices of the peaks and a list of the indices of valleys
     """
+    time_signal: NDArray[float] = filtered_magnetic_signal[0,:]
+    magnetic_signal: NDArray[float] = filtered_magnetic_signal[1, :]
+
+    max_time=time_signal[-1]
     start_time = np.max([0, start_time])
-    end_time = np.min([end_time, np.inf])
+    end_time = np.min([end_time, max_time/MICRO_TO_BASE_CONVERSION])
 
     # how should we handle this?
     # if provided end time is less than or equal to start time, reset
     if end_time <= start_time:
         end_time = np.inf
-
-    time_signal: NDArray[float] = filtered_magnetic_signal[0,:]
-    magnetic_signal: NDArray[float] = filtered_magnetic_signal[1, :]
 
     (peak_invertor_factor, valley_invertor_factor) = (1, -1) if twitches_point_up else (-1, 1)
     sampling_period_us = filtered_magnetic_signal[0, 1] - filtered_magnetic_signal[0, 0]
@@ -110,7 +111,7 @@ def peak_detector(
             i += 1
 
     # don't perform windowing of twitches unless requested
-    if start_time > 0 or end_time < np.inf:
+    if start_time > 0 or end_time < max_time:
         peak_times = time_signal[peak_indices] / MICRO_TO_BASE_CONVERSION
         # identify peaks within time window
         filtered_peaks = np.where((peak_times>=start_time) & \

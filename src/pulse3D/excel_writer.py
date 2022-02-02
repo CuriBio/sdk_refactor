@@ -15,8 +15,8 @@ from .peak_detection import data_metrics
 from .peak_detection import find_twitch_indices
 from .peak_detection import peak_detector
 from .plotting import plotting_parameters
-from .utils import get_start_and_end_times
 from .utils import xl_col_to_name
+from .utils import truncate
 
 log = logging.getLogger(__name__)
 
@@ -40,11 +40,13 @@ def add_peak_detection_series(
     result_column = xl_col_to_name(PEAK_VALLEY_COLUMN_START + (well_index * 2) + offset)
     continuous_waveform_sheet.write(f"{result_column}1", f"{well_name} {detector_type} Values")
 
+    start_time=time_values[0]/MICRO_TO_BASE_CONVERSION
+
     for idx in indices:
         # convert peak/valley index to seconds
         idx_time = time_values[idx] / MICRO_TO_BASE_CONVERSION
         # subtract start time
-        shifted_idx_time = idx_time - (time_values[0] / MICRO_TO_BASE_CONVERSION)
+        shifted_idx_time = idx_time - start_time
 
         uninterpolated_time_seconds = round(idx_time, 2)
         shifted_time_seconds = round(shifted_idx_time, 2)
@@ -178,41 +180,49 @@ def create_frequency_vs_time_charts(
 
 def write_xlsx(plate_recording, 
                name=None,
-               start_time: Union[int, float, Dict[str, Union[int, float]]] = 0.0,
-               end_time: Union[int, float, Dict[str, Union[int, float]]] = np.inf):
+               start_time: float = 0.0,
+               end_time: float = np.inf):
     """Write plate recording waveform and computed metrics to Excel spredsheet.
 
     Args:
         plate_recording (PlateRecording): loaded plate recording object
         name (str, optional): File name of Excel spreadsheet. Defaults to None.
-        start_time (Union[int, float, Dict[str, Union[int, float]]], optional): Start time of windowed analysis. Defaults to 0.0.
-        end_time (Union[int, float, Dict[str, Union[int, float]]], optional): End time of windowed analysis. Defaults to np.inf.
+        start_time (float): Start time of windowed analysis. Defaults to 0.0.
+        end_time (float): End time of windowed analysis. Defaults to np.inf.
 
     Raises:
-        NotImplementedError: [description]
+        NotImplementedError: if peak finding algorithm fails for unexpected reason
+        ValueError: if start and end times are outside of expected bounds, or do not 
     """
-
-    # get max_time from all wells
-    max_time = max([w.force[0][-1] for w in plate_recording if w])
-    interpolated_data_period = (
-        w[INTERPOLATION_VALUE_UUID] if plate_recording.is_optical_recording else INTERPOLATED_DATA_PERIOD_US
-    )
-    time_points = np.arange(interpolated_data_period, max_time, interpolated_data_period)
-
-    # Kristian 1/25/22
-    # if user provides start and end time outside of bounds, set to default values (in seconds)
-    start_time = np.max([0, start_time])
-    end_time = np.min([end_time, max_time/MICRO_TO_BASE_CONVERSION])
-
-    # ensure that end time is after start time
-    if end_time <= start_time:
-        log.info(f"Window end time must be after start time -- disregarding user input.")
-        end_time = max_time/MICRO_TO_BASE_CONVERSION
-
     # get metadata from first well file
     w = [pw for pw in plate_recording if pw][0]
     if name is None:
         name = f"{w[PLATE_BARCODE_UUID]}__{w[UTC_BEGINNING_RECORDING_UUID].strftime('%Y_%m_%d_%H%M%S')}.xlsx"
+    interpolated_data_period = (
+        w[INTERPOLATION_VALUE_UUID] if plate_recording.is_optical_recording else INTERPOLATED_DATA_PERIOD_US
+    )
+    
+    # get max_time from all wells
+    max_time = max([w.force[0][-1] for w in plate_recording if w])
+    min_time = min([w.force[0][-1] for w in plate_recording if w])
+    time_points = np.arange(interpolated_data_period, max_time, interpolated_data_period)
+
+    # Kristian 1/25/22
+    try:
+        assert start_time >= 0
+    except Exception as e:
+        raise ValueError(f"Window start time ({start_time}) cannot be negative.") from e
+    try:
+        assert start_time < (min_time/MICRO_TO_BASE_CONVERSION)
+    except Exception as e:
+        raise ValueError(f"Window start time ({start_time}s) cannot be after longest time of shortest recording ({(min_time/MICRO_TO_BASE_CONVERSION):.1f}).") from e
+    try:
+        assert end_time > start_time
+    except Exception as e:
+        raise ValueError(f"Window end time ({end_time}) must come after window start time ({start_time}).") from e
+
+    end_time=np.min([end_time, max_time/MICRO_TO_BASE_CONVERSION])
+    is_full_analysis=np.all([(start_time==0),(end_time==max_time/MICRO_TO_BASE_CONVERSION)])
 
     metadata = {
         "A": [
@@ -227,6 +237,7 @@ def write_xlsx(plate_recording,
             "",
             "",
             "Output Format:",
+            "",
             "",
             "",
             "",
@@ -246,6 +257,7 @@ def write_xlsx(plate_recording,
             "",
             "SDK Version",
             "File Creation Timestamp",
+            "Analysis Type (Full or Windowed)",
             "Analysis Start Time (seconds)",
             "Analysis End Time (seconds)"
         ],
@@ -263,17 +275,12 @@ def write_xlsx(plate_recording,
             "",
             PACKAGE_VERSION,
             str(datetime.datetime.utcnow().replace(microsecond=0)),
+            "Full" if is_full_analysis else "Windowed",
             "%.1f" % (start_time),
             "%.1f" % (end_time)
         ],
     }
     metadata_df = pd.DataFrame(metadata)
-
-    # Kristian 1/24/22
-    # for windowed analysis
-    # to allow for well-specific start and end-times, we generate a dictionary of start/end times for each well
-    # currently, this will be the same for all wells
-    # time_windows = get_start_and_end_times(plate_recording, start_time, end_time)
 
     data = []
     # calculate metrics for each well
@@ -289,15 +296,43 @@ def write_xlsx(plate_recording,
         well_index = well_file[WELL_INDEX_UUID]
         well_name = TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_index)
 
+        # find bounding indices with respect to well recording
+        well_start_idx, well_end_idx = truncate(source_series=time_points,
+                                                lower_bound=well_file.force[0][0],
+                                                upper_bound=well_file.force[0][-1])
+
+        # find bounding indices of specified start/end windows
+        window_start_idx, window_end_idx = truncate(source_series=time_points/MICRO_TO_BASE_CONVERSION,
+                                                    lower_bound=start_time,
+                                                    upper_bound=end_time)
+        
+        start_idx = np.max([window_start_idx, well_start_idx])
+        end_idx = np.min([window_end_idx, well_end_idx])
+
+        # fit interpolation function on recorded data
+        interp_data_fn = interpolate.interp1d(well_file.force[0,:], 
+                                              well_file.force[1,:])
+
+        # interpolate, normalize, and scale data
+        interpolated_force = interp_data_fn(time_points[start_idx:end_idx])
+        interpolated_well_data = np.row_stack([time_points[start_idx:end_idx],
+                                               interpolated_force])
+
+        min_value = min(interpolated_force)
+        interpolated_force -= min_value
+        interpolated_force *= MICRO_TO_BASE_CONVERSION
+
         try:
+            # compute peaks / valleys on interpolated well data
             log.info(f"Finding peaks and valleys for well {well_name}")
-            peaks_and_valleys = peak_detector(well_file.force, start_time=start_time, end_time=end_time)
+            peaks_and_valleys = peak_detector(interpolated_well_data, start_time=start_time, end_time=end_time)
 
             log.info(f"Finding twitch indices for well {well_name}")
             twitch_indices = find_twitch_indices(peaks_and_valleys)
 
+            # compute metrics on interpolated well data
             log.info(f"Calculating metrics for well {well_name}")
-            metrics = data_metrics(peaks_and_valleys, well_file.force)
+            metrics = data_metrics(peaks_and_valleys, interpolated_well_data)
 
         except TwoPeaksInARowError:
             error_msg = "Error: Two Contractions in a Row Detected"
@@ -307,45 +342,26 @@ def write_xlsx(plate_recording,
             error_msg = "Not Enough Twitches Detected"
         except Exception as e:
             raise NotImplementedError("Unknown PeakDetectionError") from e
-
-        first_idx, last_idx = 0, len(time_points) - 1
-        while well_file.force[0][-1] < time_points[last_idx]:
-            last_idx -= 1
-
-        while well_file.force[0][0] > time_points[first_idx]:
-            first_idx += 1
-
-        interp_data_fn = interpolate.interp1d(well_file.force[0,:], 
-                                              well_file.force[1,:])
-
-        # normalize and scale data
-        interp_data = interp_data_fn(time_points[first_idx:last_idx])
-        min_value = min(interp_data)
-        interp_data -= min_value
-        interp_data *= MICRO_TO_BASE_CONVERSION
-
+        
         data.append(
             {
                 "error_msg": error_msg,
                 "peaks_and_valleys": peaks_and_valleys,
-                "twitch_indices": twitch_indices,
                 "metrics": metrics,
                 "well_index": well_index,
                 "well_name": TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_index),
-                "max_time": max_time,
                 "min_value": min_value,
-                "interp_data": interp_data,
+                "interp_data": interpolated_force,
                 "interp_data_fn": interp_data_fn,
-                "force": well_file.force,
-                "time_points": time_points,
-                "num_data_points": len(well_file.force[0][first_idx:last_idx]),
+                "force": interpolated_well_data,
+                "num_data_points": len(interpolated_well_data[0]),
                 "start_time": start_time,
                 "end_time": np.min([time_points[-1]/MICRO_TO_BASE_CONVERSION, end_time])
             }
         )
 
     # waveform table
-    continuous_waveforms = {"Time (seconds)": time_points[first_idx:last_idx] / MICRO_TO_BASE_CONVERSION}
+    continuous_waveforms = {"Time (seconds)": time_points[start_idx:end_idx] / MICRO_TO_BASE_CONVERSION}
     for d in data:
         continuous_waveforms[f"{d['well_name']} - Active Twitch Force (μN)"] = pd.Series(d["interp_data"])
     continuous_waveforms_df = pd.DataFrame(continuous_waveforms)

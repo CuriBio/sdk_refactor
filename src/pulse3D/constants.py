@@ -252,9 +252,9 @@ TSP_TO_DEFAULT_FILTER_UUID = {  # Tissue Sampling Period (µs) to default Pipeli
 }
 
 DEFAULT_CELL_WIDTH = 64
-CHART_ALPHA=60
-CHART_GAMMA=150
-CHART_PIXELS_PER_SECOND=35
+CHART_ALPHA=60 # for full/snapshots -- num pixels between left figure edge and plot area
+CHART_GAMMA=150 # for full/snapshots -- num pixels between right figure edge and plot area
+CHART_PIXELS_PER_SECOND=35 # for full/snapshots -- number of pixels per second
 CHART_MAXIMUM_SNAPSHOT_LENGTH=10
 CHART_HEIGHT = 300
 CHART_HEIGHT_CELLS = 15

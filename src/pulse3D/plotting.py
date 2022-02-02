@@ -42,18 +42,17 @@ def compute_x_coordinate(chart_width: float,
         alpha (int): pixels to left of plot area
     
     Returns:
-        x_coord (float): percentage, x-coordinate of plot area (where origin is upper left of chart)
+        x-coordinate of plot area (where origin is upper left of chart), as a percentage
 
     Raises:
         ValueError: alpha must be less than or equal to chart width
     """
     try:
         assert alpha <= chart_width
-    except:
-        raise ValueError
+    except Exception as e:
+        raise ValueError('Chart width must be larger than left chart boundary.')
 
-    x_coord = alpha / chart_width
-    return x_coord
+    return (alpha / chart_width)
 
 def compute_plot_width(chart_width: float, 
                        alpha:Union[int,float]=CHART_ALPHA, 
@@ -67,22 +66,17 @@ def compute_plot_width(chart_width: float,
         gamma (int,float): pixels to right of plot area
 
     Returns:
-        plotwidth (float): plot width, as a percentage of chart width
+        plot width, as a percentage of chart width
     
     Raises:
         ValueError: chart width must be greater than sum of alpha and gamma
     """
     try:
         assert (alpha+gamma) <= chart_width
-    except:
-        raise ValueError
+    except Exception as e:
+        raise ValueError('Chart width must be greater than figure boundaries.')
 
-    pAlpha = alpha/chart_width
-    pGamma = gamma/chart_width
-
-    plotwidth=(1.0-(pAlpha+pGamma))
-    
-    return plotwidth
+    return (chart_width - (alpha+gamma)) / chart_width
 
 def plotting_parameters(N: Union[int,float], 
                         alpha: Union[int,float]=CHART_ALPHA, 
@@ -101,16 +95,16 @@ def plotting_parameters(N: Union[int,float],
     """
     try:
         assert alpha>0
-    except:
-        raise ValueError
+    except Exception as e:
+        raise ValueError('Left chart boundary (alpha) must be positive.')
     try:
         assert gamma>0
-    except:
-        raise ValueError
+    except Exception as e:
+        raise ValueError('Right chart boundary (gamma) must be positive.')
     try:
         assert N>0
-    except:
-        raise ValueError
+    except Exception as e:
+        raise ValueError('Number of time samples must be positive.')
 
     chart_width = compute_chart_width(N, alpha=alpha, gamma=gamma)
     plot_width = compute_plot_width(chart_width, alpha=alpha, gamma=gamma)

@@ -404,8 +404,7 @@ def _write_xlsx(name: str,
             force_freq_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
             freq_vs_time_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
 
-            num_twitches = dm[1][AMPLITUDE_UUID]["n"][0]
-            num_twitches = int(num_twitches) if not np.isnan(num_twitches) else 0
+            num_twitches = len(d['metrics'][0])
             time_values: NDArray = np.asarray(d['force'][0]) / MICRO_TO_BASE_CONVERSION
 
             log.info(f'Creating frequency vs time chart for well {d["well_name"]}')

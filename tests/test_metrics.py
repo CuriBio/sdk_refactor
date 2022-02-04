@@ -18,6 +18,8 @@ import math
 import os
 import uuid
 
+from pandas import DataFrame, MultiIndex, Series
+import pyarrow.parquet as pq
 import numpy as np
 from pulse3D.constants import *
 from pulse3D.constants import ALL_METRICS
@@ -27,17 +29,26 @@ from pulse3D.peak_detection import data_metrics
 from pulse3D.peak_detection import find_twitch_indices
 from pulse3D.peak_detection import peak_detector
 from pulse3D.plate_recording import WellFile
+import pytest
 from stdlib_utils import get_current_file_abs_directory
 
 from .fixtures import fixture_generic_deserialized_per_twitch_metrics_output_0_3_1
 
 
 def get_force_metrics_from_well_file(w: WellFile, metrics_to_create=ALL_METRICS):
-    peak_and_valley_indices = peak_detector(w.noise_filtered_magnetic_data)
+    peak_and_valley_indices = peak_detector(w.force)
     return data_metrics(peak_and_valley_indices, w.force)
 
 
 def encode_dict(d):
+    """Recursive function to endocide dictionary for saving as JSON file.
+
+    Args:
+        d ([dict]): dictionary of metric values
+
+    Returns:
+        result [dict]: encoded dictionary of metric values
+    """
     result = {}
     for key, value in d.items():
         if isinstance(key, uuid.UUID):
@@ -55,416 +66,377 @@ def encode_dict(d):
         result.update({key: value})
     return result
 
-
-__fixtures__ = (fixture_generic_deserialized_per_twitch_metrics_output_0_3_1,)
-
 PATH_OF_CURRENT_FILE = get_current_file_abs_directory()
 
-
-def test_per_twitch_metrics_for_single_well(
-    generic_deserialized_per_twitch_metrics_output_0_3_1,
-):
-    path = os.path.join(PATH_OF_CURRENT_FILE, "h5", "v0.3.1", "MA20123456__2020_08_17_145752__B3.h5")
-    w = WellFile(path)
-
-    main_dict, _ = get_force_metrics_from_well_file(w)
-    dmf = generic_deserialized_per_twitch_metrics_output_0_3_1
-    twitch = 1084000
-
-    metrics = [
-        TWITCH_PERIOD_UUID,
-        FRACTION_MAX_UUID,
-        AMPLITUDE_UUID,
-        AUC_UUID,
-        TWITCH_FREQUENCY_UUID,
-        CONTRACTION_VELOCITY_UUID,
-        RELAXATION_VELOCITY_UUID,
-        IRREGULARITY_INTERVAL_UUID,
-        # BASELINE_TO_PEAK_UUID, # older set of tests outputs doesn't have these metrics
-        # PEAK_TO_BASELINE_UUID,
-        # WIDTH_UUID,
-        # RELAXATION_TIME_UUID,
-        # CONTRACTION_TIME_UUID,
-    ]
-
-    for metric in metrics:
-        if not isinstance(main_dict[twitch][metric], dict) and not isinstance(dmf[twitch][metric], dict):
-            if math.isnan(main_dict[twitch][metric]) and math.isnan(dmf[twitch][metric]):
-                continue
-        else:
-            assert main_dict[twitch][metric] == dmf[twitch][metric]
-
-
-# def test_metrics__peaks_greater_than_prior_and_subsequent_valleys(generic_well_features):
-
-#     filtered_data, _, twitch_indices = generic_well_features
-
-#     for twitch, pv in twitch_indices.items():
-#         assert filtered_data[1, twitch] > filtered_data[1, pv[PRIOR_VALLEY_INDEX_UUID]]
-#         assert filtered_data[1, twitch] > filtered_data[1, pv[SUBSEQUENT_VALLEY_INDEX_UUID]]
-
-
+##### TESTS FOR SCALAR METRICS #####
 def test_metrics__TwitchAmplitude():
-    with open(
-        os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "data_metrics",
-            "v0.3.1",
-            "amplitude_MA201110001__2020_09_03_213024__A1.json",
-        )
-    ) as f:
-        expected = json.load(f)
-    expected = np.asarray([float(x) for x in expected])
-    expected *= MICRO_TO_BASE_CONVERSION
+    file_path = os.path.join(PATH_OF_CURRENT_FILE,
+                            "data_metrics",
+                            "v0.3.1",
+                            "amplitude_MA201110001__2020_09_03_213024__A1.parquet"
+                            )
+    try:
+        table = pq.read_table(file_path)
+    except:
+        raise FileNotFoundError('Parquet file for twitch amplitude not found.')
+    else:
+        expected = table.to_pandas().squeeze()
 
-    w = WellFile(
-        os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "h5",
-            "v0.3.1",
-            "MA201110001__2020_09_03_213024",
-            "MA201110001__2020_09_03_213024__A1.h5",
-        )
-    )
-    pv = peak_detector(w.noise_filtered_magnetic_data)
+    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE,
+                              "h5", "v0.3.1",
+                              "MA201110001__2020_09_03_213024",
+                              "MA201110001__2020_09_03_213024__A1.h5"))
+
+    pv = peak_detector(w.force)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchAmplitude()
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    np.testing.assert_array_almost_equal(estimate, expected, decimal=5)
+    assert np.all(expected == estimate)
 
 
 def test_metrics__TwitchAUC():
-    with open(
-        os.path.join(
-            PATH_OF_CURRENT_FILE, "data_metrics", "v0.3.1", "auc_MA201110001__2020_09_03_213024__A1.json"
-        )
-    ) as f:
-        expected = json.load(f)
-    expected = np.asarray([float(x) for x in expected])
+    file_path = os.path.join(PATH_OF_CURRENT_FILE,
+                            "data_metrics",
+                            "v0.3.1", 
+                             "auc_MA201110001__2020_09_03_213024__A1.parquet"
+                            )
+    try:
+        table = pq.read_table(file_path)
+    except:
+        raise FileNotFoundError('Parquet file for twitch AUC not found.')
+    else:
+        expected = table.to_pandas().squeeze()
 
-    w = WellFile(
-        os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "h5",
-            "v0.3.1",
-            "MA201110001__2020_09_03_213024",
-            "MA201110001__2020_09_03_213024__A1.h5",
-        )
-    )
-    pv = peak_detector(w.noise_filtered_magnetic_data)
+    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, 
+                              "h5", "v0.3.1",
+                              "MA201110001__2020_09_03_213024", 
+                              "MA201110001__2020_09_03_213024__A1.h5"))
+    pv = peak_detector(w.force)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchAUC()
     estimate = metric.fit(pv, w.force, twitch_indices)
+    assert np.all(expected == estimate)
 
-    np.testing.assert_array_almost_equal(estimate, expected, decimal=4)
+
+def test_metrics__TwitchBaselineToPeak():
+    file_path = os.path.join(PATH_OF_CURRENT_FILE,
+                            "data_metrics",
+                            "v0.3.1", 
+                             "baseline_to_peak_MA201110001__2020_09_03_213024__A1.parquet"
+                            )
+    try:
+        table = pq.read_table(file_path)
+    except:
+        raise FileNotFoundError('Parquet file for full twitch contraction time not found.')
+    else:
+        expected = table.to_pandas().squeeze()
+
+    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, 
+                              "h5", "v0.3.1",
+                              "MA201110001__2020_09_03_213024", 
+                              "MA201110001__2020_09_03_213024__A1.h5"))
+    pv = peak_detector(w.force)
+    twitch_indices = find_twitch_indices(pv)
+
+    metric = metrics.TwitchPeakToBaseline(is_contraction=True)
+    estimate = metric.fit(pv, w.force, twitch_indices)
+    assert np.all(expected == estimate)
+
+
+def test_metrics__TwitchPeakToBaseline():
+    file_path = os.path.join(PATH_OF_CURRENT_FILE,
+                            "data_metrics",
+                            "v0.3.1", 
+                             "peak_to_baseline_MA201110001__2020_09_03_213024__A1.parquet"
+                            )
+    try:
+        table = pq.read_table(file_path)
+    except:
+        raise FileNotFoundError('Parquet file for full twitch relaxation time not found.')
+    else:
+        expected = table.to_pandas().squeeze()
+
+    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, 
+                              "h5", "v0.3.1",
+                              "MA201110001__2020_09_03_213024", 
+                              "MA201110001__2020_09_03_213024__A1.h5"))
+    pv = peak_detector(w.force)
+    twitch_indices = find_twitch_indices(pv)
+
+    metric = metrics.TwitchPeakToBaseline(is_contraction=False)
+    estimate = metric.fit(pv, w.force, twitch_indices)
+
+    assert np.all(expected == estimate)
 
 
 def test_metrics__TwitchFracAmp():
-    with open(
-        os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "data_metrics",
-            "v0.3.1",
-            "fraction_max_MA201110001__2020_09_03_213024__A1.json",
-        )
-    ) as f:
-        expected = json.load(f)
-    expected = np.asarray([float(x) for x in expected])
+    file_path = os.path.join(PATH_OF_CURRENT_FILE,
+                            "data_metrics",
+                            "v0.3.1",
+                            "fraction_max_MA201110001__2020_09_03_213024__A1.parquet"
+                            )
+    try:
+        table = pq.read_table(file_path)
+    except:
+        raise FileNotFoundError('Parquet file for twitch fraction max amplitude not found.')
+    else:
+        expected = table.to_pandas().squeeze()
 
-    w = WellFile(
-        os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "h5",
-            "v0.3.1",
-            "MA201110001__2020_09_03_213024",
-            "MA201110001__2020_09_03_213024__A1.h5",
-        )
-    )
-    pv = peak_detector(w.noise_filtered_magnetic_data)
+    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, 
+                              "h5", "v0.3.1",
+                              "MA201110001__2020_09_03_213024", 
+                              "MA201110001__2020_09_03_213024__A1.h5"))
+    pv = peak_detector(w.force)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchFractionAmplitude()
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    np.testing.assert_array_almost_equal(estimate, expected, decimal=6)
+    assert np.all(expected == estimate)
 
 
 def test_metrics__TwitchFreq():
-    with open(
-        os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "data_metrics",
-            "v0.3.1",
-            "twitch_frequency_MA201110001__2020_09_03_213024__A1.json",
-        )
-    ) as f:
-        expected = json.load(f)
-    expected = np.asarray([float(x) for x in expected])
+    file_path = os.path.join(PATH_OF_CURRENT_FILE, 
+                             "data_metrics",
+                            "v0.3.1", 
+                             "twitch_frequency_MA201110001__2020_09_03_213024__A1.parquet"
+                            )
+    try:
+        table = pq.read_table(file_path)
+    except:
+        raise FileNotFoundError('Parquet file for twitch frequency not found.')
+    else:
+        expected = table.to_pandas().squeeze()
 
-    w = WellFile(
-        os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "h5",
-            "v0.3.1",
-            "MA201110001__2020_09_03_213024",
-            "MA201110001__2020_09_03_213024__A1.h5",
-        )
-    )
-    pv = peak_detector(w.noise_filtered_magnetic_data)
+    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, 
+                              "h5", "v0.3.1",
+                              "MA201110001__2020_09_03_213024", 
+                              "MA201110001__2020_09_03_213024__A1.h5"))
+    pv = peak_detector(w.force)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchFrequency()
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    np.testing.assert_array_almost_equal(estimate, expected, decimal=5)
+    assert np.all(expected == estimate)
 
 
 def test_metrics__TwitchIrregularity():
-    with open(
-        os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "data_metrics",
-            "v0.3.1",
-            "irregularity_interval_MA201110001__2020_09_03_213024__A1.json",
-        )
-    ) as f:
-        expected = json.load(f)
-    expected = np.asarray([float(x) for x in expected])
-    expected /= MICRO_TO_BASE_CONVERSION
+    file_path = os.path.join(PATH_OF_CURRENT_FILE, 
+                             "data_metrics",
+                            "v0.3.1", 
+                            "irregularity_interval_MA201110001__2020_09_03_213024__A1.parquet"
+                            )
+    try:
+        table = pq.read_table(file_path)
+    except:
+        raise FileNotFoundError('Parquet file for twitch irregularity interval not found.')
+    else:
+        expected = table.to_pandas().squeeze()
 
-    w = WellFile(
-        os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "h5",
-            "v0.3.1",
-            "MA201110001__2020_09_03_213024",
-            "MA201110001__2020_09_03_213024__A1.h5",
-        )
-    )
-    pv = peak_detector(w.noise_filtered_magnetic_data)
+    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, 
+                              "h5", "v0.3.1",
+                              "MA201110001__2020_09_03_213024", 
+                              "MA201110001__2020_09_03_213024__A1.h5"))
+    pv = peak_detector(w.force)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchIrregularity()
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    np.testing.assert_array_almost_equal(estimate, expected, decimal=5)
-
-
-# def test_metrics__TwitchPeakTime(
-#     generic_well_features, generate_twitch_peak_time_contraction, generate_twitch_peak_time_relaxation
-# ):
-
-#     [filtered_data, peak_and_valley_indices, twitch_indices] = generic_well_features
-#     PARAMS = {
-#         "peak_and_valley_indices": peak_and_valley_indices,
-#         "filtered_data": filtered_data,
-#         "twitch_indices": twitch_indices,
-#     }
-
-#     percents = range(10, 95, 5)
-
-#     contraction_metric = metrics.TwitchPeakTime(
-#         rounded=False, is_contraction=True, twitch_width_percents=percents
-#     )
-#     contractions = contraction_metric.fit(**PARAMS)
-
-#     relaxation_metric = metrics.TwitchPeakTime(
-#         rounded=False, is_contraction=False, twitch_width_percents=percents
-#     )
-#     relaxations = relaxation_metric.fit(**PARAMS)
-
-#     for i in range(len(percents) - 1):
-#         assert (
-#             contractions[0][percents[i]][TIME_VALUE_UUID] > contractions[0][percents[i + 1]][TIME_VALUE_UUID]
-#         )
-
-#     for i in range(len(percents) - 1):
-#         assert relaxations[0][percents[i]][TIME_VALUE_UUID] < relaxations[0][percents[i + 1]][TIME_VALUE_UUID]
-
-#     # regression
-#     assert np.all(contractions == generate_twitch_peak_time_contraction)
-#     assert np.all(relaxations == generate_twitch_peak_time_relaxation)
-
-
-# def test_metrics__TwitchPeakToBaseline_is_contraction(
-#     generic_well_features, generate_twitch_baseline_to_peak
-# ):
-
-#     [filtered_data, peak_and_valley_indices, twitch_indices] = generic_well_features
-#     PARAMS = {
-#         "peak_and_valley_indices": peak_and_valley_indices,
-#         "filtered_data": filtered_data,
-#         "twitch_indices": twitch_indices,
-#     }
-
-#     metric = metrics.TwitchPeakToBaseline(rounded=False, is_contraction=True)
-#     estimate = metric.fit(**PARAMS)
-
-#     assert np.all(estimate > 0)
-#     # regression
-#     assert np.all(estimate == generate_twitch_baseline_to_peak)
-
-
-# def test_metrics__TwitchPeakToBaseline_is_relaxation(generic_well_features, generate_twitch_peak_to_baseline):
-
-#     [filtered_data, peak_and_valley_indices, twitch_indices] = generic_well_features
-#     PARAMS = {
-#         "peak_and_valley_indices": peak_and_valley_indices,
-#         "filtered_data": filtered_data,
-#         "twitch_indices": twitch_indices,
-#     }
-
-#     metric = metrics.TwitchPeakToBaseline(rounded=False, is_contraction=False)
-#     estimate = metric.fit(**PARAMS)
-
-#     assert np.all(estimate > 0)
-#     # regression
-#     assert np.all(estimate == generate_twitch_peak_to_baseline)
+    assert np.all((expected == estimate)[1:-1])
 
 
 def test_metrics__TwitchPeriod():
-    with open(
-        os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "data_metrics",
-            "v0.3.1",
-            "twitch_period_MA201110001__2020_09_03_213024__A1.json",
-        )
-    ) as f:
-        expected = json.load(f)
-    expected = np.asarray([float(n) for n in expected])
-    expected /= MICRO_TO_BASE_CONVERSION
+    file_path = os.path.join(PATH_OF_CURRENT_FILE, 
+                             "data_metrics",
+                            "v0.3.1", 
+                            "twitch_period_MA201110001__2020_09_03_213024__A1.parquet"
+                            )
+    try:
+        table = pq.read_table(file_path)
+    except:
+        raise FileNotFoundError('Parquet file for twitch period not found.')
+    else:
+        expected = table.to_pandas().squeeze()
 
-    w = WellFile(
-        os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "h5",
-            "v0.3.1",
-            "MA201110001__2020_09_03_213024",
-            "MA201110001__2020_09_03_213024__A1.h5",
-        )
-    )
-    pv = peak_detector(w.noise_filtered_magnetic_data)
+    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, 
+                              "h5", "v0.3.1",
+                              "MA201110001__2020_09_03_213024", 
+                              "MA201110001__2020_09_03_213024__A1.h5"))
+    pv = peak_detector(w.force)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchPeriod()
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    np.testing.assert_array_almost_equal(estimate, expected, decimal=5)
+    assert np.all(expected == estimate)
 
 
 def test_metrics__TwitchContractionVelocity():
-    with open(
-        os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "data_metrics",
-            "v0.3.1",
-            "contraction_velocity_MA201110001__2020_09_03_213024__A1.json",
-        )
-    ) as f:
-        expected = json.load(f)
-    expected = np.asarray([float(n) for n in expected])
-    expected *= MICRO_TO_BASE_CONVERSION ** 2
+    file_path = os.path.join(PATH_OF_CURRENT_FILE, 
+                             "data_metrics",
+                            "v0.3.1", 
+                             "contraction_velocity_MA201110001__2020_09_03_213024__A1.parquet"
+                            )
+    try:
+        table = pq.read_table(file_path)
+    except:
+        raise FileNotFoundError('Parquet file for twitch contraction velocity not found.')
+    else:
+        expected = table.to_pandas().squeeze()
 
-    w = WellFile(
-        os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "h5",
-            "v0.3.1",
-            "MA201110001__2020_09_03_213024",
-            "MA201110001__2020_09_03_213024__A1.h5",
-        )
-    )
-    pv = peak_detector(w.noise_filtered_magnetic_data)
+    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, 
+                              "h5", "v0.3.1",
+                              "MA201110001__2020_09_03_213024", 
+                              "MA201110001__2020_09_03_213024__A1.h5"))
+    pv = peak_detector(w.force)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchVelocity(rounded=False, is_contraction=True)
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    # Tanner (12/9/21): precision is low because data changed from float32 to float64. Could regenerate expected data to improve precision
-    np.testing.assert_array_almost_equal(estimate, expected, decimal=2)
+    assert np.all(expected == estimate)
 
 
 def test_metrics__TwitchRelaxationVelocity():
-    with open(
-        os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "data_metrics",
-            "v0.3.1",
-            "relaxation_velocity_MA201110001__2020_09_03_213024__A1.json",
-        )
-    ) as f:
-        expected = json.load(f)
-    expected = np.asarray([float(n) for n in expected])
-    expected *= MICRO_TO_BASE_CONVERSION ** 2
+    file_path = os.path.join(PATH_OF_CURRENT_FILE, 
+                             "data_metrics",
+                            "v0.3.1", 
+                             "relaxation_velocity_MA201110001__2020_09_03_213024__A1.parquet"
+                            )
+    try:
+        table = pq.read_table(file_path)
+    except:
+        raise FileNotFoundError('Parquet file for twitch relaxation velocity not found.')
+    else:
+        expected = table.to_pandas().squeeze()
 
-    w = WellFile(
-        os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "h5",
-            "v0.3.1",
-            "MA201110001__2020_09_03_213024",
-            "MA201110001__2020_09_03_213024__A1.h5",
-        )
-    )
-    pv = peak_detector(w.noise_filtered_magnetic_data)
+    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, 
+                              "h5", "v0.3.1",
+                              "MA201110001__2020_09_03_213024", 
+                              "MA201110001__2020_09_03_213024__A1.h5"))
+    pv = peak_detector(w.force)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchVelocity(rounded=False, is_contraction=False)
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    # Tanner (12/9/21): precision is low because data changed from float32 to float64. Could regenerate expected data to improve precision
-    np.testing.assert_array_almost_equal(estimate, expected, decimal=3)
+    assert np.all(expected == estimate)
 
 
-# def test_metrics__TwitchWidth():
-#     with open(os.path.join(PATH_OF_CURRENT_FILE, "data_metrics", "v0.3.1", "width_MA201110001__2020_09_03_213024__A1.json")) as f:
-#         expected = json.load(f)
+##### TESTS FOR BY-WIDTH METRICS #####
+def test_metrics__TwitchWidth():
+    file_path = os.path.join(PATH_OF_CURRENT_FILE, 
+                             "data_metrics",
+                            "v0.3.1", 
+                             "width_MA201110001__2020_09_03_213024__A1.parquet"
+                            )
+    try:
+        table = pq.read_table(file_path)
+    except:
+        raise FileNotFoundError('Parquet file for twitch width not found.')
+    else:
+        expected = table.to_pandas().squeeze()
 
-#     w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, "h5", "v0.3.1", "MA201110001__2020_09_03_213024", "MA201110001__2020_09_03_213024__A1.h5"))
-#     pv = peak_detector(w.noise_filtered_magnetic_data)
-#     twitch_indices = find_twitch_indices(pv)
+    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, 
+                              "h5", "v0.3.1",
+                              "MA201110001__2020_09_03_213024", 
+                              "MA201110001__2020_09_03_213024__A1.h5"))
 
-#     metric = metrics.TwitchWidth()
-#     estimate = metric.fit(pv, w.force, twitch_indices)
+    pv = peak_detector(w.force)
+    twitch_indices = find_twitch_indices(pv)
 
-#     assert expected == [encode_dict(n) for n in estimate]
+    metric = metrics.TwitchWidth()
+    estimate = metric.fit(pv, w.force, twitch_indices)
 
-
-# def test_metrics__x_interpolation():
-
-#     with pytest.raises(ZeroDivisionError):
-#         metrics.interpolate_x_for_y_between_two_points(1, 0, 10, 0, 5)
+    assert np.all(expected == estimate)
 
 
-# def test_metrics__y_interpolation():
+def test_metrics__TwitchContractionTime():
+    file_path = os.path.join(PATH_OF_CURRENT_FILE,
+                             "data_metrics",
+                             "v0.3.1",
+                             "contraction_time_MA201110001__2020_09_03_213024__A1.parquet"
+                             )
+    try:
+        table = pq.read_table(file_path)
+    except:
+        raise FileNotFoundError('Parquet file for twitch contraction time not found.')
+    else:
+        expected = table.to_pandas().squeeze()
 
-#     with pytest.raises(ZeroDivisionError):
-#         metrics.interpolate_y_for_x_between_two_points(1, 0, 10, 0, 5)
+    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, 
+                              "h5", "v0.3.1",
+                              "MA201110001__2020_09_03_213024", 
+                              "MA201110001__2020_09_03_213024__A1.h5"))
+    pv = peak_detector(w.force)
+    twitch_indices = find_twitch_indices(pv)
+
+    metric = metrics.TwitchPeakTime(is_contraction=True)
+    estimate = metric.fit(pv, w.force, twitch_indices)
+
+    assert np.all(expected == estimate)
+
+def test_metrics__TwitchRelaxationTime():
+    file_path = os.path.join(PATH_OF_CURRENT_FILE,
+                             "data_metrics",
+                             "v0.3.1",
+                             "relaxation_time_MA201110001__2020_09_03_213024__A1.parquet"
+                             )
+    try:
+        table = pq.read_table(file_path)
+    except:
+        raise FileNotFoundError(
+            'Parquet file for twitch relaxation time not found.')
+    else:
+        expected = table.to_pandas().squeeze()
+
+    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, 
+                              "h5", "v0.3.1",
+                              "MA201110001__2020_09_03_213024", 
+                              "MA201110001__2020_09_03_213024__A1.h5"))
+    pv = peak_detector(w.force)
+    twitch_indices = find_twitch_indices(pv)
+
+    metric = metrics.TwitchPeakTime(is_contraction=False)
+    estimate = metric.fit(pv, w.force, twitch_indices)
+
+    assert np.all(expected == estimate)
 
 
-# def test_metrics__create_statistics():
+def test_metrics__x_interpolation():
+    with pytest.raises(ZeroDivisionError):
+        metrics.interpolate_x_for_y_between_two_points(1, 0, 10, 0, 5)
 
-#     estimates = np.asarray([1, 2, 3, 4, 5])
 
-#     statistics = metrics.BaseMetric.create_statistics_dict(estimates, rounded=False)
-#     assert statistics["mean"] == np.nanmean(estimates)
-#     assert statistics["std"] == np.nanstd(estimates)
-#     assert statistics["min"] == np.nanmin(estimates)
-#     assert statistics["max"] == np.nanmax(estimates)
+def test_metrics__y_interpolation():
+    with pytest.raises(ZeroDivisionError):
+        metrics.interpolate_y_for_x_between_two_points(1, 0, 10, 0, 5)
 
-#     statistics = metrics.BaseMetric.create_statistics_dict(estimates, rounded=True)
-#     assert statistics["mean"] == int(round(np.nanmean(estimates)))
-#     assert statistics["std"] == int(round(np.nanstd(estimates)))
-#     assert statistics["min"] == int(round(np.nanmin(estimates)))
-#     assert statistics["max"] == int(round(np.nanmax(estimates)))
 
-#     estimates = []
-#     statistics = metrics.BaseMetric.create_statistics_dict(estimates, rounded=False)
-#     assert statistics["mean"] is None
-#     assert statistics["std"] is None
-#     assert statistics["min"] is None
-#     assert statistics["max"] is None
+def test_metrics__create_statistics():
+    estimates = np.asarray([1, 2, 3, 4, 5])
+
+    statistics = metrics.BaseMetric.create_statistics_df(estimates, rounded=False)
+
+    assert statistics["Mean"][0] == np.nanmean(estimates)
+    assert statistics["StDev"][0] == np.nanstd(estimates)
+    assert statistics["Min"][0] == np.nanmin(estimates)
+    assert statistics["Max"][0] == np.nanmax(estimates)
+
+    statistics = metrics.BaseMetric.create_statistics_df(estimates, rounded=True)
+    assert statistics["Mean"][0] == int(round(np.nanmean(estimates)))
+    assert statistics["StDev"][0] == int(round(np.nanstd(estimates)))
+    assert statistics["Min"][0] == int(round(np.nanmin(estimates)))
+    assert statistics["Max"][0] == int(round(np.nanmax(estimates)))
+
+    estimates = []
+    statistics = metrics.BaseMetric.create_statistics_df(estimates, rounded=False)
+    assert statistics["Mean"][0] is None
+    assert statistics["StDev"][0] is None
+    assert statistics["Min"][0] is None
+    assert statistics["Max"][0] is None

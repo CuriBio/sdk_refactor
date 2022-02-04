@@ -282,16 +282,16 @@ CALCULATED_METRIC_DISPLAY_NAMES = {
 CALCULATED_METRICS = {'by-width': [WIDTH_UUID,
                                    CONTRACTION_TIME_UUID,
                                    RELAXATION_TIME_UUID],
-                           'scalar': [AMPLITUDE_UUID,
-                                      AUC_UUID,
-                                      BASELINE_TO_PEAK_UUID,
-                                      CONTRACTION_VELOCITY_UUID,
-                                      FRACTION_MAX_UUID,
-                                      IRREGULARITY_INTERVAL_UUID,
-                                      PEAK_TO_BASELINE_UUID,
-                                      RELAXATION_VELOCITY_UUID,
-                                      TWITCH_FREQUENCY_UUID,
-                                      TWITCH_PERIOD_UUID]}
+                        'scalar': [AMPLITUDE_UUID,
+                                    AUC_UUID,
+                                    BASELINE_TO_PEAK_UUID,
+                                    CONTRACTION_VELOCITY_UUID,
+                                    FRACTION_MAX_UUID,
+                                    IRREGULARITY_INTERVAL_UUID,
+                                    PEAK_TO_BASELINE_UUID,
+                                    RELAXATION_VELOCITY_UUID,
+                                    TWITCH_FREQUENCY_UUID,
+                                    TWITCH_PERIOD_UUID]}
 
 COORDS = (10, 25, 50, 75, 90)
 TWITCH_WIDTH_METRIC_DISPLAY_NAMES: Dict[int, str] = immutabledict(

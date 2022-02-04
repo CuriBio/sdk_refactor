@@ -215,32 +215,7 @@ def data_metrics(
         "twitch_indices": twitch_indices,
     }
 
-    # create empty output DataFrames
-    # per-twitch metrics data-frames
-    per_twitch_scalar = pd.DataFrame(index=list(twitch_indices.keys()), 
-                                     columns=CALCULATED_METRICS['scalar'])
-    columns = pd.MultiIndex.from_product([CALCULATED_METRICS['by-width'], 
-                                          np.arange(10,95,5)],
-                                         names=['metric', 'width'])
-    per_twitch_by_width = pd.DataFrame(index=list(twitch_indices.keys()), columns=columns)
-
-    # aggregate metrics data-frames
-    columns = pd.MultiIndex.from_product([CALCULATED_METRICS['scalar'], 
-                                         ['n','Mean','StDev','CoV', 'SEM', 'Min','Max']],
-                                         names=['metric', 'statistic'])
-    aggregate_scalar = pd.DataFrame(index=[0], columns=columns)
-
-    columns = pd.MultiIndex.from_product([CALCULATED_METRICS['by-width'], 
-                                          np.arange(10,95,5), 
-                                          ['n','Mean','StDev','CoV', 'SEM', 'Min','Max']],
-                                          names=['metric', 'width', 'statistic'])
-    aggregate_by_width = pd.DataFrame(index=[0], 
-                                      columns=columns)
-
-    data_frames = {'by-width': {'per-twitch': per_twitch_by_width,
-                                'aggregate': aggregate_by_width},
-                   'scalar': {'per-twitch': per_twitch_scalar,
-                              'aggregate': aggregate_scalar}}
+    dfs = init_dfs(twitch_indices.keys())
 
     # Krisian 10/26/21
     # dictionary of metric functions
@@ -265,8 +240,8 @@ def data_metrics(
     # Kristian 12/27/21
     # add scalar metrics to corresponding DataFrames
     for metric_type, metrics in CALCULATED_METRICS.items():
-        per_twitch_df = data_frames[metric_type]['per-twitch']
-        aggregate_df = data_frames[metric_type]['aggregate']
+        per_twitch_df = dfs['per-twitch'][metric_type]
+        aggregate_df = dfs['aggregate'][metric_type]
         for metric_id in metrics:
             if metric_id in metrics_to_create:
                 metric = metric_mapper[metric_id]
@@ -274,8 +249,8 @@ def data_metrics(
                 metric.add_per_twitch_metrics(per_twitch_df, metric_id, estimate)
                 metric.add_aggregate_metrics(aggregate_df, metric_id, estimate)
 
-    per_twitch_df = concat([per_twitch_scalar, per_twitch_by_width], axis=1)
-    aggregate_df = concat([aggregate_scalar, aggregate_by_width], axis=1)
+    per_twitch_df = concat([dfs['per-twitch'][j] for j in dfs['per-twitch'].keys()], axis=1)
+    aggregate_df = concat([dfs['aggregate'][j] for j in dfs['aggregate'].keys()], axis=1)
 
     return [per_twitch_df, aggregate_df]
 
@@ -297,6 +272,50 @@ def _find_start_indices(starts_with_peak: bool) -> Tuple[int, int]:
         valley_idx += 1
 
     return peak_idx, valley_idx
+
+def init_dfs(indices: List[int] = []):
+
+    """
+    Initialize empty dataframes for metrics computations.
+
+    Args:
+        indices (List[int]): list of twitch indices
+    
+    Returns:
+        data_frames (Dict): keys correspond to initialized per-twitch or aggregate dataframes, on a scalar, or by-width basis
+
+        Note: scalar metrics are those representing a single value per twitch (e.g. AUC, AMPLITUDE, etc.)
+              by-width metrics are those such as twitch-width, time-to-percent contraction / relaxation
+    """
+
+    # create empty output DataFrames
+    # per-twitch metrics data-frames
+    per_twitch_scalar = pd.DataFrame(index=indices, 
+                                     columns=CALCULATED_METRICS['scalar'])
+    columns = pd.MultiIndex.from_product([CALCULATED_METRICS['by-width'], 
+                                          np.arange(10,95,5)],
+                                         names=['metric', 'width'])
+    per_twitch_by_width = pd.DataFrame(index=indices, columns=columns)
+
+    # aggregate metrics data-frames
+    columns = pd.MultiIndex.from_product([CALCULATED_METRICS['scalar'], 
+                                         ['n','Mean','StDev','CoV', 'SEM', 'Min','Max']],
+                                         names=['metric', 'statistic'])
+    aggregate_scalar = pd.DataFrame(index=[0], columns=columns)
+
+    columns = pd.MultiIndex.from_product([CALCULATED_METRICS['by-width'], 
+                                          np.arange(10,95,5), 
+                                          ['n','Mean','StDev','CoV', 'SEM', 'Min','Max']],
+                                          names=['metric', 'width', 'statistic'])
+    aggregate_by_width = pd.DataFrame(index=[0], 
+                                      columns=columns)
+
+    data_frames = {'per-twitch': {'scalar': per_twitch_scalar,
+                                  'by-width': per_twitch_by_width},
+                   'aggregate':  {'scalar': aggregate_scalar,
+                                  'by-width': aggregate_by_width}}
+
+    return data_frames
 
 def concat(dfs, axis=0, *args, **kwargs):   
     """

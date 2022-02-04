@@ -11,8 +11,10 @@ from .plate_recording import WellFile, PlateRecording
 from .constants import *
 from .exceptions import *
 from .metrics import TWITCH_WIDTH_PERCENTS
+from .peak_detection import concat
 from .peak_detection import data_metrics
 from .peak_detection import find_twitch_indices
+from .peak_detection import init_dfs
 from .peak_detection import peak_detector
 from .utils import xl_col_to_name
 
@@ -261,10 +263,14 @@ def write_xlsx(plate_recording: PlateRecording,
     log.info("Computing data metrics for each well.")
 
     for i, well_file in enumerate(plate_recording):
+
+        # initialize some data structures
         error_msg = None
         peaks_and_valleys = None
         twitch_indices = None
-        metrics = None
+        # necessary for concatenating DFs together, in event that peak-finding fails and produces empty DF
+        dfs = init_dfs()
+        metrics = [concat([dfs[k][j] for j in dfs[k].keys()], axis=1) for k in ['per-twitch','aggregate']]
 
         if well_file is None:
             continue
@@ -305,13 +311,10 @@ def write_xlsx(plate_recording: PlateRecording,
         interp_data -= min_value
         interp_data *= MICRO_TO_BASE_CONVERSION
 
-        twitch_time_values = well_file.force[0][twitch_indices] / MICRO_TO_BASE_CONVERSION
 
         data.append({
             "error_msg": error_msg,
             "peaks_and_valleys": peaks_and_valleys,
-            "twitch_indices": twitch_indices,
-            "twitch_time_values": twitch_time_values,
             "metrics": metrics,
             "well_index": well_index,
             "well_name": TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_index),
@@ -401,8 +404,9 @@ def _write_xlsx(name: str,
             force_freq_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
             freq_vs_time_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
 
-            num_twitches: int = int(dm[1][AMPLITUDE_UUID]["n"][0])
-            time_values: NDArray = d['twitch_time_values']
+            num_twitches = dm[1][AMPLITUDE_UUID]["n"][0]
+            num_twitches = int(num_twitches) if not np.isnan(num_twitches) else 0
+            time_values: NDArray = np.asarray(d['force'][0]) / MICRO_TO_BASE_CONVERSION
 
             log.info(f'Creating frequency vs time chart for well {d["well_name"]}')
             create_frequency_vs_time_charts(
@@ -554,9 +558,9 @@ def aggregate_metrics_df(data: List[Dict[Any,Any]], widths: Tuple[int] = tuple([
     df = pd.DataFrame()
     df = df.append(pd.Series(['', '', ] + [d['well_name'] for d in data]), ignore_index=True)
     df = df.append(pd.Series(['', 'Treatment Description']), ignore_index=True)
-    df = df.append(pd.Series(['', 'n (twitches)'] + [len(d['metrics'][0]) for d in data]), ignore_index=True)
+    df = df.append(pd.Series(['', 'n (twitches)'] + [len(d['metrics'][0]) if not d['error_msg'] else d['error_msg'] for d in data]), ignore_index=True)
     df = df.append(pd.Series(['']), ignore_index=True)  # empty row
-
+    
     combined = pd.concat([d['metrics'][1] for d in data])
 
     for metric_id in ALL_METRICS:
@@ -587,7 +591,7 @@ def per_twitch_df(data: List[Dict[Any,Any]], widths: Tuple[int] = tuple([50,90])
     df = pd.DataFrame()
     for j, d in enumerate(data): #for each well
         num_per_twitch_metrics = 0 #len(labels)
-        twitch_times = list(d['twitch_time_values'])
+        twitch_times = [d['force'][0,i]/MICRO_TO_BASE_CONVERSION for i in d['metrics'][0].index]
 
         # get metrics for single well
         dm = d['metrics'][0]

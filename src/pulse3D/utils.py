@@ -2,6 +2,7 @@
 """General utility/helpers."""
 import json
 import logging
+import numpy as np
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -13,12 +14,36 @@ from uuid import UUID
 from .constants import CONTRACTION_TIME_UUID
 from .constants import RELAXATION_TIME_UUID
 from .constants import TIME_DIFFERENCE_UUID
+from .constants import TWENTY_FOUR_WELL_PLATE
+from .constants import WELL_INDEX_UUID
 from .constants import WIDTH_FALLING_COORDS_UUID
 from .constants import WIDTH_RISING_COORDS_UUID
 from .constants import WIDTH_UUID
 
 logger = logging.getLogger(__name__)
 
+def truncate(source_series, lower_bound, upper_bound):
+
+    """
+    Identify bounding indices of source time-series to match a reference time-series.
+
+    Args:
+    source_series (NDArray): time-series to truncate
+    lower_bound/upper_bound (float): bounding times of a reference time-series
+
+    Returns:
+    first_idx/last_idx (int): indices corresponding to bounds of source time-series
+    """
+
+    first_idx, last_idx = 0, len(source_series) - 1
+    while upper_bound < source_series[last_idx]:
+        last_idx -= 1
+
+    # left-truncation
+    while lower_bound > source_series[first_idx]:
+        first_idx += 1
+    
+    return [first_idx, last_idx]
 
 def serialize_main_dict(per_twitch_dict: Dict[int, Any], metrics_to_create: Iterable[UUID]) -> Dict[str, Any]:
     """Serialize a per-twitch-dict for saving as JSON.

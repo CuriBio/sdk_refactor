@@ -25,13 +25,16 @@ TWITCH_WIDTH_INDEX_OF_CONTRACTION_VELOCITY_END = np.where(TWITCH_WIDTH_PERCENTS 
 def peak_detector(
     filtered_magnetic_signal: NDArray[(2, Any), int],
     twitches_point_up: bool = True,
+    prominence_factors: List[Union[int,float]] = [6,6],
+    width_factors: List[Union[int,float]] = [7,7]
 ) -> Tuple[List[int], List[int]]:
     """Locates peaks and valleys and returns the indices.
 
     Args:
         filtered_magnetic_signal: a 2D array of the magnetic signal vs time data after it has gone through noise cancellation. It is assumed that the time values are in microseconds
         twitches_point_up: whether in the incoming data stream the biological twitches are pointing up (in the positive direction) or down
-        sampling_period: Optional value indicating the period that magnetic data was sampled at. If not given, the sampling period will be calculated using the difference of the first two time indices
+        prominence_factors: (list, 2) scaling factors for peak/valley prominences.  Larger values make peak-finding more flexible by reducing minimum-required prominence
+        width_factors: (list, 2) scaling factors for peak/valley widths.  Larger values make peak-finding more flexible by reducing minimum-required width
 
     Returns:
         A tuple containing a list of the indices of the peaks and a list of the indices of valleys
@@ -57,16 +60,16 @@ def peak_detector(
     # find peaks and valleys
     peak_indices, _ = signal.find_peaks(
         magnetic_signal * peak_invertor_factor,
-        width=min_required_samples_between_twitches / 2,
+        width=min_required_samples_between_twitches / width_factors[0],
         distance=min_required_samples_between_twitches,
-        prominence=max_prominence / 4,
+        prominence=max_prominence / prominence_factors[0],
     )
 
     valley_indices, properties = signal.find_peaks(
         magnetic_signal * valley_invertor_factor,
-        width=min_required_samples_between_twitches / 2,
+        width=min_required_samples_between_twitches / width_factors[1],
         distance=min_required_samples_between_twitches,
-        prominence=max_prominence / 4,
+        prominence=max_prominence / prominence_factors[1],
     )
 
     left_ips = properties["left_ips"]

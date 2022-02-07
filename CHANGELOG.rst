@@ -2,7 +2,7 @@ Changelog for Curi Bio Software Development Kit
 ===============================================
 
 
-0.20.3 (2022-01-12)
+0.21.1 (2022-01-12)
 -------------------
 - Parameterized `peak_detection.peak_detector` for minimum prominence and width scaling
 - Changed default scaling factors to make peak-finding more sensitive

@@ -1,6 +1,10 @@
 Changelog for Curi Bio Software Development Kit
 ===============================================
 
+0.22.0 (2022-02-07)
+-------------------
+- Incorporate windowed waveform-analysis
+
 0.20.2 (2022-01-12)
 -------------------
 - Fixed install issues

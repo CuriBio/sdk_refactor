@@ -29,7 +29,9 @@ def peak_detector(
     filtered_magnetic_signal: NDArray[(2, Any), int],
     twitches_point_up: bool = True,
     start_time: float=0,
-    end_time: float=np.inf
+    end_time: float=np.inf,
+    prominence_factors: List[Union[int,float]] = [6,6],
+    width_factors: List[Union[int,float]] = [7,7]
 ) -> Tuple[List[int], List[int]]:
     """Locates peaks and valleys and returns the indices.
 
@@ -38,6 +40,8 @@ def peak_detector(
         twitches_point_up: whether in the incoming data stream the biological twitches are pointing up (in the positive direction) or down
         start_time (float): start time of windowed analysis, in seconds. Default value = 0 seconds.
         end_time (float): end time of windowed analysis, in seconds.  Default value = Inf seconds.
+        prominence_factors: (list, 2) scaling factors for peak/valley prominences.  Larger values make peak-finding more flexible by reducing minimum-required prominence
+        width_factors: (list, 2) scaling factors for peak/valley widths.  Larger values make peak-finding more flexible by reducing minimum-required width
 
     Returns:
         A tuple containing a list of the indices of the peaks and a list of the indices of valleys
@@ -73,16 +77,16 @@ def peak_detector(
     # find peaks and valleys
     peak_indices, _ = signal.find_peaks(
         magnetic_signal * peak_invertor_factor,
-        width=min_required_samples_between_twitches / 2,
+        width=min_required_samples_between_twitches / width_factors[0],
         distance=min_required_samples_between_twitches,
-        prominence=max_prominence / 4,
+        prominence=max_prominence / prominence_factors[0],
     )
 
     valley_indices, properties = signal.find_peaks(
         magnetic_signal * valley_invertor_factor,
-        width=min_required_samples_between_twitches / 2,
+        width=min_required_samples_between_twitches / width_factors[1],
         distance=min_required_samples_between_twitches,
-        prominence=max_prominence / 4,
+        prominence=max_prominence / prominence_factors[1],
     )
 
     left_ips = properties["left_ips"]

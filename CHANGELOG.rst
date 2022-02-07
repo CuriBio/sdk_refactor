@@ -5,6 +5,11 @@ Changelog for Curi Bio Software Development Kit
 -------------------
 - Incorporate windowed waveform-analysis
 
+0.21.1 (2022-01-12)
+-------------------
+- Parameterized `peak_detection.peak_detector` for minimum prominence and width scaling
+- Changed default scaling factors to make peak-finding more sensitive
+  
 0.20.2 (2022-01-12)
 -------------------
 - Fixed install issues

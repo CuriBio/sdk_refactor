@@ -22,6 +22,7 @@ from xlsxwriter.utility import xl_cell_to_rowcol
 from .compression_cy import compress_filtered_magnetic_data
 from .constants import *
 from .magnet_finding import find_magnet_positions
+from .magnet_finding import fix_dropped_samples
 from .magnet_finding import format_well_file_data
 from .transforms import apply_empty_plate_calibration
 from .transforms import apply_noise_filtering
@@ -326,7 +327,8 @@ class PlateRecording:
 
         # load data
         plate_data_array = format_well_file_data(self.wells)
-        plate_data_array_mt = calculate_magnetic_flux_density_from_memsic(plate_data_array)
+        fixed_plate_data_array = fix_dropped_samples(plate_data_array)
+        plate_data_array_mt = calculate_magnetic_flux_density_from_memsic(fixed_plate_data_array)
         baseline_data = format_well_file_data(calibration_recordings)
         baseline_data_mt = calculate_magnetic_flux_density_from_memsic(baseline_data)
 

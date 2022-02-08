@@ -9,8 +9,11 @@ import numpy as np
 from pulse3D import magnet_finding
 from pulse3D import plate_recording
 from pulse3D.constants import BASELINE_MEAN_NUM_DATA_POINTS
+from pulse3D.magnet_finding import fix_dropped_samples
+from pulse3D.magnet_finding import format_well_file_data
 from pulse3D.plate_recording import load_files
 from pulse3D.plate_recording import PlateRecording
+import pytest
 from stdlib_utils import get_current_file_abs_directory
 
 PATH_OF_CURRENT_FILE = get_current_file_abs_directory()
@@ -98,6 +101,30 @@ def test_PlateRecording__creates_mean_of_baseline_data_correctly(mocker):
                 )
 
 
+def test_PlateRecording__removes_dropped_samples_from_raw_tissue_signal_before_converting_to_mfd(mocker):
+    spied_fix = mocker.spy(plate_recording, "fix_dropped_samples")
+    spied_mfd = mocker.spy(plate_recording, "calculate_magnetic_flux_density_from_memsic")
+    # mock instead of spy so magnet finding alg doesn't run
+    mocker.patch.object(
+        plate_recording,
+        "find_magnet_positions",
+        autospec=True,
+        side_effect=lambda x, y: {"X": np.zeros((x.shape[-1], 24))},
+    )
+
+    pr = PlateRecording(
+        os.path.join(
+            PATH_OF_CURRENT_FILE,
+            "magnet_finding",
+            "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
+        )
+    )
+    actual_plate_data = spied_fix.call_args[0][0]
+    expected_plate_data = format_well_file_data(pr.wells)
+    np.testing.assert_array_equal(actual_plate_data, expected_plate_data)
+    np.testing.assert_array_equal(spied_mfd.call_args_list[0][0][0], spied_fix.spy_return)
+
+
 def test_PlateRecording__passes_data_to_magnet_finding_alg_correctly__using_mean_of_baseline_data(
     mocker,
 ):
@@ -130,6 +157,19 @@ def test_PlateRecording__passes_data_to_magnet_finding_alg_correctly__using_mean
     expected_input_data = tissue_data_mt - baseline_data_mt_mean
 
     # test alg input
-    pr = PlateRecording(test_zip_file_path)
+    PlateRecording(test_zip_file_path)
     mocked_get_positions.assert_called_once()
     np.testing.assert_array_almost_equal(mocked_get_positions.call_args[0][0], expected_input_data)
+
+
+@pytest.mark.parametrize(
+    "test_array,expected_array",
+    [
+        (np.array([0, 1, 2, 0, 4, 5, 0]), np.array([1, 1, 2, 3, 4, 5, 5])),
+        (np.array([[[0, 1, 2, 0, 4, 5, 0]]]), np.array([[[1, 1, 2, 3, 4, 5, 5]]])),
+        (np.array([[0, 1, 0, 3, 0], [5, 0, 3, 0, 1]]), np.array([[1, 1, 2, 3, 3], [5, 4, 3, 2, 1]])),
+    ],
+)
+def test_fix_dropped_samples__makes_correct_modifications_to_input_array(test_array, expected_array):
+    fixed_array = fix_dropped_samples(test_array)
+    np.testing.assert_array_equal(fixed_array, expected_array)

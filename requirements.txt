@@ -1,4 +1,5 @@
 # cd mantarray-magnet-finding/
+# Make sure you are on the main branch
 # git pull
 # cd ..
 # pip install -r requirements.txt

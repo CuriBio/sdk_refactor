@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 def truncate(
-    source_series: NDArray[(1, Any), Union[int, float]],
+    source_series: NDArray[(1, Any), float],
     lower_bound: Union[int, float],
     upper_bound: Union[int, float],
 ) -> Tuple[int, int]:

@@ -264,20 +264,22 @@ def data_metrics(
 
     # Kristian (12/27/21): add scalar metrics to corresponding DataFrames
     for metric_type, metrics in CALCULATED_METRICS.items():
-        per_twitch_df = dfs["per-twitch"][metric_type]
+        per_twitch_df = dfs["per_twitch"][metric_type]
         aggregate_df = dfs["aggregate"][metric_type]
 
+        # sort first to improve performance
         per_twitch_df.sort_index(inplace=True)
         aggregate_df.sort_index(inplace=True)
 
         for metric_id in metrics:
             if metric_id in metrics_to_create:
+
                 metric = metric_mapper[metric_id]
                 estimate = metric.fit(**metric_parameters)
                 metric.add_per_twitch_metrics(per_twitch_df, metric_id, estimate)
                 metric.add_aggregate_metrics(aggregate_df, metric_id, estimate)
 
-    per_twitch_df = concat([dfs["per-twitch"][j] for j in dfs["per-twitch"].keys()], axis=1)
+    per_twitch_df = concat([dfs["per_twitch"][j] for j in dfs["per_twitch"].keys()], axis=1)
     aggregate_df = concat([dfs["aggregate"][j] for j in dfs["aggregate"].keys()], axis=1)
 
     return per_twitch_df, aggregate_df
@@ -318,7 +320,7 @@ def init_dfs(indices: Iterable[int] = []):
     # per-twitch metrics data-frames
     per_twitch_scalar = pd.DataFrame(index=indices, columns=CALCULATED_METRICS["scalar"])
     columns = pd.MultiIndex.from_product(
-        [CALCULATED_METRICS["by-width"], np.arange(10, 95, 5)], names=["metric", "width"]
+        [CALCULATED_METRICS["by_width"], np.arange(10, 95, 5)], names=["metric", "width"]
     )
     per_twitch_by_width = pd.DataFrame(index=indices, columns=columns)
 
@@ -331,7 +333,7 @@ def init_dfs(indices: Iterable[int] = []):
 
     columns = pd.MultiIndex.from_product(
         [
-            CALCULATED_METRICS["by-width"],
+            CALCULATED_METRICS["by_width"],
             np.arange(10, 95, 5),
             ["n", "Mean", "StDev", "CoV", "SEM", "Min", "Max"],
         ],
@@ -340,8 +342,8 @@ def init_dfs(indices: Iterable[int] = []):
     aggregate_by_width = pd.DataFrame(index=[0], columns=columns)
 
     data_frames = {
-        "per-twitch": {"scalar": per_twitch_scalar, "by-width": per_twitch_by_width},
-        "aggregate": {"scalar": aggregate_scalar, "by-width": aggregate_by_width},
+        "per_twitch": {"scalar": per_twitch_scalar, "by_width": per_twitch_by_width},
+        "aggregate": {"scalar": aggregate_scalar, "by_width": aggregate_by_width},
     }
 
     return data_frames

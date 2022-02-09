@@ -299,7 +299,7 @@ def write_xlsx(
         # necessary for concatenating DFs together, in event that peak-finding fails and produces empty DF
         dfs = init_dfs()
         metrics = tuple(
-            concat([dfs[k][j] for j in dfs[k].keys()], axis=1) for k in ["per-twitch", "aggregate"]
+            concat([dfs[k][j] for j in dfs[k].keys()], axis=1) for k in ["per_twitch", "aggregate"]
         )
 
         if well_file is None:
@@ -353,8 +353,6 @@ def write_xlsx(
             error_msg = "Error: Two Relaxations in a Row Detected"
         except TooFewPeaksDetectedError:
             error_msg = "Not Enough Twitches Detected"
-        except Exception as e:
-            raise NotImplementedError("Unknown PeakDetectionError") from e
 
         data.append(
             {

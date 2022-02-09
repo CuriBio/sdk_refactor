@@ -6,6 +6,7 @@ If a new metric is requested, you must implement `fit`,
 """
 
 # for hashing dataframes
+import abc
 from functools import lru_cache
 from functools import partial
 from hashlib import sha256
@@ -45,12 +46,10 @@ class BaseMetric:
     nested (twitch widths, time-to/from peak, etc.)
     """
 
-    def __init__(  # pylint:disable=unused-argument # Kristian (11/1/21) need kwargs for sub-class parameters
-        self, rounded: bool = False, **kwargs: Dict[str, Any]
-    ):
-
+    def __init__(self, rounded: bool = False, **kwargs: Dict[str, Any]):
         self.rounded = rounded
 
+    @abc.abstractmethod
     def fit(
         self,
         peak_and_valley_indices: Tuple[NDArray[int], NDArray[int]],
@@ -58,7 +57,6 @@ class BaseMetric:
         twitch_indices: NDArray[int],
         **kwargs: Dict[str, Any],
     ) -> Union[NDArray[Float64], List[Dict[int, Dict[UUID, Any]]], DataFrame]:
-
         pass
 
     @staticmethod

@@ -8,7 +8,7 @@ from labware_domain_models import LabwareDefinition
 
 try:
     from importlib import metadata
-except ImportError:
+except ImportError:  # pragma: no cover
     import importlib_metadata as metadata  # type: ignore
 PACKAGE_VERSION = metadata.version("pulse3D")
 

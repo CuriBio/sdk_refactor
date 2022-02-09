@@ -70,7 +70,7 @@ def add_peak_detection_series(
 
             interpolated_data -= minimum_value
             value = interpolated_data * MICRO_TO_BASE_CONVERSION
-            
+
         continuous_waveform_sheet.write(f"{result_column}{row}", value)
 
     if waveform_charts is not None:  # Tanner (11/11/20): chart is None when skipping chart creation
@@ -182,7 +182,7 @@ def create_frequency_vs_time_charts(
     )
 
 
-def write_xlsx(plate_recording, 
+def write_xlsx(plate_recording,
                name=None,
                start_time: float = 0.0,
                end_time: float = np.inf,
@@ -197,7 +197,7 @@ def write_xlsx(plate_recording,
 
     Raises:
         NotImplementedError: if peak finding algorithm fails for unexpected reason
-        ValueError: if start and end times are outside of expected bounds, or do not 
+        ValueError: if start and end times are outside of expected bounds, or do not
     """
     # get metadata from first well file
     w = [pw for pw in plate_recording if pw][0]
@@ -206,7 +206,7 @@ def write_xlsx(plate_recording,
     interpolated_data_period = (
         w[INTERPOLATION_VALUE_UUID] if plate_recording.is_optical_recording else INTERPOLATED_DATA_PERIOD_US
     )
-    
+
     # get max_time from all wells
     max_time = max([w.force[0][-1] for w in plate_recording if w])
     min_time = min([w.force[0][-1] for w in plate_recording if w])
@@ -316,12 +316,12 @@ def write_xlsx(plate_recording,
         window_start_idx, window_end_idx = truncate(source_series=time_points/MICRO_TO_BASE_CONVERSION,
                                                     lower_bound=start_time,
                                                     upper_bound=end_time)
-        
+
         start_idx = np.max([window_start_idx, well_start_idx])
         end_idx = np.min([window_end_idx, well_end_idx])
 
         # fit interpolation function on recorded data
-        interp_data_fn = interpolate.interp1d(well_file.force[0,:], 
+        interp_data_fn = interpolate.interp1d(well_file.force[0,:],
                                               well_file.force[1,:])
 
         # interpolate, normalize, and scale data
@@ -353,7 +353,7 @@ def write_xlsx(plate_recording,
             error_msg = "Not Enough Twitches Detected"
         except Exception as e:
             raise NotImplementedError("Unknown PeakDetectionError") from e
-        
+
         data.append(
             {
                 "error_msg": error_msg,
@@ -372,7 +372,7 @@ def write_xlsx(plate_recording,
         )
 
     # waveform table
-    continuous_waveforms = {"Time (seconds)": time_points[start_idx:end_idx] / MICRO_TO_BASE_CONVERSION}
+    continuous_waveforms = {"Time (seconds)": pd.Series(time_points[start_idx:end_idx] / MICRO_TO_BASE_CONVERSION)}
     for d in data:
         continuous_waveforms[f"{d['well_name']} - Active Twitch Force (μN)"] = pd.Series(d["interp_data"])
     continuous_waveforms_df = pd.DataFrame(continuous_waveforms)
@@ -485,9 +485,9 @@ def create_waveform_charts(
 
     # maximum snapshot size is 10 seconds
     lower_x_bound = (dm['start_time'])
- 
+
     upper_x_bound = (
-        dm['end_time'] 
+        dm['end_time']
         if (dm['end_time'] - dm['start_time']) <= CHART_MAXIMUM_SNAPSHOT_LENGTH
         else dm['start_time'] + CHART_MAXIMUM_SNAPSHOT_LENGTH
     )
@@ -624,7 +624,7 @@ def aggregate_metrics_df(data: List[Dict[Any,Any]], widths: Tuple[int] = tuple([
     df = df.append(pd.Series(['', 'Treatment Description']), ignore_index=True)
     df = df.append(pd.Series(['', 'n (twitches)'] + [len(d['metrics'][0]) if not d['error_msg'] else d['error_msg'] for d in data]), ignore_index=True)
     df = df.append(pd.Series(['']), ignore_index=True)  # empty row
-    
+
     combined = pd.concat([d['metrics'][1] for d in data])
 
     for metric_id in ALL_METRICS:

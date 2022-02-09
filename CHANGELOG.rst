@@ -1,6 +1,10 @@
 Changelog for Curi Bio Software Development Kit
 ===============================================
 
+0.22.2 (2022-02-09)
+-------------------
+- sort_index
+
 0.22.1 (2022-02-09)
 -------------------
 - Convert time_points to pd.Series

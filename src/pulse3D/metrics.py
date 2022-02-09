@@ -66,8 +66,8 @@ class BaseMetric:
 
     @staticmethod
     def add_per_twitch_metrics(
-        main_df: DataFrame, 
-        metric_id: UUID, 
+        main_df: DataFrame,
+        metric_id: UUID,
         metrics: Union[NDArray[int], NDArray[float]]
     ) -> None:
         """Add estimated per-twitch metrics to per-twitch DataFrame.
@@ -245,7 +245,7 @@ class TwitchWidthCoordinates(BaseMetric):
     ) -> DataFrame:
         twitch_indices_hashable = HashableDataFrame(DataFrame.from_dict(twitch_indices).T)
         filtered_data_hashable = tuple(tuple(i) for i in filtered_data)
-        
+
         _,coordinates = TwitchWidth.calculate_twitch_widths(
             twitch_indices=twitch_indices_hashable,
             filtered_data=filtered_data_hashable,
@@ -325,9 +325,9 @@ class TwitchWidth(BaseMetric):
         """
         width_df = pd.DataFrame(index=list(twitch_indices.index),
                                 columns=list(np.arange(10,95,5)))
-    
-        columns = pd.MultiIndex.from_product([['force', 'time'], 
-                                            ['contraction', 'relaxation'], 
+
+        columns = pd.MultiIndex.from_product([['force', 'time'],
+                                            ['contraction', 'relaxation'],
                                             list(np.arange(10,95,5))])
         coordinate_df = pd.DataFrame(index=list(twitch_indices.index),
                                      columns=columns)
@@ -341,7 +341,7 @@ class TwitchWidth(BaseMetric):
 
             prior_valley_idx = int(twitch_indices[PRIOR_VALLEY_INDEX_UUID][iter_twitch_peak_idx])
             prior_valley_value = value_series[prior_valley_idx]
-            
+
             subsequent_valley_idx = int(twitch_indices[SUBSEQUENT_VALLEY_INDEX_UUID][iter_twitch_peak_idx])
             subsequent_valley_value = value_series[subsequent_valley_idx]
 
@@ -443,8 +443,8 @@ class TwitchVelocity(BaseMetric):
             twitch_width_percents=tuple(self.twitch_width_percents))
 
         velocities = self.calculate_twitch_velocity(
-            twitch_indices=twitch_indices, 
-            coordinate_df=coordinates, 
+            twitch_indices=twitch_indices,
+            coordinate_df=coordinates,
             is_contraction=self.is_contraction
         )
 
@@ -464,7 +464,7 @@ class TwitchVelocity(BaseMetric):
                 prior/subsequent peaks and valleys and their index values.
 
             coordinate_df: DataFrame storing time (X) and force (Y()) values
-                for each %-contraction and %-relaxation.  Stored as a MultiIndex dataframe, with 
+                for each %-contraction and %-relaxation.  Stored as a MultiIndex dataframe, with
                 level(0) = ['time','force']
                 level(1) = ['contraction','relaxation']
                 level(2) = np.arange(10,95,5)
@@ -568,8 +568,8 @@ class TwitchIrregularity(BaseMetric):
             iter_list_of_intervals.append(interval)
 
         iter_list_of_intervals.append(None)
-        irregularity = Series(iter_list_of_intervals, 
-                              index=twitch_indices.keys(), 
+        irregularity = Series(iter_list_of_intervals,
+                              index=twitch_indices.keys(),
                               dtype=np.float64)
 
         return irregularity
@@ -598,7 +598,7 @@ class TwitchAUC(BaseMetric):
     ) -> DataFrame:
         twitch_indices_hashable = HashableDataFrame(DataFrame.from_dict(twitch_indices).T)
         filtered_data_hashable = tuple(tuple(i) for i in filtered_data)
-        
+
         _,coordinates = TwitchWidth.calculate_twitch_widths(
             twitch_indices=twitch_indices_hashable,
             filtered_data=filtered_data_hashable,
@@ -606,8 +606,8 @@ class TwitchAUC(BaseMetric):
             twitch_width_percents=tuple(self.twitch_width_percents))
 
         auc = self.calculate_area_under_curve(
-            twitch_indices=twitch_indices, 
-            filtered_data=filtered_data, 
+            twitch_indices=twitch_indices,
+            filtered_data=filtered_data,
             coordinate_df=coordinates)
 
         return auc
@@ -638,7 +638,7 @@ class TwitchAUC(BaseMetric):
         """
         width_percent = 90  # what percent of repolarization to use as the bottom limit for calculating AUC
         auc_per_twitch = Series(index=twitch_indices.keys(), dtype=np.float64)
-        
+
         value_series = filtered_data[1, :]
         time_series = filtered_data[0, :]
 
@@ -647,11 +647,11 @@ class TwitchAUC(BaseMetric):
             # iter_twitch_peak_timepoint = time_series[iter_twitch_peak_idx]
             prior_valley_value = value_series[iter_twitch_indices_info[PRIOR_VALLEY_INDEX_UUID]]
             subsequent_valley_value = value_series[iter_twitch_indices_info[SUBSEQUENT_VALLEY_INDEX_UUID]]
-            
+
             rising_x = coordinate_df.loc[iter_twitch_peak_idx]['time', 'contraction', width_percent]
             rising_y = coordinate_df.loc[iter_twitch_peak_idx]['force', 'contraction', width_percent]
             rising_coords = (rising_x, rising_y)
-            
+
             falling_x = coordinate_df.loc[iter_twitch_peak_idx]['time', 'relaxation', width_percent]
             falling_y = coordinate_df.loc[iter_twitch_peak_idx]['force', 'relaxation', width_percent]
             falling_coords = (falling_x, falling_y)
@@ -817,8 +817,8 @@ class TwitchPeriod(BaseMetric):
                 - time_series[peak_indices[iter_twitch_idx + idx_of_first_twitch]]
             )
 
-        period = Series(period, 
-                        index=twitch_indices.keys(), 
+        period = Series(period,
+                        index=twitch_indices.keys(),
                         dtype=np.float64)
 
         return period
@@ -876,7 +876,7 @@ class TwitchPeakTime(BaseMetric):
     ) -> DataFrame:
         twitch_indices_hashable = HashableDataFrame(DataFrame.from_dict(twitch_indices).T)
         filtered_data_hashable = tuple(tuple(i) for i in filtered_data)
-        
+
         _,coordinates = TwitchWidth.calculate_twitch_widths(
             twitch_indices=twitch_indices_hashable,
             filtered_data=filtered_data_hashable,
@@ -898,7 +898,6 @@ class TwitchPeakTime(BaseMetric):
         metric_id: UUID,
         metrics: DataFrame,
     ) -> None:
-
         for iter_percent in self.twitch_width_percents:
             estimates = metrics[iter_percent]
             aggregate_estimates = self.create_statistics_df(
@@ -923,7 +922,7 @@ class TwitchPeakTime(BaseMetric):
                 data after it has gone through noise filtering
 
             coordinate_df: DataFrame storing time (X) and force (Y()) values
-                for each %-contraction and %-relaxation.  Stored as a MultiIndex dataframe, with 
+                for each %-contraction and %-relaxation.  Stored as a MultiIndex dataframe, with
                 level(0) = ['time','force']
                 level(1) = ['contraction','relaxation']
                 level(2) = np.arange(10,95,5)
@@ -940,10 +939,10 @@ class TwitchPeakTime(BaseMetric):
             coords = coordinate_df.loc[:,('time','contraction',slice(None))]
         else:
             coords = coordinate_df.loc[:,('time','relaxation',slice(None))]
-        
+
         coords = coords.droplevel([0,1],axis=1)
 
-        time_differences = pd.DataFrame(index=twitch_indices.keys(), 
+        time_differences = pd.DataFrame(index=twitch_indices.keys(),
                                         columns=self.twitch_width_percents)
 
         peak_times = Series(data=filtered_data[0, list(twitch_indices.keys())],
@@ -955,7 +954,7 @@ class TwitchPeakTime(BaseMetric):
                 percent = (100-iter_percent)
             else:
                 percent = iter_percent
-            
+
             percent_time = coords[percent]
             if is_contraction:
                 difference = peak_times - percent_time
@@ -990,7 +989,7 @@ class TwitchPeakToBaseline(BaseMetric):
     ) -> Series:
 
         num_twitches = len(twitch_indices)
-        full_differences = Series(index=twitch_indices.keys(), 
+        full_differences = Series(index=twitch_indices.keys(),
                                   dtype=np.float64)
 
         time_series = filtered_data[0, :]

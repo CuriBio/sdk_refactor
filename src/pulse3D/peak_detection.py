@@ -241,7 +241,7 @@ def data_metrics(
     # get values needed for metrics creation
     twitch_indices = find_twitch_indices(peak_and_valley_indices)
     num_twitches = len(twitch_indices)
-    time_series = filtered_data[0, :]    
+    time_series = filtered_data[0, :]
 
     metric_parameters = {
         "peak_and_valley_indices": peak_and_valley_indices,
@@ -276,6 +276,10 @@ def data_metrics(
     for metric_type, metrics in CALCULATED_METRICS.items():
         per_twitch_df = dfs['per-twitch'][metric_type]
         aggregate_df = dfs['aggregate'][metric_type]
+
+        per_twitch_df.sort_values(inplace=True)
+        aggregate_df.sort_values(inplace=True)
+
         for metric_id in metrics:
             if metric_id in metrics_to_create:
                 metric = metric_mapper[metric_id]
@@ -314,7 +318,7 @@ def init_dfs(indices: List[int] = []):
 
     Args:
         indices (List[int]): list of twitch indices
-    
+
     Returns:
         data_frames (Dict): keys correspond to initialized per-twitch or aggregate dataframes, on a scalar, or by-width basis
 
@@ -324,24 +328,24 @@ def init_dfs(indices: List[int] = []):
 
     # create empty output DataFrames
     # per-twitch metrics data-frames
-    per_twitch_scalar = pd.DataFrame(index=indices, 
+    per_twitch_scalar = pd.DataFrame(index=indices,
                                      columns=CALCULATED_METRICS['scalar'])
-    columns = pd.MultiIndex.from_product([CALCULATED_METRICS['by-width'], 
+    columns = pd.MultiIndex.from_product([CALCULATED_METRICS['by-width'],
                                           np.arange(10,95,5)],
                                          names=['metric', 'width'])
     per_twitch_by_width = pd.DataFrame(index=indices, columns=columns)
 
     # aggregate metrics data-frames
-    columns = pd.MultiIndex.from_product([CALCULATED_METRICS['scalar'], 
+    columns = pd.MultiIndex.from_product([CALCULATED_METRICS['scalar'],
                                          ['n','Mean','StDev','CoV', 'SEM', 'Min','Max']],
                                          names=['metric', 'statistic'])
     aggregate_scalar = pd.DataFrame(index=[0], columns=columns)
 
-    columns = pd.MultiIndex.from_product([CALCULATED_METRICS['by-width'], 
-                                          np.arange(10,95,5), 
+    columns = pd.MultiIndex.from_product([CALCULATED_METRICS['by-width'],
+                                          np.arange(10,95,5),
                                           ['n','Mean','StDev','CoV', 'SEM', 'Min','Max']],
                                           names=['metric', 'width', 'statistic'])
-    aggregate_by_width = pd.DataFrame(index=[0], 
+    aggregate_by_width = pd.DataFrame(index=[0],
                                       columns=columns)
 
     data_frames = {'per-twitch': {'scalar': per_twitch_scalar,
@@ -351,15 +355,15 @@ def init_dfs(indices: List[int] = []):
 
     return data_frames
 
-def concat(dfs, axis=0, *args, **kwargs):   
+def concat(dfs, axis=0, *args, **kwargs):
     """
-    Wrapper for `pandas.concat'; concatenate pandas objects even if they have 
+    Wrapper for `pandas.concat'; concatenate pandas objects even if they have
     unequal number of levels on concatenation axis.
-    
+
     Levels containing empty strings are added from below (when concatenating along
-    columns) or right (when concateniting along rows) to match the maximum number 
+    columns) or right (when concateniting along rows) to match the maximum number
     found in the dataframes.
-    
+
     Parameters
     ----------
     dfs : Iterable
@@ -371,26 +375,26 @@ def concat(dfs, axis=0, *args, **kwargs):
     -------
     pd.DataFrame
         Concatenated Dataframe.
-    
+
     Notes
     -----
     Any arguments and kwarguments are passed onto the `pandas.concat` function.
-    
+
     See also
     --------
     pandas.concat
     """
     def index(df):
         return df.columns if axis==1 else df.index
-    
+
     def add_levels(df):
         need = want - index(df).nlevels
         if need > 0:
             df = pd.concat([df], keys=[('',)*need], axis=axis) # prepend empty levels
             for i in range(want-need): # move empty levels to bottom
-                df = df.swaplevel(i, i+need, axis=axis) 
+                df = df.swaplevel(i, i+need, axis=axis)
         return df
-    
-    want = np.max([index(df).nlevels for df in dfs])    
+
+    want = np.max([index(df).nlevels for df in dfs])
     dfs = [add_levels(df) for df in dfs]
     return pd.concat(dfs, axis=axis, *args, **kwargs)

@@ -277,8 +277,8 @@ def data_metrics(
         per_twitch_df = dfs['per-twitch'][metric_type]
         aggregate_df = dfs['aggregate'][metric_type]
 
-        per_twitch_df.sort_values(inplace=True)
-        aggregate_df.sort_values(inplace=True)
+        per_twitch_df.sort_index(inplace=True)
+        aggregate_df.sort_index(inplace=True)
 
         for metric_id in metrics:
             if metric_id in metrics_to_create:

@@ -1,6 +1,10 @@
 Changelog for Curi Bio Software Development Kit
 ===============================================
 
+0.22.1 (2022-02-09)
+-------------------
+- Convert time_points to pd.Series
+
 0.22.0 (2022-02-07)
 -------------------
 - Incorporate windowed waveform-analysis
@@ -9,7 +13,7 @@ Changelog for Curi Bio Software Development Kit
 -------------------
 - Parameterized `peak_detection.peak_detector` for minimum prominence and width scaling
 - Changed default scaling factors to make peak-finding more sensitive
-  
+
 0.20.2 (2022-01-12)
 -------------------
 - Fixed install issues

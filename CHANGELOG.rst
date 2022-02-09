@@ -1,6 +1,10 @@
 Changelog for Curi Bio Software Development Kit
 ===============================================
 
+0.22.3 (2022-02-09)
+-------------------
+- sort_index, not sort_value
+
 0.22.2 (2022-02-09)
 -------------------
 - sort_index

@@ -22,6 +22,7 @@ from xlsxwriter.utility import xl_cell_to_rowcol
 from .compression_cy import compress_filtered_magnetic_data
 from .constants import *
 from .magnet_finding import find_magnet_positions
+from .magnet_finding import fix_dropped_samples
 from .magnet_finding import format_well_file_data
 from .transforms import apply_empty_plate_calibration
 from .transforms import apply_noise_filtering
@@ -196,7 +197,7 @@ class WellFile:
     def get(self, key, default):
         try:
             return self[key]
-        except:
+        except Exception:
             return default
 
     def __contains__(self, key):
@@ -326,7 +327,8 @@ class PlateRecording:
 
         # load data
         plate_data_array = format_well_file_data(self.wells)
-        plate_data_array_mt = calculate_magnetic_flux_density_from_memsic(plate_data_array)
+        fixed_plate_data_array = fix_dropped_samples(plate_data_array)
+        plate_data_array_mt = calculate_magnetic_flux_density_from_memsic(fixed_plate_data_array)
         baseline_data = format_well_file_data(calibration_recordings)
         baseline_data_mt = calculate_magnetic_flux_density_from_memsic(baseline_data)
 
@@ -458,8 +460,8 @@ def _get_excel_metadata_value(sheet: Worksheet, metadata_uuid: uuid.UUID) -> Opt
         )
     row, col = xl_cell_to_rowcol(cell_name)
     result = _get_cell_value(sheet, row, col)
-    if result is None and metadata_uuid != INTERPOLATION_VALUE_UUID:
-        raise MetadataNotFoundError(f"Metadata entry not found for {metadata_description}")
+    # if result is None and metadata_uuid != INTERPOLATION_VALUE_UUID:
+    #     raise MetadataNotFoundError(f"Metadata entry not found for {metadata_description}")
     return result
 
 
@@ -473,14 +475,15 @@ def _load_optical_file_attrs(sheet: Worksheet):
         )
     sampling_period = int(round(1 / float(value), 6) * MICRO_TO_BASE_CONVERSION)
 
-    interpolation_value = _get_excel_metadata_value(sheet, INTERPOLATION_VALUE_UUID)
-    if interpolation_value is None:
-        interpolation_value = sampling_period
-    else:
-        interpolation_value = float(interpolation_value) * MICRO_TO_BASE_CONVERSION
+    interpolation_value_str = _get_excel_metadata_value(sheet, INTERPOLATION_VALUE_UUID)
+    interpolation_value = (
+        float(sampling_period)
+        if interpolation_value_str is None
+        else float(interpolation_value_str) * MICRO_TO_BASE_CONVERSION
+    )
 
     begin_recording = _get_excel_metadata_value(sheet, UTC_BEGINNING_RECORDING_UUID)
-    begin_recording = datetime.datetime.strptime(begin_recording, "%Y-%m-%d %H:%M:%S")
+    begin_recording = datetime.datetime.strptime(begin_recording, "%Y-%m-%d %H:%M:%S")  # type: ignore
 
     twenty_four_well = LabwareDefinition(row_count=4, column_count=6)
     well_name = _get_excel_metadata_value(sheet, WELL_NAME_UUID)

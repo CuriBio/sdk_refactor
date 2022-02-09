@@ -127,4 +127,4 @@
 #     peak_and_valley_indices = pipeline.get_peak_detection_results()
 #     twitch_indices = peak_detection.find_twitch_indices(peak_and_valley_indices)
 
-#     return [filtered_data, peak_and_valley_indices, twitch_indices]
+#     return filtered_data, peak_and_valley_indices, twitch_indices

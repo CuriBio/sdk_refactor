@@ -12,9 +12,6 @@ from nptyping import NDArray
 import numpy as np
 from scipy import signal
 
-from .plotting import compute_chart_width
-from .plotting import compute_plot_width
-from .plotting import compute_x_coordinate
 from .constants import *
 from .exceptions import TooFewPeaksDetectedError
 from .exceptions import TwoPeaksInARowError
@@ -25,13 +22,14 @@ TWITCH_WIDTH_PERCENTS = np.arange(10, 95, 5)
 TWITCH_WIDTH_INDEX_OF_CONTRACTION_VELOCITY_START = np.where(TWITCH_WIDTH_PERCENTS == 10)[0]
 TWITCH_WIDTH_INDEX_OF_CONTRACTION_VELOCITY_END = np.where(TWITCH_WIDTH_PERCENTS == 90)[0]
 
+
 def peak_detector(
     filtered_magnetic_signal: NDArray[(2, Any), int],
     twitches_point_up: bool = True,
-    start_time: float=0,
-    end_time: float=np.inf,
-    prominence_factors: List[Union[int,float]] = [6,6],
-    width_factors: List[Union[int,float]] = [7,7]
+    start_time: float = 0,
+    end_time: float = np.inf,
+    prominence_factors: Tuple[Union[int, float], Union[int, float]] = (6, 6),
+    width_factors: Tuple[Union[int, float], Union[int, float]] = (7, 7),
 ) -> Tuple[List[int], List[int]]:
     """Locates peaks and valleys and returns the indices.
 
@@ -40,18 +38,18 @@ def peak_detector(
         twitches_point_up: whether in the incoming data stream the biological twitches are pointing up (in the positive direction) or down
         start_time (float): start time of windowed analysis, in seconds. Default value = 0 seconds.
         end_time (float): end time of windowed analysis, in seconds.  Default value = Inf seconds.
-        prominence_factors: (list, 2) scaling factors for peak/valley prominences.  Larger values make peak-finding more flexible by reducing minimum-required prominence
-        width_factors: (list, 2) scaling factors for peak/valley widths.  Larger values make peak-finding more flexible by reducing minimum-required width
+        prominence_factors: (int/float, int/float) scaling factors for peak/valley prominences.  Larger values make peak-finding more flexible by reducing minimum-required prominence
+        width_factors: (int/float, int/float) scaling factors for peak/valley widths.  Larger values make peak-finding more flexible by reducing minimum-required width
 
     Returns:
         A tuple containing a list of the indices of the peaks and a list of the indices of valleys
     """
-    time_signal: NDArray[float] = filtered_magnetic_signal[0,:]
+    time_signal: NDArray[float] = filtered_magnetic_signal[0, :]
     magnetic_signal: NDArray[float] = filtered_magnetic_signal[1, :]
 
-    max_time=time_signal[-1]
+    max_time = time_signal[-1]
     start_time = np.max([0, start_time])
-    end_time = np.min([end_time, max_time/MICRO_TO_BASE_CONVERSION])
+    end_time = np.min([end_time, max_time / MICRO_TO_BASE_CONVERSION])
 
     # how should we handle this?
     # if provided end time is less than or equal to start time, reset
@@ -117,14 +115,12 @@ def peak_detector(
     if start_time > 0 or end_time < max_time:
         peak_times = time_signal[peak_indices] / MICRO_TO_BASE_CONVERSION
         # identify peaks within time window
-        filtered_peaks = np.where((peak_times>=start_time) & \
-                                (peak_times<=end_time))[0]
+        filtered_peaks = np.where((peak_times >= start_time) & (peak_times <= end_time))[0]
         peak_indices = peak_indices[filtered_peaks]
 
         valley_times = time_signal[valley_indices] / MICRO_TO_BASE_CONVERSION
         # identify valleys within time window
-        filtered_valleys = np.where((valley_times>=start_time) & \
-                                    (valley_times<=end_time))[0]
+        filtered_valleys = np.where((valley_times >= start_time) & (valley_times <= end_time))[0]
         valley_indices = valley_indices[filtered_valleys]
 
     return peak_indices, valley_indices
@@ -225,7 +221,7 @@ def data_metrics(
     filtered_data: NDArray[(2, Any), int],
     rounded: bool = False,
     metrics_to_create: Iterable[UUID] = ALL_METRICS,
-) -> Tuple[DataFrame]:
+) -> Tuple[DataFrame, DataFrame]:
     # pylint:disable=too-many-locals # Eli (9/8/20): there are a lot of metrics to calculate that need local variables
     """Find all data metrics for individual twitches and averages.
 
@@ -240,8 +236,6 @@ def data_metrics(
     """
     # get values needed for metrics creation
     twitch_indices = find_twitch_indices(peak_and_valley_indices)
-    num_twitches = len(twitch_indices)
-    time_series = filtered_data[0, :]
 
     metric_parameters = {
         "peak_and_valley_indices": peak_and_valley_indices,
@@ -251,11 +245,8 @@ def data_metrics(
 
     dfs = init_dfs(twitch_indices.keys())
 
-    # Krisian 10/26/21
-    # dictionary of metric functions
-    # this could probably be made cleaner at some point
-    metric_mapper: Dict[UUID, BaseMetric]
-    metric_mapper = {
+    # Kristian (10/26/21): dictionary of metric functions. this could probably be made cleaner at some point
+    metric_mapper: Dict[UUID, BaseMetric] = {
         AMPLITUDE_UUID: TwitchAmplitude(rounded=rounded),
         AUC_UUID: TwitchAUC(rounded=rounded),
         BASELINE_TO_PEAK_UUID: TwitchPeakToBaseline(rounded=rounded, is_contraction=True),
@@ -271,26 +262,28 @@ def data_metrics(
         WIDTH_UUID: TwitchWidth(rounded=rounded),
     }
 
-    # Kristian 12/27/21
-    # add scalar metrics to corresponding DataFrames
+    # Kristian (12/27/21): add scalar metrics to corresponding DataFrames
     for metric_type, metrics in CALCULATED_METRICS.items():
-        per_twitch_df = dfs['per-twitch'][metric_type]
-        aggregate_df = dfs['aggregate'][metric_type]
+        per_twitch_df = dfs["per_twitch"][metric_type]
+        aggregate_df = dfs["aggregate"][metric_type]
 
+        # sort first to improve performance
         per_twitch_df.sort_index(inplace=True)
         aggregate_df.sort_index(inplace=True)
 
         for metric_id in metrics:
             if metric_id in metrics_to_create:
+
                 metric = metric_mapper[metric_id]
                 estimate = metric.fit(**metric_parameters)
                 metric.add_per_twitch_metrics(per_twitch_df, metric_id, estimate)
                 metric.add_aggregate_metrics(aggregate_df, metric_id, estimate)
 
-    per_twitch_df = concat([dfs['per-twitch'][j] for j in dfs['per-twitch'].keys()], axis=1)
-    aggregate_df = concat([dfs['aggregate'][j] for j in dfs['aggregate'].keys()], axis=1)
+    per_twitch_df = concat([dfs["per_twitch"][j] for j in dfs["per_twitch"].keys()], axis=1)
+    aggregate_df = concat([dfs["aggregate"][j] for j in dfs["aggregate"].keys()], axis=1)
 
-    return [per_twitch_df, aggregate_df]
+    return per_twitch_df, aggregate_df
+
 
 def _find_start_indices(starts_with_peak: bool) -> Tuple[int, int]:
     """Find start indices for peaks and valleys.
@@ -311,53 +304,53 @@ def _find_start_indices(starts_with_peak: bool) -> Tuple[int, int]:
 
     return peak_idx, valley_idx
 
-def init_dfs(indices: List[int] = []):
 
-    """
-    Initialize empty dataframes for metrics computations.
+def init_dfs(indices: Iterable[int] = []):
+    """Initialize empty dataframes for metrics computations.
+
+    Note: scalar metrics are those representing a single value per twitch (e.g. AUC, AMPLITUDE, etc.)
+          by-width metrics are those such as twitch-width, time-to-percent contraction / relaxation
 
     Args:
         indices (List[int]): list of twitch indices
 
     Returns:
         data_frames (Dict): keys correspond to initialized per-twitch or aggregate dataframes, on a scalar, or by-width basis
-
-        Note: scalar metrics are those representing a single value per twitch (e.g. AUC, AMPLITUDE, etc.)
-              by-width metrics are those such as twitch-width, time-to-percent contraction / relaxation
     """
-
-    # create empty output DataFrames
     # per-twitch metrics data-frames
-    per_twitch_scalar = pd.DataFrame(index=indices,
-                                     columns=CALCULATED_METRICS['scalar'])
-    columns = pd.MultiIndex.from_product([CALCULATED_METRICS['by-width'],
-                                          np.arange(10,95,5)],
-                                         names=['metric', 'width'])
+    per_twitch_scalar = pd.DataFrame(index=indices, columns=CALCULATED_METRICS["scalar"])
+    columns = pd.MultiIndex.from_product(
+        [CALCULATED_METRICS["by_width"], np.arange(10, 95, 5)], names=["metric", "width"]
+    )
     per_twitch_by_width = pd.DataFrame(index=indices, columns=columns)
 
     # aggregate metrics data-frames
-    columns = pd.MultiIndex.from_product([CALCULATED_METRICS['scalar'],
-                                         ['n','Mean','StDev','CoV', 'SEM', 'Min','Max']],
-                                         names=['metric', 'statistic'])
+    columns = pd.MultiIndex.from_product(
+        [CALCULATED_METRICS["scalar"], ["n", "Mean", "StDev", "CoV", "SEM", "Min", "Max"]],
+        names=["metric", "statistic"],
+    )
     aggregate_scalar = pd.DataFrame(index=[0], columns=columns)
 
-    columns = pd.MultiIndex.from_product([CALCULATED_METRICS['by-width'],
-                                          np.arange(10,95,5),
-                                          ['n','Mean','StDev','CoV', 'SEM', 'Min','Max']],
-                                          names=['metric', 'width', 'statistic'])
-    aggregate_by_width = pd.DataFrame(index=[0],
-                                      columns=columns)
+    columns = pd.MultiIndex.from_product(
+        [
+            CALCULATED_METRICS["by_width"],
+            np.arange(10, 95, 5),
+            ["n", "Mean", "StDev", "CoV", "SEM", "Min", "Max"],
+        ],
+        names=["metric", "width", "statistic"],
+    )
+    aggregate_by_width = pd.DataFrame(index=[0], columns=columns)
 
-    data_frames = {'per-twitch': {'scalar': per_twitch_scalar,
-                                  'by-width': per_twitch_by_width},
-                   'aggregate':  {'scalar': aggregate_scalar,
-                                  'by-width': aggregate_by_width}}
+    data_frames = {
+        "per_twitch": {"scalar": per_twitch_scalar, "by_width": per_twitch_by_width},
+        "aggregate": {"scalar": aggregate_scalar, "by_width": aggregate_by_width},
+    }
 
     return data_frames
 
+
 def concat(dfs, axis=0, *args, **kwargs):
-    """
-    Wrapper for `pandas.concat'; concatenate pandas objects even if they have
+    """Wrap `pandas.concat` to concatenate pandas objects even if they have
     unequal number of levels on concatenation axis.
 
     Levels containing empty strings are added from below (when concatenating along
@@ -380,21 +373,23 @@ def concat(dfs, axis=0, *args, **kwargs):
     -----
     Any arguments and kwarguments are passed onto the `pandas.concat` function.
 
-    See also
+    See Also
     --------
     pandas.concat
     """
+
     def index(df):
-        return df.columns if axis==1 else df.index
+        return df.columns if axis == 1 else df.index
+
+    want = np.max([index(df).nlevels for df in dfs])
 
     def add_levels(df):
         need = want - index(df).nlevels
         if need > 0:
-            df = pd.concat([df], keys=[('',)*need], axis=axis) # prepend empty levels
-            for i in range(want-need): # move empty levels to bottom
-                df = df.swaplevel(i, i+need, axis=axis)
+            df = pd.concat([df], keys=[("",) * need], axis=axis)  # prepend empty levels
+            for i in range(want - need):  # move empty levels to bottom
+                df = df.swaplevel(i, i + need, axis=axis)
         return df
 
-    want = np.max([index(df).nlevels for df in dfs])
     dfs = [add_levels(df) for df in dfs]
     return pd.concat(dfs, axis=axis, *args, **kwargs)

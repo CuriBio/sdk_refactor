@@ -8,8 +8,8 @@ from labware_domain_models import LabwareDefinition
 
 try:
     from importlib import metadata
-except ImportError:
-    import importlib_metadata as metadata
+except ImportError:  # pragma: no cover
+    import importlib_metadata as metadata  # type: ignore
 PACKAGE_VERSION = metadata.version("pulse3D")
 
 CURI_BIO_ACCOUNT_UUID = uuid.UUID("73f52be0-368c-42d8-a1fd-660d49ba5604")
@@ -31,6 +31,7 @@ FILE_MIGRATION_PATHS = immutabledict(
 NOT_APPLICABLE_H5_METADATA = uuid.UUID(
     "59d92e00-99d5-4460-9a28-5a1a0fe9aecf"
 )  # Eli (1/19/21): H5 files can't store the concept of `None` in their metadata, so using this value to denote that a particular piece of metadata is not available (i.e. after migrating to a newer file format version)
+
 
 HARDWARE_TEST_RECORDING_UUID = uuid.UUID("a2e76058-08cd-475d-a55d-31d401c3cb34")
 UTC_BEGINNING_DATA_ACQUISTION_UUID = uuid.UUID("98c67f22-013b-421a-831b-0ea55df4651e")
@@ -73,6 +74,11 @@ TOTAL_WORKING_HOURS_UUID = uuid.UUID("f8108718-2fa0-40ce-a51a-8478e5edd4b8")
 TAMPER_FLAG_UUID = uuid.UUID("68d0147f-9a84-4423-9c50-228da16ba895")
 PCB_SERIAL_NUMBER_UUID = uuid.UUID("5103f995-19d2-4880-8a2e-2ce9080cd2f5")
 MAGNETOMETER_CONFIGURATION_UUID = uuid.UUID("921121e9-4191-4536-bedd-03186fa1e117")
+UTC_BEGINNING_STIMULATION_UUID = uuid.UUID("4b310594-ded4-45fd-a1b4-b829aceb416c")
+STIMULATION_PROTOCOL_UUID = uuid.UUID("ede638ce-544e-427a-b1d9-c40784d7c82d")
+IS_CALIBRATION_FILE_UUID = uuid.UUID("9a6f90eb-fe34-423b-bfed-fb441d6d9e5f")
+CHANNEL_FIRMWARE_VERSION_UUID = uuid.UUID("d9694cfe-824c-41f8-915e-91e41ce7af32")
+BOOT_FLAGS_UUID = uuid.UUID("762f6715-ffcd-4e8d-b707-638dd5777841")
 METADATA_UUID_DESCRIPTIONS = immutabledict(
     {
         # General values
@@ -99,8 +105,8 @@ METADATA_UUID_DESCRIPTIONS = immutabledict(
         REF_SAMPLING_PERIOD_UUID: "Reference Sensor Sampling Period (microseconds)",
         TISSUE_SAMPLING_PERIOD_UUID: "Tissue Sensor Sampling Period (microseconds)",
         ADC_GAIN_SETTING_UUID: "ADC Gain Setting",
-        ADC_TISSUE_OFFSET_UUID: "ADC Tissue Sensor Offset",  # may not be needed in Beta 2
-        ADC_REF_OFFSET_UUID: "ADC Reference Sensor Offset",  # may not be needed in Beta 2
+        ADC_TISSUE_OFFSET_UUID: "ADC Tissue Sensor Offset",
+        ADC_REF_OFFSET_UUID: "ADC Reference Sensor Offset",
         PLATE_BARCODE_UUID: "Plate Barcode",
         BACKEND_LOG_UUID: "Backend log file identifier",
         COMPUTER_NAME_HASH_UUID: "SHA512 digest of computer name",
@@ -119,6 +125,11 @@ METADATA_UUID_DESCRIPTIONS = immutabledict(
         TAMPER_FLAG_UUID: "Is it suspected the internals of the Mantarray enclosure have been tampered with",
         PCB_SERIAL_NUMBER_UUID: "The serial number of the Mantarray PCB",
         MAGNETOMETER_CONFIGURATION_UUID: "The state (on/off) of the board's magnetometers",
+        UTC_BEGINNING_STIMULATION_UUID: "UTC Timestamp of Beginning of Stimulation",
+        STIMULATION_PROTOCOL_UUID: "The stimulation protocol that was running on this well during recording. Empty string if stimulation was not active",
+        IS_CALIBRATION_FILE_UUID: "Is this file a calibration (empty plate) recording",
+        CHANNEL_FIRMWARE_VERSION_UUID: "Firmware Version (Channel Controller)",
+        BOOT_FLAGS_UUID: "Hardware/firmware flags present on device bootup",
     }
 )
 
@@ -128,6 +139,7 @@ MICRO_TO_BASE_CONVERSION = int(1e6)
 MICROSECONDS_PER_CENTIMILLISECOND = 10
 TISSUE_SENSOR_READINGS = "tissue_sensor_readings"
 REFERENCE_SENSOR_READINGS = "reference_sensor_readings"
+STIMULATION_READINGS = "stimulation_readings"
 TIME_INDICES = "time_indices"
 TIME_OFFSETS = "time_offsets"
 
@@ -252,10 +264,10 @@ TSP_TO_DEFAULT_FILTER_UUID = {  # Tissue Sampling Period (µs) to default Pipeli
 }
 
 DEFAULT_CELL_WIDTH = 64
-CHART_ALPHA=60 # for full/snapshots -- num pixels between left figure edge and plot area
-CHART_GAMMA=150 # for full/snapshots -- num pixels between right figure edge and plot area
-CHART_PIXELS_PER_SECOND=35 # for full/snapshots -- number of pixels per second
-CHART_MAXIMUM_SNAPSHOT_LENGTH=10
+CHART_ALPHA = 60  # for full/snapshots -- num pixels between left figure edge and plot area
+CHART_GAMMA = 150  # for full/snapshots -- num pixels between right figure edge and plot area
+CHART_PIXELS_PER_SECOND = 35  # for full/snapshots -- number of pixels per second
+CHART_MAXIMUM_SNAPSHOT_LENGTH = 10
 CHART_HEIGHT = 300
 CHART_HEIGHT_CELLS = 15
 CHART_FIXED_WIDTH_CELLS = 8
@@ -280,19 +292,23 @@ CALCULATED_METRIC_DISPLAY_NAMES = {
     PEAK_TO_BASELINE_UUID: "Time From Peak to Baseline (seconds)",
 }
 
-CALCULATED_METRICS = {'by-width': [WIDTH_UUID,
-                                   CONTRACTION_TIME_UUID,
-                                   RELAXATION_TIME_UUID],
-                        'scalar': [AMPLITUDE_UUID,
-                                    AUC_UUID,
-                                    BASELINE_TO_PEAK_UUID,
-                                    CONTRACTION_VELOCITY_UUID,
-                                    FRACTION_MAX_UUID,
-                                    IRREGULARITY_INTERVAL_UUID,
-                                    PEAK_TO_BASELINE_UUID,
-                                    RELAXATION_VELOCITY_UUID,
-                                    TWITCH_FREQUENCY_UUID,
-                                    TWITCH_PERIOD_UUID]}
+CALCULATED_METRICS = immutabledict(
+    {
+        "by_width": (WIDTH_UUID, CONTRACTION_TIME_UUID, RELAXATION_TIME_UUID),
+        "scalar": (
+            AMPLITUDE_UUID,
+            AUC_UUID,
+            BASELINE_TO_PEAK_UUID,
+            CONTRACTION_VELOCITY_UUID,
+            FRACTION_MAX_UUID,
+            IRREGULARITY_INTERVAL_UUID,
+            PEAK_TO_BASELINE_UUID,
+            RELAXATION_VELOCITY_UUID,
+            TWITCH_FREQUENCY_UUID,
+            TWITCH_PERIOD_UUID,
+        ),
+    }
+)
 
 COORDS = (10, 25, 50, 75, 90)
 TWITCH_WIDTH_METRIC_DISPLAY_NAMES: Dict[int, str] = immutabledict(

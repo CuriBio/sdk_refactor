@@ -40,7 +40,7 @@ def filter_magnet_positions(magnet_positions: NDArray[(Any, 24), float]) -> NDAr
 
 
 def format_well_file_data(well_files: List["WellFile"]) -> NDArray[(24, 3, 3, Any), float]:
-    # convert well data into the array format that the magnet finding alg uses
+    """Convert well data to input array format of magnet finding alg."""
     plate_data_array = None
     for well_idx, well_file in enumerate(well_files):
         tissue_data = well_file[TISSUE_SENSOR_READINGS][:]
@@ -50,3 +50,21 @@ def format_well_file_data(well_files: List["WellFile"]) -> NDArray[(24, 3, 3, An
         reshaped_data = tissue_data.reshape((3, 3, num_samples))
         plate_data_array[well_idx, :, :, :] = reshaped_data
     return plate_data_array
+
+
+def fix_dropped_samples(raw_signal: NDArray[Any, np.uint16]) -> NDArray[Any, np.uint16]:
+    # Tanner (2/7/22): may want to add additional conditions if this has issues
+    fixed_signal = raw_signal.copy()
+    dropped_sample_indices = [tuple(indices) for indices in np.argwhere(raw_signal == 0)]
+    for index_tuple in dropped_sample_indices:
+        innermost_arr = fixed_signal[index_tuple[:-1]]
+        sample_idx = index_tuple[-1]
+        if sample_idx == 0:
+            innermost_arr[sample_idx] = innermost_arr[sample_idx + 1]
+        elif sample_idx == len(innermost_arr) - 1:
+            innermost_arr[sample_idx] = innermost_arr[sample_idx - 1]
+        else:
+            innermost_arr[sample_idx] = np.mean(
+                [innermost_arr[sample_idx - 1], innermost_arr[sample_idx + 1]]
+            )
+    return fixed_signal

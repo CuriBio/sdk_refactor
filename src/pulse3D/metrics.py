@@ -6,10 +6,10 @@ If a new metric is requested, you must implement `fit`,
 """
 
 # for hashing dataframes
-from functools import partial, lru_cache
+import abc
+from functools import lru_cache
+from functools import partial
 from hashlib import sha256
-from pandas.util import hash_pandas_object
-
 from typing import Any
 from typing import Dict
 from typing import List
@@ -20,17 +20,15 @@ from uuid import UUID
 
 from nptyping import Float64
 from nptyping import NDArray
-import pandas as pd
-from pandas import DataFrame, Series
 import numpy as np
+import pandas as pd
+from pandas import DataFrame
+from pandas import Series
+from pandas.util import hash_pandas_object
 
 from .constants import MICRO_TO_BASE_CONVERSION
 from .constants import PRIOR_VALLEY_INDEX_UUID
 from .constants import SUBSEQUENT_VALLEY_INDEX_UUID
-from .constants import TIME_VALUE_UUID
-from .constants import WIDTH_FALLING_COORDS_UUID
-from .constants import WIDTH_RISING_COORDS_UUID
-from .constants import WIDTH_VALUE_UUID
 
 TWITCH_WIDTH_PERCENTS = np.arange(10, 95, 5)
 TWITCH_WIDTH_INDEX_OF_CONTRACTION_VELOCITY_START = np.where(TWITCH_WIDTH_PERCENTS == 10)[0]
@@ -48,12 +46,10 @@ class BaseMetric:
     nested (twitch widths, time-to/from peak, etc.)
     """
 
-    def __init__(  # pylint:disable=unused-argument # Kristian (11/1/21) need kwargs for sub-class parameters
-        self, rounded: bool = False, **kwargs: Dict[str, Any]
-    ):
-
+    def __init__(self, rounded: bool = False, **kwargs: Dict[str, Any]):
         self.rounded = rounded
 
+    @abc.abstractmethod
     def fit(
         self,
         peak_and_valley_indices: Tuple[NDArray[int], NDArray[int]],
@@ -61,14 +57,11 @@ class BaseMetric:
         twitch_indices: NDArray[int],
         **kwargs: Dict[str, Any],
     ) -> Union[NDArray[Float64], List[Dict[int, Dict[UUID, Any]]], DataFrame]:
-
         pass
 
     @staticmethod
     def add_per_twitch_metrics(
-        main_df: DataFrame,
-        metric_id: UUID,
-        metrics: Union[NDArray[int], NDArray[float]]
+        main_df: DataFrame, metric_id: UUID, metrics: Union[NDArray[int], NDArray[float]]
     ) -> None:
         """Add estimated per-twitch metrics to per-twitch DataFrame.
 
@@ -77,7 +70,6 @@ class BaseMetric:
             metric_id (UUID): UUID of metric to add
             metrics (Union[NDArray[int], NDArray[float]]): estimated per-twitch metrics
         """
-
         main_df[metric_id] = metrics
 
     def add_aggregate_metrics(
@@ -97,9 +89,7 @@ class BaseMetric:
         aggregate_df[metric_id] = aggregate_metrics
 
     @classmethod
-    def create_statistics_df(
-        cls, metric: NDArray[int], rounded: bool = False
-    ) -> DataFrame:
+    def create_statistics_df(cls, metric: NDArray[int], rounded: bool = False) -> DataFrame:
         """Calculate various statistics for a specific metric.
 
         Args:
@@ -109,8 +99,9 @@ class BaseMetric:
         d: of the average statistics of that metric in which the metrics are the key and
         average statistics are the value
         """
-        statistics = pd.DataFrame(data=np.asarray([None]*7)[None,:],
-                                  columns=['n','Mean','StDev','CoV', 'SEM', 'Min','Max'])
+        statistics = pd.DataFrame(
+            data=np.asarray([None] * 7)[None, :], columns=["n", "Mean", "StDev", "CoV", "SEM", "Min", "Max"]
+        )
         statistics["n"] = len(metric)
 
         if len(metric) > 0:
@@ -170,7 +161,6 @@ class TwitchAmplitude(BaseMetric):
         Returns:
             Pandas Series of float values representing the amplitude of each twitch
         """
-        num_twitches = len(twitch_indices)
         amplitudes = Series(index=twitch_indices.keys(), dtype=np.float64)
 
         data_series = filtered_data[1, :]
@@ -221,8 +211,8 @@ class TwitchFractionAmplitude(BaseMetric):
 
 
 class TwitchWidthCoordinates(BaseMetric):
-
     """Calculate contraction (or relaxation) percent-width coordinates."""
+
     def __init__(
         self,
         rounded: bool = False,
@@ -246,11 +236,12 @@ class TwitchWidthCoordinates(BaseMetric):
         twitch_indices_hashable = HashableDataFrame(DataFrame.from_dict(twitch_indices).T)
         filtered_data_hashable = tuple(tuple(i) for i in filtered_data)
 
-        _,coordinates = TwitchWidth.calculate_twitch_widths(
+        _, coordinates = TwitchWidth.calculate_twitch_widths(
             twitch_indices=twitch_indices_hashable,
             filtered_data=filtered_data_hashable,
             rounded=self.rounded,
-            twitch_width_percents=tuple(self.twitch_width_percents))
+            twitch_width_percents=tuple(self.twitch_width_percents),
+        )
 
         return coordinates
 
@@ -282,11 +273,12 @@ class TwitchWidth(BaseMetric):
         twitch_indices_hashable = HashableDataFrame(DataFrame.from_dict(twitch_indices).T)
         filtered_data_hashable = tuple(tuple(i) for i in filtered_data)
 
-        widths,_ = self.calculate_twitch_widths(
+        widths, _ = self.calculate_twitch_widths(
             twitch_indices=twitch_indices_hashable,
             filtered_data=filtered_data_hashable,
             rounded=self.rounded,
-            twitch_width_percents=tuple(self.twitch_width_percents))
+            twitch_width_percents=tuple(self.twitch_width_percents),
+        )
 
         return widths
 
@@ -308,29 +300,29 @@ class TwitchWidth(BaseMetric):
         twitch_indices: DataFrame,
         filtered_data: Tuple[Tuple[float], Tuple[float]],
         rounded: bool = True,
-        twitch_width_percents: Tuple[int] = tuple(np.arange(10, 95, 5)),
-    ) -> List[DataFrame]:
-        """Determine twitch width between 10-90% down to the nearby valleys.  This is a time-consuming step, so we use a hashable DataFrame for the twitch indices, and a tuple of tuples for the filtered data
+        twitch_width_percents: Tuple[int, ...] = tuple(range(10, 95, 5)),
+    ) -> Tuple[DataFrame, DataFrame]:
+        """Determine twitch width between 10-90% down to the nearby valleys.
+
+        This is a time-consuming step, so we use a hashable DataFrame for the
+        twitch indices, and a tuple of tuples for the filtered data.
 
         Args:
             twitch_indices: a HashableDataFrame in which index is an integer representing the time points
-            of all the peaks of interest and columns are UUIDs of prior/subsequent peaks and valleys and their index values.
-
+                of all the peaks of interest and columns are UUIDs of prior/subsequent peaks and valleys and their index values.
             filtered_data: Tuple[Tuple] of time and value (magnetic, voltage, displacement, force...)
-            data after it has gone through noise filtering
+                data after it has gone through noise filtering
 
         Returns:
             width_df: DataFrame, where each index is an integer representing the time points, and each column is a      percent-twitch width of all the peaks of interest
             coordinate_df: MultiIndex DataFrame, where each index is an integer representing the time points, and each  column level corresponds to the time (X) / force(Y), contration (rising) / relaxation (falling), and percent-twitch width coordinates
         """
-        width_df = pd.DataFrame(index=list(twitch_indices.index),
-                                columns=list(np.arange(10,95,5)))
+        width_df = pd.DataFrame(index=list(twitch_indices.index), columns=list(np.arange(10, 95, 5)))
 
-        columns = pd.MultiIndex.from_product([['force', 'time'],
-                                            ['contraction', 'relaxation'],
-                                            list(np.arange(10,95,5))])
-        coordinate_df = pd.DataFrame(index=list(twitch_indices.index),
-                                     columns=columns)
+        columns = pd.MultiIndex.from_product(
+            [["force", "time"], ["contraction", "relaxation"], list(np.arange(10, 95, 5))]
+        )
+        coordinate_df = pd.DataFrame(index=list(twitch_indices.index), columns=columns)
 
         time_series = filtered_data[0]
         value_series = filtered_data[1]
@@ -388,19 +380,22 @@ class TwitchWidth(BaseMetric):
                     rising_threshold = int(round(rising_threshold, 0))
                     falling_threshold = int(round(falling_threshold, 0))
 
-                coordinate_df.loc[iter_twitch_peak_idx]['force', 'contraction', iter_percent] = \
-                    rising_threshold
-                coordinate_df.loc[iter_twitch_peak_idx]['force', 'relaxation', iter_percent] = \
-                    falling_threshold
-                coordinate_df.loc[iter_twitch_peak_idx]['time', 'contraction', iter_percent] = \
-                    interpolated_rising_timepoint
-                coordinate_df.loc[iter_twitch_peak_idx]['time', 'relaxation', iter_percent] = \
-                    interpolated_falling_timepoint
+                coordinate_df.loc[iter_twitch_peak_idx][
+                    "force", "contraction", iter_percent
+                ] = rising_threshold
+                coordinate_df.loc[iter_twitch_peak_idx][
+                    "force", "relaxation", iter_percent
+                ] = falling_threshold
+                coordinate_df.loc[iter_twitch_peak_idx][
+                    "time", "contraction", iter_percent
+                ] = interpolated_rising_timepoint
+                coordinate_df.loc[iter_twitch_peak_idx][
+                    "time", "relaxation", iter_percent
+                ] = interpolated_falling_timepoint
 
-                width_df.loc[iter_twitch_peak_idx, iter_percent] = \
-                    width_val / MICRO_TO_BASE_CONVERSION
+                width_df.loc[iter_twitch_peak_idx, iter_percent] = width_val / MICRO_TO_BASE_CONVERSION
 
-        return [width_df, coordinate_df]
+        return width_df, coordinate_df
 
 
 class TwitchVelocity(BaseMetric):
@@ -436,16 +431,15 @@ class TwitchVelocity(BaseMetric):
         twitch_indices_hashable = HashableDataFrame(DataFrame.from_dict(twitch_indices).T)
         filtered_data_hashable = tuple(tuple(i) for i in filtered_data)
 
-        _,coordinates = TwitchWidth.calculate_twitch_widths(
+        _, coordinates = TwitchWidth.calculate_twitch_widths(
             twitch_indices=twitch_indices_hashable,
             filtered_data=filtered_data_hashable,
             rounded=self.rounded,
-            twitch_width_percents=tuple(self.twitch_width_percents))
+            twitch_width_percents=tuple(self.twitch_width_percents),
+        )
 
         velocities = self.calculate_twitch_velocity(
-            twitch_indices=twitch_indices,
-            coordinate_df=coordinates,
-            is_contraction=self.is_contraction
+            twitch_indices=twitch_indices, coordinate_df=coordinates, is_contraction=self.is_contraction
         )
 
         return velocities
@@ -475,26 +469,20 @@ class TwitchVelocity(BaseMetric):
         Returns:
             DataFrame floats that are the velocities of each twitch
         """
-        list_of_twitch_indices = list(twitch_indices.keys())
-        num_twitches = len(list_of_twitch_indices)
-
-        if is_contraction:
-            coord_type='contraction'
-        else:
-            coord_type='relaxation'
+        coord_type = "contraction" if is_contraction else "relaxation"
 
         twitch_base = self.twitch_width_percents[self.velocity_index_end]
         twitch_top = self.twitch_width_percents[self.velocity_index_start]
 
-        Y_end=coordinate_df['force', coord_type, twitch_top]
-        Y_start=coordinate_df['force', coord_type, twitch_base]
+        Y_end = coordinate_df["force", coord_type, twitch_top]
+        Y_start = coordinate_df["force", coord_type, twitch_base]
 
-        X_end=coordinate_df['time', coord_type, twitch_top]
-        X_start=coordinate_df['time', coord_type, twitch_base]
+        X_end = coordinate_df["time", coord_type, twitch_top]
+        X_start = coordinate_df["time", coord_type, twitch_base]
 
         # change in force / change in time
         velocity = abs((Y_end - Y_start) / (X_end - X_start))
-        velocity *= (MICRO_TO_BASE_CONVERSION**2)
+        velocity *= MICRO_TO_BASE_CONVERSION ** 2
 
         return velocity
 
@@ -568,9 +556,7 @@ class TwitchIrregularity(BaseMetric):
             iter_list_of_intervals.append(interval)
 
         iter_list_of_intervals.append(None)
-        irregularity = Series(iter_list_of_intervals,
-                              index=twitch_indices.keys(),
-                              dtype=np.float64)
+        irregularity = Series(iter_list_of_intervals, index=twitch_indices.keys(), dtype=np.float64)
 
         return irregularity
 
@@ -599,17 +585,16 @@ class TwitchAUC(BaseMetric):
         twitch_indices_hashable = HashableDataFrame(DataFrame.from_dict(twitch_indices).T)
         filtered_data_hashable = tuple(tuple(i) for i in filtered_data)
 
-        _,coordinates = TwitchWidth.calculate_twitch_widths(
+        _, coordinates = TwitchWidth.calculate_twitch_widths(
             twitch_indices=twitch_indices_hashable,
             filtered_data=filtered_data_hashable,
             rounded=self.rounded,
-            twitch_width_percents=tuple(self.twitch_width_percents))
+            twitch_width_percents=tuple(self.twitch_width_percents),
+        )
 
         auc = self.calculate_area_under_curve(
-            twitch_indices=twitch_indices,
-            filtered_data=filtered_data,
-            coordinate_df=coordinates)
-
+            twitch_indices=twitch_indices, filtered_data=filtered_data, coordinate_df=coordinates
+        )
         return auc
 
     def calculate_area_under_curve(  # pylint:disable=too-many-locals # Eli (9/1/20): may be able to refactor before pull request
@@ -648,12 +633,12 @@ class TwitchAUC(BaseMetric):
             prior_valley_value = value_series[iter_twitch_indices_info[PRIOR_VALLEY_INDEX_UUID]]
             subsequent_valley_value = value_series[iter_twitch_indices_info[SUBSEQUENT_VALLEY_INDEX_UUID]]
 
-            rising_x = coordinate_df.loc[iter_twitch_peak_idx]['time', 'contraction', width_percent]
-            rising_y = coordinate_df.loc[iter_twitch_peak_idx]['force', 'contraction', width_percent]
+            rising_x = coordinate_df.loc[iter_twitch_peak_idx]["time", "contraction", width_percent]
+            rising_y = coordinate_df.loc[iter_twitch_peak_idx]["force", "contraction", width_percent]
             rising_coords = (rising_x, rising_y)
 
-            falling_x = coordinate_df.loc[iter_twitch_peak_idx]['time', 'relaxation', width_percent]
-            falling_y = coordinate_df.loc[iter_twitch_peak_idx]['force', 'relaxation', width_percent]
+            falling_x = coordinate_df.loc[iter_twitch_peak_idx]["time", "relaxation", width_percent]
+            falling_y = coordinate_df.loc[iter_twitch_peak_idx]["force", "relaxation", width_percent]
             falling_coords = (falling_x, falling_y)
 
             auc_total: Union[float, int] = 0
@@ -795,12 +780,10 @@ class TwitchPeriod(BaseMetric):
         """Find the distance between each twitch at its peak.
 
         Args:
-            twitch_indices:a dictionary in which the key is an integer representing the time points
+            twitch_indices: a dictionary in which the key is an integer representing the time points
                 of all the peaks of interest and the value is an inner dictionary with various UUID
                 of prior/subsequent peaks and valleys and their index values.
-
-            all_peak_indices: a 1D array of the indices in teh data array that all peaks are at
-
+            all_peak_indices: a 1D array of the indices in the data array that all peaks are at
             filtered_data: a 2D array (time vs value) of the data
 
         Returns:
@@ -811,16 +794,12 @@ class TwitchPeriod(BaseMetric):
         period: List[int] = []
         time_series = filtered_data[0, :]
         for iter_twitch_idx in range(len(list_of_twitch_indices)):
-
             period.append(
                 time_series[peak_indices[iter_twitch_idx + idx_of_first_twitch + 1]]
                 - time_series[peak_indices[iter_twitch_idx + idx_of_first_twitch]]
             )
 
-        period = Series(period,
-                        index=twitch_indices.keys(),
-                        dtype=np.float64)
-
+        period = Series(period, index=twitch_indices.keys(), dtype=np.float64)
         return period
 
 
@@ -843,9 +822,7 @@ class TwitchFrequency(BaseMetric):
             filtered_data=filtered_data,
             twitch_indices=twitch_indices,
         )
-
         frequencies = 1 / periods.astype(float)
-
         return frequencies
 
 
@@ -877,11 +854,12 @@ class TwitchPeakTime(BaseMetric):
         twitch_indices_hashable = HashableDataFrame(DataFrame.from_dict(twitch_indices).T)
         filtered_data_hashable = tuple(tuple(i) for i in filtered_data)
 
-        _,coordinates = TwitchWidth.calculate_twitch_widths(
+        _, coordinates = TwitchWidth.calculate_twitch_widths(
             twitch_indices=twitch_indices_hashable,
             filtered_data=filtered_data_hashable,
             rounded=self.rounded,
-            twitch_width_percents=tuple(self.twitch_width_percents))
+            twitch_width_percents=tuple(self.twitch_width_percents),
+        )
 
         time_difference = self.calculate_twitch_time_diff(
             twitch_indices=twitch_indices,
@@ -900,8 +878,7 @@ class TwitchPeakTime(BaseMetric):
     ) -> None:
         for iter_percent in self.twitch_width_percents:
             estimates = metrics[iter_percent]
-            aggregate_estimates = self.create_statistics_df(
-                estimates, rounded=self.rounded)
+            aggregate_estimates = self.create_statistics_df(estimates, rounded=self.rounded)
             aggregate_df[metric_id, iter_percent] = aggregate_estimates
 
     def calculate_twitch_time_diff(
@@ -935,23 +912,19 @@ class TwitchPeakTime(BaseMetric):
             contraction time.  The final value is float indicating time from relaxation/contraction to peak
         """
         # dictionary of time differences for each peak
-        if is_contraction:
-            coords = coordinate_df.loc[:,('time','contraction',slice(None))]
-        else:
-            coords = coordinate_df.loc[:,('time','relaxation',slice(None))]
+        coord_label = "contraction" if is_contraction else "relaxation"
+        coords = coordinate_df.loc[:, ("time", coord_label, slice(None))]
+        coords = coords.droplevel([0, 1], axis=1)
 
-        coords = coords.droplevel([0,1],axis=1)
+        time_differences = pd.DataFrame(index=twitch_indices.keys(), columns=self.twitch_width_percents)
 
-        time_differences = pd.DataFrame(index=twitch_indices.keys(),
-                                        columns=self.twitch_width_percents)
-
-        peak_times = Series(data=filtered_data[0, list(twitch_indices.keys())],
-                            index=twitch_indices.keys(),
-                            dtype=np.float64)
+        peak_times = Series(
+            data=filtered_data[0, list(twitch_indices.keys())], index=twitch_indices.keys(), dtype=np.float64
+        )
 
         for iter_percent in self.twitch_width_percents:
             if is_contraction:
-                percent = (100-iter_percent)
+                percent = 100 - iter_percent
             else:
                 percent = iter_percent
 
@@ -973,11 +946,9 @@ class TwitchPeakToBaseline(BaseMetric):
         self,
         rounded: bool = False,
         is_contraction: bool = True,
-        # twitch_width_percents: List[int] = None,
         **kwargs: Dict[str, Any],
     ):
         super().__init__(rounded=rounded, **kwargs)
-
         self.is_contraction = is_contraction
 
     def fit(
@@ -987,10 +958,7 @@ class TwitchPeakToBaseline(BaseMetric):
         twitch_indices: NDArray[int],
         **kwargs: Dict[str, Any],
     ) -> Series:
-
-        num_twitches = len(twitch_indices)
-        full_differences = Series(index=twitch_indices.keys(),
-                                  dtype=np.float64)
+        full_differences = Series(index=twitch_indices.keys(), dtype=np.float64)
 
         time_series = filtered_data[0, :]
 
@@ -1047,6 +1015,7 @@ def interpolate_y_for_x_between_two_points(  # pylint:disable=invalid-name # (El
 
     slope = (y_2 - y_1) / (x_2 - x_1)
     return slope * (desired_x - x_1) + y_1
+
 
 class HashableDataFrame(DataFrame):
     def __init__(self, obj):

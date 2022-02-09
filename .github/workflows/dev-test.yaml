@@ -5,11 +5,11 @@ on:
   workflow_dispatch:
     inputs:
       randomlyseed:
-        description: 'Pytest Randomly Seed'
+        description: "Pytest Randomly Seed"
         required: false
-        default: ''
+        default: ""
   schedule:
-    - cron: '0 5 * * *'
+    - cron: "0 5 * * *"
   push:
     branches:
       - main
@@ -28,9 +28,9 @@ jobs:
           - "macos-10.15"
           - "macos-11.0"
         python-version:
-            - 3.7
-            - 3.8
-            - 3.9
+          - 3.7
+          - 3.8
+          - 3.9
         include:
           # only enable coverage on the fastest job
           - os: "ubuntu-20.04"

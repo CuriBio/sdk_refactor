@@ -40,13 +40,12 @@ setup(
     install_requires=[
         "h5py>=3.2.1",
         "nptyping>=1.4.1",
-        "numpy==1.20.2",  # Tanner (12/3/21): pinned for numba compatibility
+        "numpy==1.21.5",  # Tanner (12/3/21): pinned for numba compatibility
         "scipy==1.6.2",
-        "numba>=0.54.1",
+        "numba==0.55.1",
         "immutabledict>=1.2.0",
         "XlsxWriter>=1.3.8",
         "openpyxl>=3.0.7",
-        "matplotlib>=3.4.1",
         "stdlib_utils>=0.4.4",
         "labware-domain-models>=0.3.1",
         "requests>=2.25.1",

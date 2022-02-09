@@ -19,8 +19,8 @@ import pytest
 
 # __fixtures__ = [fixture_new_A1]
 
-PROMINENCE_FACTORS=[4,4]
-WIDTH_FACTORS=[2,2]
+PROMINENCE_FACTORS = [4, 4]
+WIDTH_FACTORS = [2, 2]
 
 
 def get_test_data_array(flipped=False):
@@ -33,8 +33,15 @@ def test_peak_detection__analyzes_data_correctly_when_twitches_point_down():
     test_arr = get_test_data_array()
     flipped_arr = get_test_data_array(flipped=True)
 
-    non_flipped_peaks, non_flipped_valleys = peak_detector(test_arr, twitches_point_up=True, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS)
-    flipped_peaks, flipped_valleys = peak_detector(flipped_arr, twitches_point_up=False, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS)
+    non_flipped_peaks, non_flipped_valleys = peak_detector(
+        test_arr, twitches_point_up=True, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS
+    )
+    flipped_peaks, flipped_valleys = peak_detector(
+        flipped_arr,
+        twitches_point_up=False,
+        prominence_factors=PROMINENCE_FACTORS,
+        width_factors=WIDTH_FACTORS,
+    )
 
     num_peaks = len(non_flipped_peaks)
     for idx in range(num_peaks):

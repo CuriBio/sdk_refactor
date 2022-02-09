@@ -40,8 +40,7 @@ def filter_magnet_positions(magnet_positions: NDArray[(Any, 24), float]) -> NDAr
 
 
 def format_well_file_data(well_files: List["WellFile"]) -> NDArray[(24, 3, 3, Any), float]:
-    """Convert well data into the array format that the magnet finding alg
-    uses."""
+    """Convert well data to input array format of magnet finding alg."""
     plate_data_array = None
     for well_idx, well_file in enumerate(well_files):
         tissue_data = well_file[TISSUE_SENSOR_READINGS][:]

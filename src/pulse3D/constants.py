@@ -9,7 +9,7 @@ from labware_domain_models import LabwareDefinition
 try:
     from importlib import metadata
 except ImportError:
-    import importlib_metadata as metadata
+    import importlib_metadata as metadata  # type: ignore
 PACKAGE_VERSION = metadata.version("pulse3D")
 
 CURI_BIO_ACCOUNT_UUID = uuid.UUID("73f52be0-368c-42d8-a1fd-660d49ba5604")
@@ -264,10 +264,10 @@ TSP_TO_DEFAULT_FILTER_UUID = {  # Tissue Sampling Period (µs) to default Pipeli
 }
 
 DEFAULT_CELL_WIDTH = 64
-CHART_ALPHA=60 # for full/snapshots -- num pixels between left figure edge and plot area
-CHART_GAMMA=150 # for full/snapshots -- num pixels between right figure edge and plot area
-CHART_PIXELS_PER_SECOND=35 # for full/snapshots -- number of pixels per second
-CHART_MAXIMUM_SNAPSHOT_LENGTH=10
+CHART_ALPHA = 60  # for full/snapshots -- num pixels between left figure edge and plot area
+CHART_GAMMA = 150  # for full/snapshots -- num pixels between right figure edge and plot area
+CHART_PIXELS_PER_SECOND = 35  # for full/snapshots -- number of pixels per second
+CHART_MAXIMUM_SNAPSHOT_LENGTH = 10
 CHART_HEIGHT = 300
 CHART_HEIGHT_CELLS = 15
 CHART_FIXED_WIDTH_CELLS = 8

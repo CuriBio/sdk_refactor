@@ -77,7 +77,7 @@ def test_PlateRecording__creates_mean_of_baseline_data_correctly(mocker):
         side_effect=lambda x, y: {"X": np.zeros((x.shape[-1], 24))},
     )
 
-    pr = PlateRecording(
+    PlateRecording(
         os.path.join(
             PATH_OF_CURRENT_FILE,
             "magnet_finding",

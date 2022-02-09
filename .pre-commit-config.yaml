@@ -48,11 +48,11 @@ repos:
     hooks:
       - id: python-safety-dependencies-check
 
-  # -   repo: https://github.com/PyCQA/bandit
-  #     rev: 1.7.0
-  #     hooks:
-  #     -   id: bandit
-  #         exclude: tests*
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.0
+    hooks:
+      - id: bandit
+        exclude: (tests*)|(prerelease\.py)
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v3.4.0 # Use the ref you want to point at
@@ -89,11 +89,11 @@ repos:
   #     -   id: end-of-file-fixer
 
   # Linting
-  # -   repo: https://github.com/pre-commit/mirrors-mypy
-  #     rev: v0.812  # pick a git hash / tag to point to
-  #     hooks:
-  #     -   id: mypy
-  #         exclude: prerelease.py
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v0.812 # pick a git hash / tag to point to
+    hooks:
+      - id: mypy
+        exclude: prerelease.py
 
   - repo: https://github.com/Lucas-C/pre-commit-hooks-markup
     rev: v1.0.1
@@ -107,51 +107,30 @@ repos:
       - id: python-check-blanket-noqa
         exclude: "curibio/__init__.py"
       - id: python-check-mock-methods
-# -   repo: https://gitlab.com/pycqa/flake8
-#     rev: 3.9.0  # pick a git hash / tag to point to
-#     hooks:
-#     -   id: flake8
-#         exclude: prerelease.py
 
-# -   repo: https://github.com/PyCQA/pydocstyle
-#     # black seems to be working on formatting docstrings, but use this for now
-#     rev: 6.0.0  # pick a git hash / tag to point to
-#     hooks:
-#     -   id: pydocstyle
-#         args:
-#             # ignore warnings about missing docstrings. pylint takes care of that
-#             # ignore D203 because it's a bug https://github.com/PyCQA/pydocstyle/issues/141
-#             # ignore D407,D408,D409 because they appear to be in conflict with Google style (they relate to underlining?) https://rsmith.home.xs4all.nl/programming/improving-my-python-coding.html
-#             # ignore D406 because it appears to be in conflict with Gogle style (complains about 'Raises:')
-#             # ignore D413 about final blank line because docformatter gets rid of it
-#             # ignore D213 because mutually exclusive with D212 https://stackoverflow.com/questions/45990301/pep257-d212-and-d213-conflicts
-#         - --ignore=D100,D101,D102,D103,D104,D105,D106,D107,D203,D407,D408,D409,D406,D413,D213
-#         exclude: prerelease.py
+  - repo: https://gitlab.com/pycqa/flake8
+    rev: 3.9.0 # pick a git hash / tag to point to
+    hooks:
+      - id: flake8
+        exclude: prerelease.py
 
-# -   repo: https://github.com/NanoSurface-Biomedical/pre-commit-pylint
-#     rev: "5a76725fa664ca733db485598da5c8460cf3347f" # pick a git hash / tag to point to
-#     hooks:
-#     -   id: pylint-pass-with-displayed-warnings
-#         name: pylint-src
-#         args:
-#         - --codes-to-allow=W0511
-#         - src
-#         - --rcfile=src/pylintrc
-#         - --ignore-patterns=.*~.*
-#         - --jobs 0
-#         files: ('src/.*\.py$')|(prerelease.py)
-#         exclude: '.*\~.*'
-#         verbose: true
-#     -   id: pylint-pass-with-displayed-warnings
-#         name: pylint-tests
-#         args:
-#         - --codes-to-allow=W0511
-#         - tests
-#         - --rcfile=tests/pylintrc
-#         - --ignore-patterns=.*~.*
-#         - --jobs 0
-#         files: 'tests/.*\.py$'
-#         exclude: ('.*\~.*')|(prerelease.py)
-#         verbose: true
-#     -   id: python-check-no-print-statments
-#         exclude: prerelease.py
+  - repo: https://github.com/PyCQA/pydocstyle
+    # black seems to be working on formatting docstrings, but use this for now
+    rev: 6.0.0 # pick a git hash / tag to point to
+    hooks:
+      - id: pydocstyle
+        args:
+          # ignore warnings about missing docstrings. pylint takes care of that
+          # ignore D203 because it's a bug https://github.com/PyCQA/pydocstyle/issues/141
+          # ignore D407,D408,D409 because they appear to be in conflict with Google style (they relate to underlining?) https://rsmith.home.xs4all.nl/programming/improving-my-python-coding.html
+          # ignore D406 because it appears to be in conflict with Gogle style (complains about 'Raises:')
+          # ignore D413 about final blank line because docformatter gets rid of it
+          # ignore D213 because mutually exclusive with D212 https://stackoverflow.com/questions/45990301/pep257-d212-and-d213-conflicts
+          - --ignore=D100,D101,D102,D103,D104,D105,D106,D107,D203,D407,D408,D409,D406,D413,D213,D400,D415,D205
+        exclude: prerelease.py
+
+  - repo: https://github.com/NanoSurface-Biomedical/pre-commit-pylint
+    rev: "5a76725fa664ca733db485598da5c8460cf3347f" # pick a git hash / tag to point to
+    hooks:
+      - id: python-check-no-print-statments
+        exclude: prerelease.py

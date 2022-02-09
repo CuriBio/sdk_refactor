@@ -13,35 +13,32 @@ python3 -c "import os; from curibio.sdk import PlateRecording; PlateRecording([o
 
 """
 
-import json
-import math
 import os
 import uuid
 
-from pandas import DataFrame, MultiIndex, Series
-import pyarrow.parquet as pq
 import numpy as np
-from pulse3D.constants import *
 from pulse3D.constants import ALL_METRICS
-from pulse3D.constants import MICRO_TO_BASE_CONVERSION
 import pulse3D.metrics as metrics
 from pulse3D.peak_detection import data_metrics
 from pulse3D.peak_detection import find_twitch_indices
 from pulse3D.peak_detection import peak_detector
 from pulse3D.plate_recording import WellFile
+import pyarrow.parquet as pq
 import pytest
 from stdlib_utils import get_current_file_abs_directory
 
-from .fixtures import fixture_generic_deserialized_per_twitch_metrics_output_0_3_1
+
+PATH_OF_CURRENT_FILE = get_current_file_abs_directory()
 
 # prominence and width scaling factors for peak detection
-PROMINENCE_FACTORS=[4,4]
-WIDTH_FACTORS=[2,2]
+PROMINENCE_FACTORS = (4, 4)
+WIDTH_FACTORS = (2, 2)
+
 
 def get_force_metrics_from_well_file(w: WellFile, metrics_to_create=ALL_METRICS):
-    peak_and_valley_indices = peak_detector(w.force, 
-                                            prominence_factors=PROMINENCE_FACTORS, 
-                                            width_factors=WIDTH_FACTORS)
+    peak_and_valley_indices = peak_detector(
+        w.force, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS
+    )
     return data_metrics(peak_and_valley_indices, w.force)
 
 
@@ -71,30 +68,30 @@ def encode_dict(d):
         result.update({key: value})
     return result
 
-PATH_OF_CURRENT_FILE = get_current_file_abs_directory()
 
 ##### TESTS FOR SCALAR METRICS #####
 def test_metrics__TwitchAmplitude():
-    file_path = os.path.join(PATH_OF_CURRENT_FILE,
-                            "data_metrics",
-                            "v0.3.1",
-                            "amplitude_MA201110001__2020_09_03_213024__A1.parquet"
-                            )
+    file_path = os.path.join(
+        PATH_OF_CURRENT_FILE, "data_metrics", "v0.3.1", "amplitude_MA201110001__2020_09_03_213024__A1.parquet"
+    )
     try:
         table = pq.read_table(file_path)
-    except:
-        raise FileNotFoundError('Parquet file for twitch amplitude not found.')
+    except Exception as e:
+        raise FileNotFoundError("Parquet file for twitch amplitude not found.") from e
     else:
         expected = table.to_pandas().squeeze()
 
-    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE,
-                              "h5", "v0.3.1",
-                              "MA201110001__2020_09_03_213024",
-                              "MA201110001__2020_09_03_213024__A1.h5"))
+    w = WellFile(
+        os.path.join(
+            PATH_OF_CURRENT_FILE,
+            "h5",
+            "v0.3.1",
+            "MA201110001__2020_09_03_213024",
+            "MA201110001__2020_09_03_213024__A1.h5",
+        )
+    )
 
-    pv = peak_detector(w.force,
-                       prominence_factors=PROMINENCE_FACTORS,
-                       width_factors=WIDTH_FACTORS)
+    pv = peak_detector(w.force, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchAmplitude()
@@ -104,25 +101,26 @@ def test_metrics__TwitchAmplitude():
 
 
 def test_metrics__TwitchAUC():
-    file_path = os.path.join(PATH_OF_CURRENT_FILE,
-                            "data_metrics",
-                            "v0.3.1", 
-                             "auc_MA201110001__2020_09_03_213024__A1.parquet"
-                            )
+    file_path = os.path.join(
+        PATH_OF_CURRENT_FILE, "data_metrics", "v0.3.1", "auc_MA201110001__2020_09_03_213024__A1.parquet"
+    )
     try:
         table = pq.read_table(file_path)
-    except:
-        raise FileNotFoundError('Parquet file for twitch AUC not found.')
+    except Exception as e:
+        raise FileNotFoundError("Parquet file for twitch AUC not found.") from e
     else:
         expected = table.to_pandas().squeeze()
 
-    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, 
-                              "h5", "v0.3.1",
-                              "MA201110001__2020_09_03_213024", 
-                              "MA201110001__2020_09_03_213024__A1.h5"))
-    pv = peak_detector(w.force,
-                       prominence_factors=PROMINENCE_FACTORS,
-                       width_factors=WIDTH_FACTORS)
+    w = WellFile(
+        os.path.join(
+            PATH_OF_CURRENT_FILE,
+            "h5",
+            "v0.3.1",
+            "MA201110001__2020_09_03_213024",
+            "MA201110001__2020_09_03_213024__A1.h5",
+        )
+    )
+    pv = peak_detector(w.force, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchAUC()
@@ -131,25 +129,29 @@ def test_metrics__TwitchAUC():
 
 
 def test_metrics__TwitchBaselineToPeak():
-    file_path = os.path.join(PATH_OF_CURRENT_FILE,
-                            "data_metrics",
-                            "v0.3.1", 
-                             "baseline_to_peak_MA201110001__2020_09_03_213024__A1.parquet"
-                            )
+    file_path = os.path.join(
+        PATH_OF_CURRENT_FILE,
+        "data_metrics",
+        "v0.3.1",
+        "baseline_to_peak_MA201110001__2020_09_03_213024__A1.parquet",
+    )
     try:
         table = pq.read_table(file_path)
-    except:
-        raise FileNotFoundError('Parquet file for full twitch contraction time not found.')
+    except Exception as e:
+        raise FileNotFoundError("Parquet file for full twitch contraction time not found.") from e
     else:
         expected = table.to_pandas().squeeze()
 
-    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, 
-                              "h5", "v0.3.1",
-                              "MA201110001__2020_09_03_213024", 
-                              "MA201110001__2020_09_03_213024__A1.h5"))
-    pv = peak_detector(w.force,
-                       prominence_factors=PROMINENCE_FACTORS,
-                       width_factors=WIDTH_FACTORS)
+    w = WellFile(
+        os.path.join(
+            PATH_OF_CURRENT_FILE,
+            "h5",
+            "v0.3.1",
+            "MA201110001__2020_09_03_213024",
+            "MA201110001__2020_09_03_213024__A1.h5",
+        )
+    )
+    pv = peak_detector(w.force, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchPeakToBaseline(is_contraction=True)
@@ -158,25 +160,29 @@ def test_metrics__TwitchBaselineToPeak():
 
 
 def test_metrics__TwitchPeakToBaseline():
-    file_path = os.path.join(PATH_OF_CURRENT_FILE,
-                            "data_metrics",
-                            "v0.3.1", 
-                             "peak_to_baseline_MA201110001__2020_09_03_213024__A1.parquet"
-                            )
+    file_path = os.path.join(
+        PATH_OF_CURRENT_FILE,
+        "data_metrics",
+        "v0.3.1",
+        "peak_to_baseline_MA201110001__2020_09_03_213024__A1.parquet",
+    )
     try:
         table = pq.read_table(file_path)
-    except:
-        raise FileNotFoundError('Parquet file for full twitch relaxation time not found.')
+    except Exception as e:
+        raise FileNotFoundError("Parquet file for full twitch relaxation time not found.") from e
     else:
         expected = table.to_pandas().squeeze()
 
-    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, 
-                              "h5", "v0.3.1",
-                              "MA201110001__2020_09_03_213024", 
-                              "MA201110001__2020_09_03_213024__A1.h5"))
-    pv = peak_detector(w.force,
-                       prominence_factors=PROMINENCE_FACTORS,
-                       width_factors=WIDTH_FACTORS)
+    w = WellFile(
+        os.path.join(
+            PATH_OF_CURRENT_FILE,
+            "h5",
+            "v0.3.1",
+            "MA201110001__2020_09_03_213024",
+            "MA201110001__2020_09_03_213024__A1.h5",
+        )
+    )
+    pv = peak_detector(w.force, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchPeakToBaseline(is_contraction=False)
@@ -186,25 +192,29 @@ def test_metrics__TwitchPeakToBaseline():
 
 
 def test_metrics__TwitchFracAmp():
-    file_path = os.path.join(PATH_OF_CURRENT_FILE,
-                            "data_metrics",
-                            "v0.3.1",
-                            "fraction_max_MA201110001__2020_09_03_213024__A1.parquet"
-                            )
+    file_path = os.path.join(
+        PATH_OF_CURRENT_FILE,
+        "data_metrics",
+        "v0.3.1",
+        "fraction_max_MA201110001__2020_09_03_213024__A1.parquet",
+    )
     try:
         table = pq.read_table(file_path)
-    except:
-        raise FileNotFoundError('Parquet file for twitch fraction max amplitude not found.')
+    except Exception as e:
+        raise FileNotFoundError("Parquet file for twitch fraction max amplitude not found.") from e
     else:
         expected = table.to_pandas().squeeze()
 
-    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, 
-                              "h5", "v0.3.1",
-                              "MA201110001__2020_09_03_213024", 
-                              "MA201110001__2020_09_03_213024__A1.h5"))
-    pv = peak_detector(w.force,
-                       prominence_factors=PROMINENCE_FACTORS,
-                       width_factors=WIDTH_FACTORS)
+    w = WellFile(
+        os.path.join(
+            PATH_OF_CURRENT_FILE,
+            "h5",
+            "v0.3.1",
+            "MA201110001__2020_09_03_213024",
+            "MA201110001__2020_09_03_213024__A1.h5",
+        )
+    )
+    pv = peak_detector(w.force, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchFractionAmplitude()
@@ -214,25 +224,29 @@ def test_metrics__TwitchFracAmp():
 
 
 def test_metrics__TwitchFreq():
-    file_path = os.path.join(PATH_OF_CURRENT_FILE, 
-                             "data_metrics",
-                            "v0.3.1", 
-                             "twitch_frequency_MA201110001__2020_09_03_213024__A1.parquet"
-                            )
+    file_path = os.path.join(
+        PATH_OF_CURRENT_FILE,
+        "data_metrics",
+        "v0.3.1",
+        "twitch_frequency_MA201110001__2020_09_03_213024__A1.parquet",
+    )
     try:
         table = pq.read_table(file_path)
-    except:
-        raise FileNotFoundError('Parquet file for twitch frequency not found.')
+    except Exception as e:
+        raise FileNotFoundError("Parquet file for twitch frequency not found.") from e
     else:
         expected = table.to_pandas().squeeze()
 
-    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, 
-                              "h5", "v0.3.1",
-                              "MA201110001__2020_09_03_213024", 
-                              "MA201110001__2020_09_03_213024__A1.h5"))
-    pv = peak_detector(w.force,
-                       prominence_factors=PROMINENCE_FACTORS,
-                       width_factors=WIDTH_FACTORS)
+    w = WellFile(
+        os.path.join(
+            PATH_OF_CURRENT_FILE,
+            "h5",
+            "v0.3.1",
+            "MA201110001__2020_09_03_213024",
+            "MA201110001__2020_09_03_213024__A1.h5",
+        )
+    )
+    pv = peak_detector(w.force, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchFrequency()
@@ -242,25 +256,29 @@ def test_metrics__TwitchFreq():
 
 
 def test_metrics__TwitchIrregularity():
-    file_path = os.path.join(PATH_OF_CURRENT_FILE, 
-                             "data_metrics",
-                            "v0.3.1", 
-                            "irregularity_interval_MA201110001__2020_09_03_213024__A1.parquet"
-                            )
+    file_path = os.path.join(
+        PATH_OF_CURRENT_FILE,
+        "data_metrics",
+        "v0.3.1",
+        "irregularity_interval_MA201110001__2020_09_03_213024__A1.parquet",
+    )
     try:
         table = pq.read_table(file_path)
-    except:
-        raise FileNotFoundError('Parquet file for twitch irregularity interval not found.')
+    except Exception as e:
+        raise FileNotFoundError("Parquet file for twitch irregularity interval not found.") from e
     else:
         expected = table.to_pandas().squeeze()
 
-    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, 
-                              "h5", "v0.3.1",
-                              "MA201110001__2020_09_03_213024", 
-                              "MA201110001__2020_09_03_213024__A1.h5"))
-    pv = peak_detector(w.force,
-                       prominence_factors=PROMINENCE_FACTORS,
-                       width_factors=WIDTH_FACTORS)
+    w = WellFile(
+        os.path.join(
+            PATH_OF_CURRENT_FILE,
+            "h5",
+            "v0.3.1",
+            "MA201110001__2020_09_03_213024",
+            "MA201110001__2020_09_03_213024__A1.h5",
+        )
+    )
+    pv = peak_detector(w.force, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchIrregularity()
@@ -270,25 +288,29 @@ def test_metrics__TwitchIrregularity():
 
 
 def test_metrics__TwitchPeriod():
-    file_path = os.path.join(PATH_OF_CURRENT_FILE, 
-                             "data_metrics",
-                            "v0.3.1", 
-                            "twitch_period_MA201110001__2020_09_03_213024__A1.parquet"
-                            )
+    file_path = os.path.join(
+        PATH_OF_CURRENT_FILE,
+        "data_metrics",
+        "v0.3.1",
+        "twitch_period_MA201110001__2020_09_03_213024__A1.parquet",
+    )
     try:
         table = pq.read_table(file_path)
-    except:
-        raise FileNotFoundError('Parquet file for twitch period not found.')
+    except Exception as e:
+        raise FileNotFoundError("Parquet file for twitch period not found.") from e
     else:
         expected = table.to_pandas().squeeze()
 
-    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, 
-                              "h5", "v0.3.1",
-                              "MA201110001__2020_09_03_213024", 
-                              "MA201110001__2020_09_03_213024__A1.h5"))
-    pv = peak_detector(w.force,
-                       prominence_factors=PROMINENCE_FACTORS,
-                       width_factors=WIDTH_FACTORS)
+    w = WellFile(
+        os.path.join(
+            PATH_OF_CURRENT_FILE,
+            "h5",
+            "v0.3.1",
+            "MA201110001__2020_09_03_213024",
+            "MA201110001__2020_09_03_213024__A1.h5",
+        )
+    )
+    pv = peak_detector(w.force, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchPeriod()
@@ -298,25 +320,29 @@ def test_metrics__TwitchPeriod():
 
 
 def test_metrics__TwitchContractionVelocity():
-    file_path = os.path.join(PATH_OF_CURRENT_FILE, 
-                             "data_metrics",
-                            "v0.3.1", 
-                             "contraction_velocity_MA201110001__2020_09_03_213024__A1.parquet"
-                            )
+    file_path = os.path.join(
+        PATH_OF_CURRENT_FILE,
+        "data_metrics",
+        "v0.3.1",
+        "contraction_velocity_MA201110001__2020_09_03_213024__A1.parquet",
+    )
     try:
         table = pq.read_table(file_path)
-    except:
-        raise FileNotFoundError('Parquet file for twitch contraction velocity not found.')
+    except Exception as e:
+        raise FileNotFoundError("Parquet file for twitch contraction velocity not found.") from e
     else:
         expected = table.to_pandas().squeeze()
 
-    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, 
-                              "h5", "v0.3.1",
-                              "MA201110001__2020_09_03_213024", 
-                              "MA201110001__2020_09_03_213024__A1.h5"))
-    pv = peak_detector(w.force,
-                       prominence_factors=PROMINENCE_FACTORS,
-                       width_factors=WIDTH_FACTORS)
+    w = WellFile(
+        os.path.join(
+            PATH_OF_CURRENT_FILE,
+            "h5",
+            "v0.3.1",
+            "MA201110001__2020_09_03_213024",
+            "MA201110001__2020_09_03_213024__A1.h5",
+        )
+    )
+    pv = peak_detector(w.force, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchVelocity(rounded=False, is_contraction=True)
@@ -326,25 +352,29 @@ def test_metrics__TwitchContractionVelocity():
 
 
 def test_metrics__TwitchRelaxationVelocity():
-    file_path = os.path.join(PATH_OF_CURRENT_FILE, 
-                             "data_metrics",
-                            "v0.3.1", 
-                             "relaxation_velocity_MA201110001__2020_09_03_213024__A1.parquet"
-                            )
+    file_path = os.path.join(
+        PATH_OF_CURRENT_FILE,
+        "data_metrics",
+        "v0.3.1",
+        "relaxation_velocity_MA201110001__2020_09_03_213024__A1.parquet",
+    )
     try:
         table = pq.read_table(file_path)
-    except:
-        raise FileNotFoundError('Parquet file for twitch relaxation velocity not found.')
+    except Exception as e:
+        raise FileNotFoundError("Parquet file for twitch relaxation velocity not found.") from e
     else:
         expected = table.to_pandas().squeeze()
 
-    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, 
-                              "h5", "v0.3.1",
-                              "MA201110001__2020_09_03_213024", 
-                              "MA201110001__2020_09_03_213024__A1.h5"))
-    pv = peak_detector(w.force,
-                       prominence_factors=PROMINENCE_FACTORS,
-                       width_factors=WIDTH_FACTORS)
+    w = WellFile(
+        os.path.join(
+            PATH_OF_CURRENT_FILE,
+            "h5",
+            "v0.3.1",
+            "MA201110001__2020_09_03_213024",
+            "MA201110001__2020_09_03_213024__A1.h5",
+        )
+    )
+    pv = peak_detector(w.force, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchVelocity(rounded=False, is_contraction=False)
@@ -355,22 +385,25 @@ def test_metrics__TwitchRelaxationVelocity():
 
 ##### TESTS FOR BY-WIDTH METRICS #####
 def test_metrics__TwitchWidth():
-    file_path = os.path.join(PATH_OF_CURRENT_FILE, 
-                             "data_metrics",
-                            "v0.3.1", 
-                             "width_MA201110001__2020_09_03_213024__A1.parquet"
-                            )
+    file_path = os.path.join(
+        PATH_OF_CURRENT_FILE, "data_metrics", "v0.3.1", "width_MA201110001__2020_09_03_213024__A1.parquet"
+    )
     try:
         table = pq.read_table(file_path)
-    except:
-        raise FileNotFoundError('Parquet file for twitch width not found.')
+    except Exception as e:
+        raise FileNotFoundError("Parquet file for twitch width not found.") from e
     else:
         expected = table.to_pandas().squeeze()
 
-    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, 
-                              "h5", "v0.3.1",
-                              "MA201110001__2020_09_03_213024", 
-                              "MA201110001__2020_09_03_213024__A1.h5"))
+    w = WellFile(
+        os.path.join(
+            PATH_OF_CURRENT_FILE,
+            "h5",
+            "v0.3.1",
+            "MA201110001__2020_09_03_213024",
+            "MA201110001__2020_09_03_213024__A1.h5",
+        )
+    )
 
     pv = peak_detector(w.force)
     twitch_indices = find_twitch_indices(pv)
@@ -378,27 +411,33 @@ def test_metrics__TwitchWidth():
     metric = metrics.TwitchWidth()
     estimate = metric.fit(pv, w.force, twitch_indices)
 
+    assert np.all(expected == estimate)
+
 
 def test_metrics__TwitchContractionTime():
-    file_path = os.path.join(PATH_OF_CURRENT_FILE,
-                             "data_metrics",
-                             "v0.3.1",
-                             "contraction_time_MA201110001__2020_09_03_213024__A1.parquet"
-                             )
+    file_path = os.path.join(
+        PATH_OF_CURRENT_FILE,
+        "data_metrics",
+        "v0.3.1",
+        "contraction_time_MA201110001__2020_09_03_213024__A1.parquet",
+    )
     try:
         table = pq.read_table(file_path)
-    except:
-        raise FileNotFoundError('Parquet file for twitch contraction time not found.')
+    except Exception as e:
+        raise FileNotFoundError("Parquet file for twitch contraction time not found.") from e
     else:
         expected = table.to_pandas().squeeze()
 
-    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, 
-                              "h5", "v0.3.1",
-                              "MA201110001__2020_09_03_213024", 
-                              "MA201110001__2020_09_03_213024__A1.h5"))
-    pv = peak_detector(w.force,
-                       prominence_factors=PROMINENCE_FACTORS,
-                       width_factors=WIDTH_FACTORS)
+    w = WellFile(
+        os.path.join(
+            PATH_OF_CURRENT_FILE,
+            "h5",
+            "v0.3.1",
+            "MA201110001__2020_09_03_213024",
+            "MA201110001__2020_09_03_213024__A1.h5",
+        )
+    )
+    pv = peak_detector(w.force, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchPeakTime(is_contraction=True)
@@ -406,27 +445,31 @@ def test_metrics__TwitchContractionTime():
 
     assert np.all(expected == estimate)
 
+
 def test_metrics__TwitchRelaxationTime():
-    file_path = os.path.join(PATH_OF_CURRENT_FILE,
-                             "data_metrics",
-                             "v0.3.1",
-                             "relaxation_time_MA201110001__2020_09_03_213024__A1.parquet"
-                             )
+    file_path = os.path.join(
+        PATH_OF_CURRENT_FILE,
+        "data_metrics",
+        "v0.3.1",
+        "relaxation_time_MA201110001__2020_09_03_213024__A1.parquet",
+    )
     try:
         table = pq.read_table(file_path)
-    except:
-        raise FileNotFoundError(
-            'Parquet file for twitch relaxation time not found.')
+    except Exception as e:
+        raise FileNotFoundError("Parquet file for twitch relaxation time not found.") from e
     else:
         expected = table.to_pandas().squeeze()
 
-    w = WellFile(os.path.join(PATH_OF_CURRENT_FILE, 
-                              "h5", "v0.3.1",
-                              "MA201110001__2020_09_03_213024", 
-                              "MA201110001__2020_09_03_213024__A1.h5"))
-    pv = peak_detector(w.force,
-                       prominence_factors=PROMINENCE_FACTORS,
-                       width_factors=WIDTH_FACTORS)
+    w = WellFile(
+        os.path.join(
+            PATH_OF_CURRENT_FILE,
+            "h5",
+            "v0.3.1",
+            "MA201110001__2020_09_03_213024",
+            "MA201110001__2020_09_03_213024__A1.h5",
+        )
+    )
+    pv = peak_detector(w.force, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS)
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchPeakTime(is_contraction=False)

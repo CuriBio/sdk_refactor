@@ -7,7 +7,6 @@ from typing import Tuple
 
 from h5py import File
 import matplotlib
-import matplotlib.pyplot as plt
 import numpy as np
 from pulse3D.constants import TISSUE_SENSOR_READINGS
 from pulse3D.plate_recording import WellFile

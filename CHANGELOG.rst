@@ -1,6 +1,10 @@
 Changelog for Curi Bio Software Development Kit
 ===============================================
 
+0.22.4 (2022-02-09)
+-------------------
+- Add Beta 2 metadata UUIDs.
+
 0.22.3 (2022-02-09)
 -------------------
 - sort_index, not sort_value

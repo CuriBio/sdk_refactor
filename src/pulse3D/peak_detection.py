@@ -319,13 +319,15 @@ def init_dfs(indices: Iterable[int] = []):
     """
     # per-twitch metrics data-frames
     per_twitch_scalar = pd.DataFrame(index=indices, columns=CALCULATED_METRICS["scalar"])
-    per_twitch_scalar.columns=per_twitch_scalar.sort_index(axis=1,level=[0],ascending=[True]).columns
+    per_twitch_scalar.columns = per_twitch_scalar.sort_index(axis=1, level=[0], ascending=[True]).columns
 
     columns = pd.MultiIndex.from_product(
         [CALCULATED_METRICS["by_width"], np.arange(10, 95, 5)], names=["metric", "width"]
     )
     per_twitch_by_width = pd.DataFrame(index=indices, columns=columns)
-    per_twitch_by_width.columns=per_twitch_by_width.sort_index(axis=1,level=[0,1],ascending=[True,True]).columns
+    per_twitch_by_width.columns = per_twitch_by_width.sort_index(
+        axis=1, level=[0, 1], ascending=[True, True]
+    ).columns
 
     # aggregate metrics data-frames
     columns = pd.MultiIndex.from_product(
@@ -333,7 +335,9 @@ def init_dfs(indices: Iterable[int] = []):
         names=["metric", "statistic"],
     )
     aggregate_scalar = pd.DataFrame(index=[0], columns=columns)
-    aggregate_scalar.columns=aggregate_scalar.sort_index(axis=1,level=[0,1],ascending=[True,True]).columns
+    aggregate_scalar.columns = aggregate_scalar.sort_index(
+        axis=1, level=[0, 1], ascending=[True, True]
+    ).columns
 
     columns = pd.MultiIndex.from_product(
         [
@@ -344,7 +348,9 @@ def init_dfs(indices: Iterable[int] = []):
         names=["metric", "width", "statistic"],
     )
     aggregate_by_width = pd.DataFrame(index=[0], columns=columns)
-    aggregate_by_width.columns=aggregate_by_width.sort_index(axis=1,level=[0,1,2],ascending=[True,True,True]).columns
+    aggregate_by_width.columns = aggregate_by_width.sort_index(
+        axis=1, level=[0, 1, 2], ascending=[True, True, True]
+    ).columns
 
     data_frames = {
         "per_twitch": {"scalar": per_twitch_scalar, "by_width": per_twitch_by_width},

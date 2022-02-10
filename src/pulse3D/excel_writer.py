@@ -20,7 +20,6 @@ from .plate_recording import PlateRecording
 from .plotting import plotting_parameters
 from .utils import truncate
 from .utils import xl_col_to_name
-import time
 
 
 log = logging.getLogger(__name__)
@@ -308,7 +307,6 @@ def write_xlsx(
 
         well_index = well_file[WELL_INDEX_UUID]
         well_name = TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_index)
-        print(f'Well name: {well_name}')
 
         # find bounding indices with respect to well recording
         well_start_idx, well_end_idx = truncate(
@@ -707,7 +705,7 @@ def per_twitch_df(data: List[Dict[Any, Any]], widths: Tuple[int, ...] = tuple([5
                 series_list.append(temp)
                 num_per_twitch_metrics += 1
 
-        series_df = pd.concat(series_list,axis=1).T
+        series_df = pd.concat(series_list, axis=1).T
         df = df.append(series_df)
 
         for _ in range(5):

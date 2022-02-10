@@ -9,10 +9,6 @@ from .constants import CHART_GAMMA
 from .constants import CHART_PIXELS_PER_SECOND
 
 """
-XlsxWriter chart and plot sizing functions, set_size() and set_plotarea(),
-are a bit arcance -- hence the need for these functions.
-For documentation on XlsxWriter figure sizing parameters, see here:
-https://xlsxwriter.readthedocs.io/working_with_charts.html#chart-layout
 """
 
 

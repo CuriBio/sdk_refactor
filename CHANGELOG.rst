@@ -1,6 +1,10 @@
 Changelog for Curi Bio Software Development Kit
 ===============================================
 
+0.23.0 (2022-02-10)
+-------------------
+- 10x speed up for analysis of Beta 2 files.
+
 0.22.4 (2022-02-09)
 -------------------
 - Add Beta 2 metadata UUIDs.

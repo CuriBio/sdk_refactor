@@ -320,16 +320,16 @@ class TwitchWidth(BaseMetric):
             coordinate_df: MultiIndex DataFrame, where each index is an integer representing the time points, and each  column level corresponds to the time (X) / force(Y), contration (rising) / relaxation (falling), and percent-twitch width coordinates
         """
         coordinate_dict: Dict[int, Dict[str, Dict[str, Any]]]
-        coordinate_dict = {
-            h: {
-                k: {i: {j: None for j in np.arange(10, 95, 5)} for i in ["contraction", "relaxation"]}
-                for k in ["force", "time"]
-            }
-            for h in twitch_indices.index
-        }
+        coordinate_dict = {twitch_index: {metric_type: {contraction_type: {twitch_width: None 
+                        for twitch_width in np.arange(10, 95, 5)} 
+                        for contraction_type in ["contraction", "relaxation"]}
+                        for metric_type in ["force", "time"]}
+                        for twitch_index in twitch_indices.index}
 
         width_dict: Dict[int, Dict[int, Any]]
-        width_dict = {h: {i: None for i in np.arange(10, 95, 5)} for h in twitch_indices.index}
+        width_dict = {twitch_index: {twitch_width: None 
+                    for twitch_width in np.arange(10, 95, 5)} 
+                    for twitch_index in twitch_indices.index}
 
         time_series = filtered_data[0]
         value_series = filtered_data[1]
@@ -350,10 +350,10 @@ class TwitchWidth(BaseMetric):
             rising_idx = iter_twitch_peak_idx - 1
             falling_idx = iter_twitch_peak_idx + 1
 
-            twitch_dict = {
-                h: {i: {j: None for j in twitch_width_percents} for i in ["contraction", "relaxation"]}
-                for h in ["force", "time"]
-            }
+            twitch_dict = {metric_type: {contraction_type: {twitch_width: None 
+                        for twitch_width in twitch_width_percents} 
+                        for contraction_type in ["contraction", "relaxation"]}
+                        for metric_type in ["force", "time"]}
 
             for iter_percent in twitch_width_percents:
 
@@ -406,11 +406,12 @@ class TwitchWidth(BaseMetric):
         # convert coordinate dictionary to dataframe
         coordinate_df = pd.DataFrame.from_dict(
             {
-                (h, i, j, k): coordinate_dict[h][i][j][k]
-                for h in twitch_indices.index
-                for i in ["force", "time"]
-                for j in ["contraction", "relaxation"]
-                for k in np.arange(10, 95, 5)
+                (twitch_index, metric_type, contraction_type, twitch_width): \
+                    coordinate_dict[twitch_index][metric_type][contraction_type][twitch_width]
+                for twitch_index in twitch_indices.index
+                for metric_type in ["force", "time"]
+                for contraction_type in ["contraction", "relaxation"]
+                for twitch_width in np.arange(10, 95, 5)
             },
             orient="index",
         )

@@ -289,6 +289,8 @@ class TwitchWidth(BaseMetric):
         metrics: DataFrame,
     ) -> None:
 
+        indexer = pd.IndexSlice
+
         for iter_percent in self.twitch_width_percents:
             estimates = metrics[iter_percent]
             aggregate_estimates = self.create_statistics_df(estimates, rounded=self.rounded)
@@ -299,7 +301,7 @@ class TwitchWidth(BaseMetric):
     def calculate_twitch_widths(
         twitch_indices: DataFrame,
         filtered_data: Tuple[Tuple[float], Tuple[float]],
-        rounded: bool = True,
+        rounded: bool = False,
         twitch_width_percents: Tuple[int, ...] = tuple(range(10, 95, 5)),
     ) -> Tuple[DataFrame, DataFrame]:
         """Determine twitch width between 10-90% down to the nearby valleys.
@@ -317,12 +319,13 @@ class TwitchWidth(BaseMetric):
             width_df: DataFrame, where each index is an integer representing the time points, and each column is a      percent-twitch width of all the peaks of interest
             coordinate_df: MultiIndex DataFrame, where each index is an integer representing the time points, and each  column level corresponds to the time (X) / force(Y), contration (rising) / relaxation (falling), and percent-twitch width coordinates
         """
-        width_df = pd.DataFrame(index=list(twitch_indices.index), columns=list(np.arange(10, 95, 5)))
-
-        columns = pd.MultiIndex.from_product(
-            [["force", "time"], ["contraction", "relaxation"], list(np.arange(10, 95, 5))]
-        )
-        coordinate_df = pd.DataFrame(index=list(twitch_indices.index), columns=columns)
+        
+        coordinate_dict = {h: {k: {i: {j: None 
+                        for j in np.arange(10,95,5)} \
+                        for i in ['contraction', 'relaxation']}
+                        for k in ['force','time']}
+                        for h in twitch_indices.index}
+        width_dict = {h: {i: None for i in np.arange(10,95,5)} for h in twitch_indices.index}
 
         time_series = filtered_data[0]
         value_series = filtered_data[1]
@@ -372,6 +375,7 @@ class TwitchWidth(BaseMetric):
                     time_series[falling_idx - 1],
                     value_series[falling_idx - 1],
                 )
+                
                 width_val = interpolated_falling_timepoint - interpolated_rising_timepoint
                 if rounded:
                     width_val = int(round(width_val, 0))
@@ -379,22 +383,29 @@ class TwitchWidth(BaseMetric):
                     interpolated_rising_timepoint = int(round(interpolated_rising_timepoint, 0))
                     rising_threshold = int(round(rising_threshold, 0))
                     falling_threshold = int(round(falling_threshold, 0))
+                
+                width_dict[iter_twitch_peak_idx][iter_percent] = width_val
+                coordinate_dict[iter_twitch_peak_idx]["force"]["contraction"][iter_percent] = rising_threshold
+                coordinate_dict[iter_twitch_peak_idx]["force"]["relaxation"][iter_percent] = falling_threshold
+                coordinate_dict[iter_twitch_peak_idx]["time"]["contraction"][iter_percent] = interpolated_rising_timepoint
+                coordinate_dict[iter_twitch_peak_idx]["time"]["relaxation"][iter_percent] = interpolated_falling_timepoint
+                
+        coordinate_df = pd.DataFrame.from_dict({(h, i,j,k): coordinate_dict[h][i][j][k] \
+                                                for h in twitch_indices.index
+                                                for i in ['force','time']
+                                                for j in ['contraction','relaxation']
+                                                for k in np.arange(10,95,5)},
+                                            orient='index')
 
-                coordinate_df.loc[iter_twitch_peak_idx][
-                    "force", "contraction", iter_percent
-                ] = rising_threshold
-                coordinate_df.loc[iter_twitch_peak_idx][
-                    "force", "relaxation", iter_percent
-                ] = falling_threshold
-                coordinate_df.loc[iter_twitch_peak_idx][
-                    "time", "contraction", iter_percent
-                ] = interpolated_rising_timepoint
-                coordinate_df.loc[iter_twitch_peak_idx][
-                    "time", "relaxation", iter_percent
-                ] = interpolated_falling_timepoint
+        index = pd.MultiIndex.from_tuples(list(coordinate_df.index))
 
-                width_df.loc[iter_twitch_peak_idx, iter_percent] = width_val / MICRO_TO_BASE_CONVERSION
-
+        coordinate_df = pd.Series(coordinate_df.values.squeeze(), index=index)
+        coordinate_df = pd.DataFrame(coordinate_df)
+        coordinate_df = coordinate_df.unstack(level=0)
+        coordinate_df = coordinate_df.T.droplevel(level=0,axis=0)
+                
+        width_df = pd.DataFrame.from_dict(width_dict).T
+                
         return width_df, coordinate_df
 
 

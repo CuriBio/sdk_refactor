@@ -20,6 +20,7 @@ from .plate_recording import PlateRecording
 from .plotting import plotting_parameters
 from .utils import truncate
 from .utils import xl_col_to_name
+import time
 
 
 log = logging.getLogger(__name__)
@@ -307,6 +308,7 @@ def write_xlsx(
 
         well_index = well_file[WELL_INDEX_UUID]
         well_name = TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_index)
+        print(f'Well name: {well_name}')
 
         # find bounding indices with respect to well recording
         well_start_idx, well_end_idx = truncate(
@@ -690,16 +692,23 @@ def per_twitch_df(data: List[Dict[Any, Any]], widths: Tuple[int, ...] = tuple([5
         df = df.append(pd.Series(["Timepoint of Twitch Contraction"] + twitch_times), ignore_index=True)
         num_per_twitch_metrics += 2
 
+        series_list = []
+
         for metric_id in ALL_METRICS:
             if metric_id in [WIDTH_UUID, RELAXATION_TIME_UUID, CONTRACTION_TIME_UUID]:
                 for twitch_width in widths:
                     values = [f"{CALCULATED_METRIC_DISPLAY_NAMES[metric_id].format(twitch_width)}"]
-                    df = df.append(pd.Series(values + list(dm[metric_id][twitch_width])), ignore_index=True)
+                    temp = pd.Series(values + list(dm[metric_id][twitch_width]))
+                    series_list.append(temp)
                     num_per_twitch_metrics += 1
             else:
                 values = [CALCULATED_METRIC_DISPLAY_NAMES[metric_id]]
-                df = df.append(pd.Series(values + list(dm[metric_id])), ignore_index=True)
+                temp = pd.Series(values + list(dm[metric_id]))
+                series_list.append(temp)
                 num_per_twitch_metrics += 1
+
+        series_df = pd.concat(series_list,axis=1).T
+        df = df.append(series_df)
 
         for _ in range(5):
             df = df.append(pd.Series([""]), ignore_index=True)

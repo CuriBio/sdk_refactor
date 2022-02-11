@@ -71,6 +71,14 @@ tmp/
 # Jupyter Notebooks
 *.ipynb
 
+# profiling
+./prof
+./coverage-report-pytest
+*prun0*
+
+# main directory test sheets
+./Test.xlsx
+
 secrets.json
 
 # MacOS

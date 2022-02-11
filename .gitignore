@@ -71,6 +71,11 @@ tmp/
 # Jupyter Notebooks
 *.ipynb
 
+# profiling
+./prof
+./coverage-report-pytest
+*prun0*
+
 secrets.json
 
 # MacOS

@@ -677,20 +677,20 @@ def per_twitch_df(data: List[Dict[Any, Any]], widths: Tuple[int, ...] = tuple([5
     Returns:
         df (DataFrame): per-twitch data frame of all metrics
     """
-    df = pd.DataFrame()
+    # append to a list instead of to a dataframe directly because it's fasters
+    # construct the dataframe at the end
+    series_list=[]
     for j, d in enumerate(data):  # for each well
+
         num_per_twitch_metrics = 0  # len(labels)
         twitch_times = [d["force"][0, i] / MICRO_TO_BASE_CONVERSION for i in d["metrics"][0].index]
 
         # get metrics for single well
         dm = d["metrics"][0]
-        df = df.append(
-            pd.Series([d["well_name"]] + [f"Twitch {i+1}" for i in range(len(dm))]), ignore_index=True
-        )
-        df = df.append(pd.Series(["Timepoint of Twitch Contraction"] + twitch_times), ignore_index=True)
+        series_list.append(pd.Series([d["well_name"]] + [f"Twitch {i+1}" for i in range(len(dm))]))
+        series_list.append(pd.Series(["Timepoint of Twitch Contraction"] + twitch_times))
+        
         num_per_twitch_metrics += 2
-
-        series_list = []
 
         for metric_id in ALL_METRICS:
             if metric_id in [WIDTH_UUID, RELAXATION_TIME_UUID, CONTRACTION_TIME_UUID]:
@@ -705,12 +705,10 @@ def per_twitch_df(data: List[Dict[Any, Any]], widths: Tuple[int, ...] = tuple([5
                 series_list.append(temp)
                 num_per_twitch_metrics += 1
 
-        series_df = pd.concat(series_list, axis=1).T
-        df = df.append(series_df)
-
         for _ in range(5):
-            df = df.append(pd.Series([""]), ignore_index=True)
+            series_list.append(pd.Series([""]))
             num_per_twitch_metrics += 1
 
+    df = pd.concat(series_list, axis=1).T
     df.fillna("", inplace=True)
     return (df, num_per_twitch_metrics)

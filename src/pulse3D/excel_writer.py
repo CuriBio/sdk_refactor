@@ -679,7 +679,7 @@ def per_twitch_df(data: List[Dict[Any, Any]], widths: Tuple[int, ...] = tuple([5
     """
     # append to a list instead of to a dataframe directly because it's fasters
     # construct the dataframe at the end
-    series_list=[]
+    series_list = []
     for j, d in enumerate(data):  # for each well
 
         num_per_twitch_metrics = 0  # len(labels)
@@ -689,7 +689,7 @@ def per_twitch_df(data: List[Dict[Any, Any]], widths: Tuple[int, ...] = tuple([5
         dm = d["metrics"][0]
         series_list.append(pd.Series([d["well_name"]] + [f"Twitch {i+1}" for i in range(len(dm))]))
         series_list.append(pd.Series(["Timepoint of Twitch Contraction"] + twitch_times))
-        
+
         num_per_twitch_metrics += 2
 
         for metric_id in ALL_METRICS:

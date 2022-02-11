@@ -322,16 +322,22 @@ class TwitchWidth(BaseMetric):
             coordinate_df: MultiIndex DataFrame, where each index is an integer representing the time points, and each  column level corresponds to the time (X) / force(Y), contration (rising) / relaxation (falling), and percent-twitch width coordinates
         """
         coordinate_dict: Dict[int, Dict[str, Dict[str, Any]]]
-        coordinate_dict = {twitch_index: {metric_type: {contraction_type: {twitch_width: None 
-                        for twitch_width in np.arange(10, 95, 5)} 
-                        for contraction_type in ["contraction", "relaxation"]}
-                        for metric_type in ["force", "time"]}
-                        for twitch_index in twitch_indices.index}
+        coordinate_dict = {
+            twitch_index: {
+                metric_type: {
+                    contraction_type: {twitch_width: None for twitch_width in np.arange(10, 95, 5)}
+                    for contraction_type in ["contraction", "relaxation"]
+                }
+                for metric_type in ["force", "time"]
+            }
+            for twitch_index in twitch_indices.index
+        }
 
         width_dict: Dict[int, Dict[int, Any]]
-        width_dict = {twitch_index: {twitch_width: None 
-                    for twitch_width in np.arange(10, 95, 5)} 
-                    for twitch_index in twitch_indices.index}
+        width_dict = {
+            twitch_index: {twitch_width: None for twitch_width in np.arange(10, 95, 5)}
+            for twitch_index in twitch_indices.index
+        }
 
         time_series = filtered_data[0]
         value_series = filtered_data[1]
@@ -352,10 +358,13 @@ class TwitchWidth(BaseMetric):
             rising_idx = iter_twitch_peak_idx - 1
             falling_idx = iter_twitch_peak_idx + 1
 
-            twitch_dict = {metric_type: {contraction_type: {twitch_width: None 
-                        for twitch_width in twitch_width_percents} 
-                        for contraction_type in ["contraction", "relaxation"]}
-                        for metric_type in ["force", "time"]}
+            twitch_dict = {
+                metric_type: {
+                    contraction_type: {twitch_width: None for twitch_width in twitch_width_percents}
+                    for contraction_type in ["contraction", "relaxation"]
+                }
+                for metric_type in ["force", "time"]
+            }
 
             for iter_percent in twitch_width_percents:
 
@@ -408,8 +417,9 @@ class TwitchWidth(BaseMetric):
         # convert coordinate dictionary to dataframe
         coordinate_df = pd.DataFrame.from_dict(
             {
-                (twitch_index, metric_type, contraction_type, twitch_width): \
-                    coordinate_dict[twitch_index][metric_type][contraction_type][twitch_width]
+                (twitch_index, metric_type, contraction_type, twitch_width): coordinate_dict[twitch_index][
+                    metric_type
+                ][contraction_type][twitch_width]
                 for twitch_index in twitch_indices.index
                 for metric_type in ["force", "time"]
                 for contraction_type in ["contraction", "relaxation"]
@@ -832,16 +842,16 @@ class TwitchPeriod(BaseMetric):
         list_of_twitch_indices = list(twitch_indices.keys())
         idx_of_first_twitch = np.where(peak_indices == list_of_twitch_indices[0])[0][0]
         estimates = {twitch_index: None for twitch_index in twitch_indices.keys()}
-        
+
         time_series = filtered_data[0, :]
         for iter_twitch_idx in range(len(list_of_twitch_indices)):
             current_peak = peak_indices[iter_twitch_idx + idx_of_first_twitch]
             next_peak = peak_indices[iter_twitch_idx + idx_of_first_twitch + 1]
-            
+
             period = time_series[next_peak] - time_series[current_peak]
 
             estimates[current_peak] = period
-    
+
         estimates = pd.Series(estimates)
         return estimates
 
@@ -960,9 +970,10 @@ class TwitchPeakTime(BaseMetric):
         coords = coordinate_df["time"][coord_label]
         coords = coords.T.to_dict()
 
-        estimates = {twitch_index: {twitch_width: None 
-                    for twitch_width in twitch_widths} 
-                    for twitch_index in twitch_indices.keys()}
+        estimates = {
+            twitch_index: {twitch_width: None for twitch_width in twitch_widths}
+            for twitch_index in twitch_indices.keys()
+        }
 
         peak_times = {twitch_index: filtered_data[0, twitch_index] for twitch_index in twitch_indices.keys()}
 
@@ -971,17 +982,17 @@ class TwitchPeakTime(BaseMetric):
 
                 if is_contraction:
                     percent = 100 - iter_percent
-                    difference_fxn = lambda x,y : (x-y)
+                    def difference_fxn(x,y): return (x-y)
                 else:
                     percent = iter_percent
-                    difference_fxn = lambda x,y : (y-x)
+                    def difference_fxn(x,y): return (y-x)
 
-                percent_time=coords[iter_twitch_idx][percent]
-                peak_time=peak_times[iter_twitch_idx]
+                percent_time = coords[iter_twitch_idx][percent]
+                peak_time = peak_times[iter_twitch_idx]
 
                 estimates[iter_twitch_idx][iter_percent] = difference_fxn(peak_time, percent_time)
 
-        estimates = pd.DataFrame.from_dict(estimates, orient='index')
+        estimates = pd.DataFrame.from_dict(estimates, orient="index")
 
         return estimates / MICRO_TO_BASE_CONVERSION
 
@@ -1004,22 +1015,24 @@ class TwitchPeakToBaseline(BaseMetric):
         filtered_data: NDArray[(2, Any), int],
         twitch_indices: Dict[int, Dict[UUID, Optional[int]]],
         **kwargs: Dict[str, Any],
-    ) -> pd.DataFrame:
+    ) -> Series:
         time_series = filtered_data[0, :]
 
         if self.is_contraction:
-            valley_key=PRIOR_VALLEY_INDEX_UUID
-            difference = lambda x,y: (x-y)
+            valley_key = PRIOR_VALLEY_INDEX_UUID
+            def difference_fxn(x,y): return (x-y)
         else:
-            valley_key=SUBSEQUENT_VALLEY_INDEX_UUID
-            difference = lambda x,y: (y-x)
-            
+            valley_key = SUBSEQUENT_VALLEY_INDEX_UUID
+            def difference_fxn(x,y): return (y-x)
+
         peak_times = [time_series[k] for k in twitch_indices.keys()]
         valley_times = [time_series[twitch_indices[k][valley_key]] for k in twitch_indices.keys()]
-        
-        estimates = [difference(peak_times[k], valley_times[k]) for k,idx in enumerate(twitch_indices.keys())]
-        estimates = pd.DataFrame(estimates, index=twitch_indices.keys())
-        
+
+        estimates = [
+            difference_fxn(peak_times[k], valley_times[k]) for k,_ in enumerate(twitch_indices.keys())
+        ]
+        estimates = pd.Series(estimates, index=twitch_indices.keys())
+
         return estimates / MICRO_TO_BASE_CONVERSION
 
 

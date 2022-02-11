@@ -1,9 +1,14 @@
 Changelog for Curi Bio Software Development Kit
 ===============================================
 
+
 0.23.2 (2022-02-10)
 -------------------
 - Optimize metrics functions, lexsort issues, and dataframe pre-processing
+
+0.23.1 (2022-02-11)
+-------------------
+- Fix Beta 2 files analysis speed up.
 
 0.23.0 (2022-02-10)
 -------------------

@@ -585,7 +585,6 @@ class TwitchIrregularity(BaseMetric):
         num_twitches = len(list_of_twitch_indices)
 
         estimates = {twitch_index: None for twitch_index in twitch_indices.keys()}
-        iter_list_of_intervals: List[Union[float, int, None]] = []
 
         for twitch in range(1, num_twitches - 1):
             last_twitch_index = list_of_twitch_indices[twitch - 1]
@@ -982,10 +981,15 @@ class TwitchPeakTime(BaseMetric):
 
                 if is_contraction:
                     percent = 100 - iter_percent
-                    def difference_fxn(x,y): return (x-y)
+
+                    def difference_fxn(x, y):
+                        return x - y
+
                 else:
                     percent = iter_percent
-                    def difference_fxn(x,y): return (y-x)
+
+                    def difference_fxn(x, y):
+                        return y - x
 
                 percent_time = coords[iter_twitch_idx][percent]
                 peak_time = peak_times[iter_twitch_idx]
@@ -1020,16 +1024,21 @@ class TwitchPeakToBaseline(BaseMetric):
 
         if self.is_contraction:
             valley_key = PRIOR_VALLEY_INDEX_UUID
-            def difference_fxn(x,y): return (x-y)
+
+            def difference_fxn(x, y):
+                return x - y
+
         else:
             valley_key = SUBSEQUENT_VALLEY_INDEX_UUID
-            def difference_fxn(x,y): return (y-x)
+
+            def difference_fxn(x, y):
+                return y - x
 
         peak_times = [time_series[k] for k in twitch_indices.keys()]
         valley_times = [time_series[twitch_indices[k][valley_key]] for k in twitch_indices.keys()]
 
         estimates = [
-            difference_fxn(peak_times[k], valley_times[k]) for k,_ in enumerate(twitch_indices.keys())
+            difference_fxn(peak_times[k], valley_times[k]) for k, _ in enumerate(twitch_indices.keys())
         ]
         estimates = pd.Series(estimates, index=twitch_indices.keys())
 

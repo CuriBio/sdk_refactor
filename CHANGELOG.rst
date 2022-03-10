@@ -1,6 +1,11 @@
 Changelog for Curi Bio Software Development Kit
 ===============================================
 
+0.23.4 (2022-03-10)
+-------------------
+- Fix optical recording file loading
+- Change indexing into excel spreadsheet rows
+
 0.23.3 (2022-02-11)
 -------------------
 - Fix Beta 2 files analysis speed up.

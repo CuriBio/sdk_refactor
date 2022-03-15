@@ -45,27 +45,21 @@ def add_peak_detection_series(
     result_column = xl_col_to_name(PEAK_VALLEY_COLUMN_START + (well_index * 2) + offset)
     continuous_waveform_sheet.write(f"{result_column}1", f"{well_name} {detector_type} Values")
 
-    start_time = time_values[0] / MICRO_TO_BASE_CONVERSION
-
     for idx in indices:
         # convert peak/valley index to seconds
         idx_time = time_values[idx] / MICRO_TO_BASE_CONVERSION
-        # subtract start time
-        shifted_idx_time = idx_time - start_time
-
         uninterpolated_time_seconds = round(idx_time, 2)
-        shifted_time_seconds = round(shifted_idx_time, 2)
+
+        # we can use the peak/valley indices directly because we are using the interpolated data
+        row = idx + 2
 
         if is_optical_recording:
-            row = int(shifted_time_seconds * MICRO_TO_BASE_CONVERSION / INTERPOLATED_DATA_PERIOD_US)
-
             value = (
                 interpolated_data_function(uninterpolated_time_seconds * MICRO_TO_BASE_CONVERSION)
                 - minimum_value
             ) * MICRO_TO_BASE_CONVERSION
-        else:
-            row = shifted_time_seconds * int(1 / INTERPOLATED_DATA_PERIOD_SECONDS) + 1
 
+        else:
             interpolated_data = interpolated_data_function(
                 uninterpolated_time_seconds * MICRO_TO_BASE_CONVERSION
             )

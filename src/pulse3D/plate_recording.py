@@ -135,6 +135,17 @@ class WellFile:
                 "y" in str(_get_excel_metadata_value(self._excel_sheet, TWITCHES_POINT_UP_UUID)).lower()
             )
 
+            self.noise_filter_uuid = (
+                TSP_TO_DEFAULT_FILTER_UUID[self.tissue_sampling_period] if self.is_magnetic_data else None
+            )
+            self.filter_coefficients = (
+                create_filter(self.noise_filter_uuid, self.tissue_sampling_period)
+                if self.noise_filter_uuid
+                else None
+            )
+
+            self._load_magnetic_data()
+
     def _load_magnetic_data(self):
         adj_raw_tissue_reading = self[TISSUE_SENSOR_READINGS].copy()
         f = MICROSECONDS_PER_CENTIMILLISECOND if self.is_magnetic_data else MICRO_TO_BASE_CONVERSION

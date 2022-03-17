@@ -1,0 +1,3 @@
+[submodule "mantarray-magnet-finding"]
+	path = mantarray-magnet-finding
+	url = git@github.com:CuriBio/mantarray-magnet-finding

@@ -43,8 +43,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
         with:
+          token: {{ secrets.CI_TOKEN }}
           fetch-depth: 1
-          token: ${{ secrets.REPO_ACCESS_TOKEN }}
           submodules: true
 
       - name: Set up submodules

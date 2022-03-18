@@ -43,14 +43,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
         with:
+          token: ${{ secrets.CI_TOKEN }}
           fetch-depth: 1
-          token: ${{ secrets.REPO_ACCESS_TOKEN }}
           submodules: true
 
-      - name: Set up submodules
-        run: |
-          git submodule init
-          git submodule update
+      # - name: Set up submodules
+      #   run: |
+      #     git submodule init
+      #     git submodule update
 
       - name: Set up Python
         uses: actions/setup-python@v2

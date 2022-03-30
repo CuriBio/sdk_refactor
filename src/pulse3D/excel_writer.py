@@ -428,12 +428,12 @@ def _write_xlsx(
 
         # aggregate metrics sheet
         log.info("Writing aggregate metrics.")
-        aggregate_df = aggregate_metrics_df(data)
+        aggregate_df = aggregate_metrics_df(data, widths=twitch_widths)
         aggregate_df.to_excel(writer, sheet_name="aggregate-metrics", index=False, header=False)
 
         # per twitch metrics sheet
         log.info("Writing per-twitch metrics.")
-        pdf, num_metrics = per_twitch_df(data, twitch_widths)
+        pdf, num_metrics = per_twitch_df(data, widths=twitch_widths)
         pdf.to_excel(writer, sheet_name="per-twitch-metrics", index=False, header=False)
 
         # freq/force charts

@@ -1,6 +1,11 @@
 Changelog for Curi Bio Software Development Kit
 ===============================================
 
+0.23.5 (2022-03-30)
+-------------------
+- Change baseline-to-peak / peak-to-baseline metrics to width 10%
+- Fix aggregate metrics bug
+
 0.23.4 (2022-03-10)
 -------------------
 - Fix optical recording file loading

@@ -325,7 +325,7 @@ class TwitchWidth(BaseMetric):
         coordinate_dict = {
             twitch_index: {
                 metric_type: {
-                    contraction_type: {twitch_width: None for twitch_width in np.arange(10, 95, 5)}
+                    contraction_type: {twitch_width: None for twitch_width in twitch_width_percents}
                     for contraction_type in ["contraction", "relaxation"]
                 }
                 for metric_type in ["force", "time"]
@@ -335,7 +335,7 @@ class TwitchWidth(BaseMetric):
 
         width_dict: Dict[int, Dict[int, Any]]
         width_dict = {
-            twitch_index: {twitch_width: None for twitch_width in np.arange(10, 95, 5)}
+            twitch_index: {twitch_width: None for twitch_width in twitch_width_percents}
             for twitch_index in twitch_indices.index
         }
 
@@ -423,7 +423,7 @@ class TwitchWidth(BaseMetric):
                 for twitch_index in twitch_indices.index
                 for metric_type in ["force", "time"]
                 for contraction_type in ["contraction", "relaxation"]
-                for twitch_width in np.arange(10, 95, 5)
+                for twitch_width in twitch_width_percents
             },
             orient="index",
         )
@@ -1019,30 +1019,23 @@ class TwitchPeakToBaseline(BaseMetric):
         filtered_data: NDArray[(2, Any), int],
         twitch_indices: Dict[int, Dict[UUID, Optional[int]]],
         **kwargs: Dict[str, Any],
-    ) -> Series:
-        time_series = filtered_data[0, :]
+    ) -> DataFrame:
+
+        percents = [10, 90]
+
+        PeakTime = TwitchPeakTime(
+            rounded=self.rounded, is_contraction=self.is_contraction, twitch_width_percents=percents
+        )
+        time_difference = PeakTime.fit(
+            peak_and_valley_indices=peak_and_valley_indices,
+            filtered_data=filtered_data,
+            twitch_indices=twitch_indices,
+        )
 
         if self.is_contraction:
-            valley_key = PRIOR_VALLEY_INDEX_UUID
-
-            def difference_fxn(x, y):
-                return x - y
-
+            return time_difference[10]
         else:
-            valley_key = SUBSEQUENT_VALLEY_INDEX_UUID
-
-            def difference_fxn(x, y):
-                return y - x
-
-        peak_times = [time_series[k] for k in twitch_indices.keys()]
-        valley_times = [time_series[twitch_indices[k][valley_key]] for k in twitch_indices.keys()]
-
-        estimates = [
-            difference_fxn(peak_times[k], valley_times[k]) for k, _ in enumerate(twitch_indices.keys())
-        ]
-        estimates = pd.Series(estimates, index=twitch_indices.keys())
-
-        return estimates / MICRO_TO_BASE_CONVERSION
+            return time_difference[90]
 
 
 def interpolate_x_for_y_between_two_points(  # pylint:disable=invalid-name # (Eli 9/1/20: I can't think of a shorter name to describe this concept fully)

@@ -1,6 +1,10 @@
 Changelog for Curi Bio Software Development Kit
 ===============================================
 
+0.23.5 (2022-04-07)
+-------------------
+- Added metadata for stim barcode
+
 0.23.4 (2022-03-10)
 -------------------
 - Fix optical recording file loading
@@ -8,7 +12,7 @@ Changelog for Curi Bio Software Development Kit
 
 0.23.3 (2022-02-11)
 -------------------
-- Fix Beta 2 files analysis speed up.
+- Fix Beta 2 files analysis speed up
 
 0.23.2 (2022-02-11)
 -------------------
@@ -16,15 +20,15 @@ Changelog for Curi Bio Software Development Kit
 
 0.23.1 (2022-02-11)
 -------------------
-- Fix Beta 2 files analysis speed up.
+- Fix Beta 2 files analysis speed up
 
 0.23.0 (2022-02-10)
 -------------------
-- 10x speed up for analysis of Beta 2 files.
+- 10x speed up for analysis of Beta 2 files
 
 0.22.4 (2022-02-09)
 -------------------
-- Add Beta 2 metadata UUIDs.
+- Add Beta 2 metadata UUIDs
 
 0.22.3 (2022-02-09)
 -------------------

@@ -39,7 +39,7 @@ setup(
     packages=find_packages("src"),
     install_requires=[
         "h5py>=3.2.1",
-        "nptyping>=1.4.1",
+        "nptyping==1.4.4",  # Tanner (4/7/22): pinning for now, can upgrade 2.0.0 once there is time to refactor
         "numpy==1.21.5",  # Tanner (12/3/21): pinned for numba compatibility
         "scipy==1.6.2",
         "numba==0.55.1",

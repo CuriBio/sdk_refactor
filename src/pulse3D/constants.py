@@ -60,9 +60,11 @@ ADC_GAIN_SETTING_UUID = uuid.UUID("a3c3bb32-9b92-4da1-8ed8-6c09f9c816f8")
 ADC_TISSUE_OFFSET_UUID = uuid.UUID("41069860-159f-49f2-a59d-401783c1ecb4")
 ADC_REF_OFFSET_UUID = uuid.UUID("dc10066c-abf2-42b6-9b94-5e52d1ea9bfc")
 PLATE_BARCODE_UUID = uuid.UUID("cf60afef-a9f0-4bc3-89e9-c665c6bb6941")
+STIM_BARCODE_UUID = uuid.UUID("6fa67db1-c8b9-4937-b93f-6fe8bdc7e6d7")
 BACKEND_LOG_UUID = uuid.UUID("87533deb-2495-4430-bce7-12fdfc99158e")
 COMPUTER_NAME_HASH_UUID = uuid.UUID("fefd0675-35c2-45f6-855a-9500ad3f100d")
-BARCODE_IS_FROM_SCANNER_UUID = uuid.UUID("7d026e86-da70-4464-9181-dc0ce2d47bd1")
+PLATE_BARCODE_IS_FROM_SCANNER_UUID = uuid.UUID("7d026e86-da70-4464-9181-dc0ce2d47bd1")
+STIM_BARCODE_IS_FROM_SCANNER_UUID = uuid.UUID("6e5a4b3e-f766-4638-80f7-d95c417c0fc2")
 IS_FILE_ORIGINAL_UNTRIMMED_UUID = uuid.UUID("52231a24-97a3-497a-917c-86c780d9993f")
 TRIMMED_TIME_FROM_ORIGINAL_START_UUID = uuid.UUID("371996e6-5e2d-4183-a5cf-06de7058210a")
 TRIMMED_TIME_FROM_ORIGINAL_END_UUID = uuid.UUID("55f6770d-c369-42ce-a437-5ed89c3cb1f8")
@@ -110,7 +112,7 @@ METADATA_UUID_DESCRIPTIONS = immutabledict(
         PLATE_BARCODE_UUID: "Plate Barcode",
         BACKEND_LOG_UUID: "Backend log file identifier",
         COMPUTER_NAME_HASH_UUID: "SHA512 digest of computer name",
-        BARCODE_IS_FROM_SCANNER_UUID: "Is this barcode obtained from the scanner",
+        PLATE_BARCODE_IS_FROM_SCANNER_UUID: "Is this plate barcode obtained from the scanner",
         IS_FILE_ORIGINAL_UNTRIMMED_UUID: "Is this an original file straight from the instrument and untrimmed",
         TRIMMED_TIME_FROM_ORIGINAL_START_UUID: "Number of centimilliseconds that has been trimmed off the beginning of when the original data started",
         TRIMMED_TIME_FROM_ORIGINAL_END_UUID: "Number of centimilliseconds that has been trimmed off the end of when the original data ended",
@@ -127,6 +129,8 @@ METADATA_UUID_DESCRIPTIONS = immutabledict(
         MAGNETOMETER_CONFIGURATION_UUID: "The state (on/off) of the board's magnetometers",
         UTC_BEGINNING_STIMULATION_UUID: "UTC Timestamp of Beginning of Stimulation",
         STIMULATION_PROTOCOL_UUID: "The stimulation protocol that was running on this well during recording. Empty string if stimulation was not active",
+        STIM_BARCODE_UUID: "Stim Lid Barcode",
+        STIM_BARCODE_IS_FROM_SCANNER_UUID: "Is this stim lid barcode obtained from the scanner",
         IS_CALIBRATION_FILE_UUID: "Is this file a calibration (empty plate) recording",
         CHANNEL_FIRMWARE_VERSION_UUID: "Firmware Version (Channel Controller)",
         BOOT_FLAGS_UUID: "Hardware/firmware flags present on device bootup",

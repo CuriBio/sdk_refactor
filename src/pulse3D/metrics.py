@@ -99,8 +99,7 @@ class BaseMetric:
         d: of the average statistics of that metric in which the metrics are the key and
         average statistics are the value
         """
-        statistics: Dict[str, Any]
-        statistics = {k: None for k in ["n", "Mean", "StDev", "CoV", "SEM", "Min", "Max"]}
+        statistics: Dict[str, Any] = {k: None for k in ["n", "Mean", "StDev", "CoV", "SEM", "Min", "Max"]}
         statistics["n"] = len(metric)
 
         if len(metric) > 0:
@@ -115,10 +114,9 @@ class BaseMetric:
                 for iter_key, iter_value in statistics.items():
                     statistics[iter_key] = int(round(iter_value))
 
-        statistics = {k: [j] for k, j in statistics.items()}
-        statistics = pd.DataFrame.from_dict(statistics)
-
-        return statistics
+        statistics = {k: [v] for k, v in statistics.items()}
+        statistics_df = pd.DataFrame.from_dict(statistics)
+        return statistics_df
 
 
 class TwitchAmplitude(BaseMetric):
@@ -163,9 +161,9 @@ class TwitchAmplitude(BaseMetric):
         Returns:
             Pandas Series of float values representing the amplitude of each twitch
         """
-        estimates_dict = {twitch_index: None for twitch_index in twitch_indices.keys()}
-
         data_series = filtered_data[1, :]
+
+        estimates_dict: Dict[int, float] = dict()
         for iter_twitch_idx, iter_twitch_info in twitch_indices.items():
             peak_amplitude = data_series[iter_twitch_idx]
             prior_amplitude = data_series[iter_twitch_info[PRIOR_VALLEY_INDEX_UUID]]
@@ -576,8 +574,7 @@ class TwitchIrregularity(BaseMetric):
         list_of_twitch_indices = list(twitch_indices.keys())
         num_twitches = len(list_of_twitch_indices)
 
-        estimates = {twitch_index: None for twitch_index in twitch_indices.keys()}
-
+        estimates = {list_of_twitch_indices[0]:  None}
         for twitch in range(1, num_twitches - 1):
             last_twitch_index = list_of_twitch_indices[twitch - 1]
             current_twitch_index = list_of_twitch_indices[twitch]
@@ -588,6 +585,7 @@ class TwitchIrregularity(BaseMetric):
             interval = abs(current_interval - last_interval)
 
             estimates[current_twitch_index] = interval
+        estimates[list_of_twitch_indices[-1]] = None
 
         estimates = pd.Series(estimates)
 

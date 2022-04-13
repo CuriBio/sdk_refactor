@@ -163,11 +163,9 @@ class TwitchAmplitude(BaseMetric):
         Returns:
             Pandas Series of float values representing the amplitude of each twitch
         """
-        # amplitudes = Series(index=twitch_indices.keys(), dtype=np.float64)
-        estimates = {twitch_index: None for twitch_index in twitch_indices.keys()}
+        estimates_dict = {twitch_index: None for twitch_index in twitch_indices.keys()}
 
         data_series = filtered_data[1, :]
-
         for iter_twitch_idx, iter_twitch_info in twitch_indices.items():
             peak_amplitude = data_series[iter_twitch_idx]
             prior_amplitude = data_series[iter_twitch_info[PRIOR_VALLEY_INDEX_UUID]]
@@ -180,11 +178,9 @@ class TwitchAmplitude(BaseMetric):
             if rounded:
                 amplitude_value = round(amplitude_value, 0)
 
-            estimates[iter_twitch_idx] = amplitude_value
+            estimates_dict[iter_twitch_idx] = amplitude_value
 
-        estimates = pd.Series(estimates)
-        estimates = estimates * MICRO_TO_BASE_CONVERSION
-
+        estimates = pd.Series(estimates_dict) * MICRO_TO_BASE_CONVERSION
         return estimates
 
 
@@ -358,16 +354,12 @@ class TwitchWidth(BaseMetric):
             rising_idx = iter_twitch_peak_idx - 1
             falling_idx = iter_twitch_peak_idx + 1
 
-            twitch_dict = {
-                metric_type: {
-                    contraction_type: {twitch_width: None for twitch_width in twitch_width_percents}
-                    for contraction_type in ["contraction", "relaxation"]
-                }
-                for metric_type in ["force", "time"]
+            twitch_dict = {  # type: ignore
+                metric_type: {contraction_type: {} for contraction_type in ("contraction", "relaxation")}
+                for metric_type in ("force", "time")
             }
 
             for iter_percent in twitch_width_percents:
-
                 rising_threshold = peak_value - (iter_percent / 100) * rising_amplitude
                 falling_threshold = peak_value - (iter_percent / 100) * falling_amplitude
 
@@ -663,7 +655,7 @@ class TwitchAUC(BaseMetric):
             Pandas Series of floats representing area under the curve for each twitch
         """
         width_percent = 90  # what percent of repolarization to use as the bottom limit for calculating AUC
-        estimates = {twitch_index: None for twitch_index in twitch_indices.keys()}
+        estimates_dict: Dict[int, Union[int, float]] = dict()
 
         value_series = filtered_data[1, :]
         time_series = filtered_data[0, :]
@@ -675,7 +667,6 @@ class TwitchAUC(BaseMetric):
         falling_y_values = coordinate_df["force"]["relaxation"].T.to_dict()
 
         for iter_twitch_peak_idx, iter_twitch_indices_info in twitch_indices.items():
-
             # iter_twitch_peak_timepoint = time_series[iter_twitch_peak_idx]
             prior_valley_value = value_series[iter_twitch_indices_info[PRIOR_VALLEY_INDEX_UUID]]
             subsequent_valley_value = value_series[iter_twitch_indices_info[SUBSEQUENT_VALLEY_INDEX_UUID]]
@@ -715,12 +706,7 @@ class TwitchAUC(BaseMetric):
             right_y = value_series[rising_idx]
 
             auc_total += self.calculate_trapezoid_area(
-                left_x,
-                right_x,
-                left_y,
-                right_y,
-                rising_coords,
-                falling_coords,
+                left_x, right_x, left_y, right_y, rising_coords, falling_coords
             )
 
             # calculate area of falling side
@@ -761,10 +747,9 @@ class TwitchAUC(BaseMetric):
             if self.rounded:
                 auc_total = int(round(auc_total, 0))
 
-            estimates[iter_twitch_peak_idx] = auc_total
+            estimates_dict[iter_twitch_peak_idx] = auc_total
 
-        estimates = pd.Series(estimates)
-
+        estimates = pd.Series(estimates_dict)
         return estimates
 
     @staticmethod
@@ -969,35 +954,21 @@ class TwitchPeakTime(BaseMetric):
         coords = coordinate_df["time"][coord_label]
         coords = coords.T.to_dict()
 
-        estimates = {
-            twitch_index: {twitch_width: None for twitch_width in twitch_widths}
-            for twitch_index in twitch_indices.keys()
-        }
+        def diff_fn(x, y):
+            return x - y if self.is_contraction else y - x
 
-        peak_times = {twitch_index: filtered_data[0, twitch_index] for twitch_index in twitch_indices.keys()}
-
+        estimates_dict = {twitch_index: dict() for twitch_index in twitch_indices.keys()}  # type: ignore
         for iter_twitch_idx in twitch_indices.keys():
             for iter_percent in twitch_widths:
-
                 if is_contraction:
-                    percent = 100 - iter_percent
+                    iter_percent = 100 - iter_percent
 
-                    def difference_fxn(x, y):
-                        return x - y
+                percent_time = coords[iter_twitch_idx][iter_percent]
+                peak_time = filtered_data[0, iter_twitch_idx]
 
-                else:
-                    percent = iter_percent
+                estimates_dict[iter_twitch_idx][iter_percent] = diff_fn(peak_time, percent_time)
 
-                    def difference_fxn(x, y):
-                        return y - x
-
-                percent_time = coords[iter_twitch_idx][percent]
-                peak_time = peak_times[iter_twitch_idx]
-
-                estimates[iter_twitch_idx][iter_percent] = difference_fxn(peak_time, percent_time)
-
-        estimates = pd.DataFrame.from_dict(estimates, orient="index")
-
+        estimates = pd.DataFrame.from_dict(estimates_dict, orient="index")
         return estimates / MICRO_TO_BASE_CONVERSION
 
 
@@ -1022,26 +993,18 @@ class TwitchPeakToBaseline(BaseMetric):
     ) -> Series:
         time_series = filtered_data[0, :]
 
-        if self.is_contraction:
-            valley_key = PRIOR_VALLEY_INDEX_UUID
+        valley_key = PRIOR_VALLEY_INDEX_UUID if self.is_contraction else SUBSEQUENT_VALLEY_INDEX_UUID
 
-            def difference_fxn(x, y):
-                return x - y
+        def diff_fn(x, y):
+            return x - y if self.is_contraction else y - x
 
-        else:
-            valley_key = SUBSEQUENT_VALLEY_INDEX_UUID
-
-            def difference_fxn(x, y):
-                return y - x
-
-        peak_times = [time_series[k] for k in twitch_indices.keys()]
-        valley_times = [time_series[twitch_indices[k][valley_key]] for k in twitch_indices.keys()]
-
-        estimates = [
-            difference_fxn(peak_times[k], valley_times[k]) for k, _ in enumerate(twitch_indices.keys())
+        peak_times = [time_series[t_idx] for t_idx in twitch_indices.keys()]
+        valley_times = [time_series[twitch_indices[t_idx][valley_key]] for t_idx in twitch_indices.keys()]
+        estimates_list = [
+            diff_fn(peak_time, valley_time) for peak_time, valley_time in zip(peak_times, valley_times)
         ]
-        estimates = pd.Series(estimates, index=twitch_indices.keys())
 
+        estimates = pd.Series(estimates_list, index=twitch_indices.keys())
         return estimates / MICRO_TO_BASE_CONVERSION
 
 
@@ -1056,11 +1019,11 @@ def interpolate_x_for_y_between_two_points(  # pylint:disable=invalid-name # (El
 
     Uses linear interpolation, based on point-slope formula.
     """
-    if (x_2 - x_1) == 0:
+    if x_2 - x_1 == 0:
+        # custom ZeroDivisionError message
         raise ZeroDivisionError("Denominator cannot be 0.")
 
     slope = (y_2 - y_1) / (x_2 - x_1)
-
     return (desired_y - y_1) / slope + x_1
 
 
@@ -1075,7 +1038,8 @@ def interpolate_y_for_x_between_two_points(  # pylint:disable=invalid-name # (El
 
     Uses linear interpolation, based on point-slope formula.
     """
-    if (x_2 - x_1) == 0:
+    if x_2 - x_1 == 0:
+        # custom ZeroDivisionError message
         raise ZeroDivisionError("Denominator cannot be 0.")
 
     slope = (y_2 - y_1) / (x_2 - x_1)

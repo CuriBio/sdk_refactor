@@ -146,10 +146,7 @@ def create_frequency_vs_time_charts(
         {
             "categories": f"='{PER_TWITCH_METRICS_SHEET_NAME}'!$B${well_row + 2}:${last_column}${well_row + 2}",
             "values": f"='{PER_TWITCH_METRICS_SHEET_NAME}'!$B${well_row + 7}:${last_column}${well_row + 7}",
-            "marker": {
-                "type": "diamond",
-                "size": 7,
-            },
+            "marker": {"type": "diamond", "size": 7},
             "line": {"none": True},
         }
     )
@@ -183,7 +180,7 @@ def write_xlsx(
     name: str = None,
     start_time: float = 0.0,
     end_time: float = np.inf,
-    twitch_widths: Tuple[int, ...] = tuple([50, 90]),
+    twitch_widths: Tuple[int, ...] = (50, 90),
 ):
     """Write plate recording waveform and computed metrics to Excel spredsheet.
 
@@ -285,15 +282,14 @@ def write_xlsx(
 
     log.info("Computing data metrics for each well.")
 
-    for i, well_file in enumerate(plate_recording):
-
+    for well_file in plate_recording:
         # initialize some data structures
         error_msg = None
         peaks_and_valleys = None
         # necessary for concatenating DFs together, in event that peak-finding fails and produces empty DF
         dfs = init_dfs()
         metrics = tuple(
-            concat([dfs[k][j] for j in dfs[k].keys()], axis=1) for k in ["per_twitch", "aggregate"]
+            concat([dfs[k][j] for j in dfs[k].keys()], axis=1) for k in ("per_twitch", "aggregate")
         )
 
         if well_file is None:
@@ -390,7 +386,7 @@ def _write_xlsx(
     continuous_waveforms_df: pd.DataFrame,
     data: List[Dict[Any, Any]],
     is_optical_recording: bool = False,
-    twitch_widths: Tuple[int, ...] = tuple([50, 90]),
+    twitch_widths: Tuple[int, ...] = (50, 90),
 ):
     with pd.ExcelWriter(name) as writer:
         log.info("Writing H5 file metadata")
@@ -413,10 +409,10 @@ def _write_xlsx(
         snapshot_sheet = wb.add_worksheet("continuous-waveform-snapshot")
         full_sheet = wb.add_worksheet("full-continuous-waveform-plots")
 
-        for i, dm in enumerate(data):
+        for well_idx, dm in enumerate(data):
             log.info(f'Creating waveform charts for well {dm["well_name"]}')
             create_waveform_charts(
-                i,
+                well_idx,
                 dm,
                 continuous_waveforms_df,
                 wb,
@@ -428,7 +424,7 @@ def _write_xlsx(
 
         # aggregate metrics sheet
         log.info("Writing aggregate metrics.")
-        aggregate_df = aggregate_metrics_df(data)
+        aggregate_df = aggregate_metrics_df(data, twitch_widths)
         aggregate_df.to_excel(writer, sheet_name="aggregate-metrics", index=False, header=False)
 
         # per twitch metrics sheet
@@ -448,7 +444,7 @@ def _write_xlsx(
 
                 num_data_points = len(dm[0])
 
-                log.info(f'Creating frequency vs time chart for well {d["well_name"]}')
+                log.info(f"Creating frequency vs time chart for well {d['well_name']}")
                 create_frequency_vs_time_charts(
                     freq_vs_time_sheet,
                     freq_vs_time_chart,
@@ -459,7 +455,7 @@ def _write_xlsx(
                     num_metrics,
                 )
 
-                log.info(f'Creating force frequency relationship chart for well {d["well_name"]}')
+                log.info(f"Creating force frequency relationship chart for well {d['well_name']}")
                 create_force_frequency_relationship_charts(
                     force_freq_sheet,
                     force_freq_chart,
@@ -472,7 +468,7 @@ def _write_xlsx(
 
 
 def create_waveform_charts(
-    iter_idx,
+    well_idx,
     dm,
     continuous_waveforms_df,
     wb,
@@ -486,7 +482,7 @@ def create_waveform_charts(
 
     upper_x_bound = (
         dm["end_time"]
-        if (dm["end_time"] - dm["start_time"]) <= CHART_MAXIMUM_SNAPSHOT_LENGTH
+        if dm["end_time"] - dm["start_time"] <= CHART_MAXIMUM_SNAPSHOT_LENGTH
         else dm["start_time"] + CHART_MAXIMUM_SNAPSHOT_LENGTH
     )
 
@@ -560,7 +556,7 @@ def create_waveform_charts(
         waveform_charts=[snapshot_chart, full_chart],
         continuous_waveform_sheet=continuous_waveforms_sheet,
         detector_type="Peak",
-        well_index=iter_idx,
+        well_index=well_idx,
         well_name=f"{dm['well_name']}",
         upper_x_bound_cell=dm["num_data_points"],
         indices=peaks,
@@ -574,7 +570,7 @@ def create_waveform_charts(
         waveform_charts=[snapshot_chart, full_chart],
         continuous_waveform_sheet=continuous_waveforms_sheet,
         detector_type="Valley",
-        well_index=iter_idx,
+        well_index=well_idx,
         well_name=f"{dm['well_name']}",
         upper_x_bound_cell=dm["num_data_points"],
         indices=valleys,
@@ -588,42 +584,19 @@ def create_waveform_charts(
     snapshot_sheet.insert_chart(
         well_row * (CHART_HEIGHT_CELLS + 1), well_col * (CHART_FIXED_WIDTH_CELLS + 1), snapshot_chart
     )
-    full_sheet.insert_chart(1 + iter_idx * (CHART_HEIGHT_CELLS + 1), 1, full_chart)
+    full_sheet.insert_chart(1 + well_idx * (CHART_HEIGHT_CELLS + 1), 1, full_chart)
 
 
-def aggregate_metrics_df(data: List[Dict[Any, Any]], widths: Tuple[int, ...] = tuple([50, 90])):
+def aggregate_metrics_df(data: List[Dict[Any, Any]], widths: Tuple[int, ...] = (50, 90)):
     """Combine aggregate metrics for each well into single DataFrame.
 
     Args:
         data (list): list of data metrics and metadata associated with each well
-        widths (tuple of ints, optional): twitch-widths to return data for. Defaults to tuple(50,90).
+        widths (tuple of ints, optional): twitch-widths to return data for. Defaults to (50, 90).
 
     Returns:
         df (DataFrame): aggregate data frame of all metric aggregate measures
     """
-
-    def append2df(main_df: pd.DataFrame, metrics: pd.DataFrame):
-        """Append metric-specific aggregate measures to aggregate data frame.
-
-        Wraps original append function.
-
-        Args:
-            main_df (DataFrame): aggregate data frame
-            metrics (DataFrame): metric-specific aggregate measures
-        Returns:
-            main_df (DataFrame): aggregate data frame
-        """
-        metrics.reset_index(inplace=True)
-        metrics.insert(0, "level_0", [nm] + [""] * 5)
-        metrics.columns = np.arange(metrics.shape[1])
-
-        main_df = main_df.append(metrics, ignore_index=True)
-
-        # empty row
-        main_df = main_df.append(pd.Series([""]), ignore_index=True)
-
-        return main_df
-
     df = pd.DataFrame()
     df = df.append(
         pd.Series(
@@ -648,34 +621,56 @@ def aggregate_metrics_df(data: List[Dict[Any, Any]], widths: Tuple[int, ...] = t
     combined = pd.concat([d["metrics"][1] for d in data])
 
     for metric_id in ALL_METRICS:
-        if metric_id in [WIDTH_UUID, RELAXATION_TIME_UUID, CONTRACTION_TIME_UUID]:
+        if metric_id in (WIDTH_UUID, RELAXATION_TIME_UUID, CONTRACTION_TIME_UUID):
             for k in widths:
-                nm = CALCULATED_METRIC_DISPLAY_NAMES[metric_id].format(k)
+                name = CALCULATED_METRIC_DISPLAY_NAMES[metric_id].format(k)
                 metric_df = combined[metric_id][k].drop(columns=["n"]).T
-                df = append2df(df, metric_df)
+                df = _append_aggregate_measures_df(df, metric_df, name)
         else:
-            nm = CALCULATED_METRIC_DISPLAY_NAMES[metric_id]
+            name = CALCULATED_METRIC_DISPLAY_NAMES[metric_id]
             metric_df = combined[metric_id].drop(columns=["n"]).T.droplevel(level=-1, axis=0)
-            df = append2df(df, metric_df)
+            df = _append_aggregate_measures_df(df, metric_df, name)
 
     return df
 
 
-def per_twitch_df(data: List[Dict[Any, Any]], widths: Tuple[int, ...] = tuple([50, 90])):
+def _append_aggregate_measures_df(main_df: pd.DataFrame, metrics: pd.DataFrame, name: str):
+    """Append metric-specific aggregate measures to aggregate data frame.
+
+    Includes an empty row after aggregate measures
+
+    Args:
+        main_df (DataFrame): aggregate data frame
+        metrics (DataFrame): metric-specific aggregate measures
+        name (str): the display name of the metric
+    Returns:
+        main_df (DataFrame): aggregate data frame
+    """
+    metrics.reset_index(inplace=True)
+    metrics.insert(0, "level_0", [name] + [""] * 5)
+    metrics.columns = np.arange(metrics.shape[1])
+
+    main_df = main_df.append(metrics, ignore_index=True)
+
+    # empty row
+    main_df = main_df.append(pd.Series([""]), ignore_index=True)
+
+    return main_df
+
+
+def per_twitch_df(data: List[Dict[Any, Any]], widths: Tuple[int, ...] = (50, 90)):
     """Combine per-twitch metrics for each well into single DataFrame.
 
     Args:
         data (list): list of data metrics and metadata associated with each well
-        widths (tuple of ints, optional): twitch-widths to return data for. Defaults to tuple([50,90]).
+        widths (tuple of ints, optional): twitch-widths to return data for. Defaults to (50, 90).
 
     Returns:
         df (DataFrame): per-twitch data frame of all metrics
     """
-    # append to a list instead of to a dataframe directly because it's fasters
-    # construct the dataframe at the end
+    # append to a list instead of to a dataframe directly because it's faster and construct the dataframe at the end
     series_list = []
-    for j, d in enumerate(data):  # for each well
-
+    for d in data:  # for each well
         num_per_twitch_metrics = 0  # len(labels)
         twitch_times = [d["force"][0, i] / MICRO_TO_BASE_CONVERSION for i in d["metrics"][0].index]
 
@@ -687,7 +682,7 @@ def per_twitch_df(data: List[Dict[Any, Any]], widths: Tuple[int, ...] = tuple([5
         num_per_twitch_metrics += 2
 
         for metric_id in ALL_METRICS:
-            if metric_id in [WIDTH_UUID, RELAXATION_TIME_UUID, CONTRACTION_TIME_UUID]:
+            if metric_id in (WIDTH_UUID, RELAXATION_TIME_UUID, CONTRACTION_TIME_UUID):
                 for twitch_width in widths:
                     values = [f"{CALCULATED_METRIC_DISPLAY_NAMES[metric_id].format(twitch_width)}"]
                     temp = pd.Series(values + list(dm[metric_id][twitch_width]))
@@ -705,4 +700,4 @@ def per_twitch_df(data: List[Dict[Any, Any]], widths: Tuple[int, ...] = tuple([5
 
     df = pd.concat(series_list, axis=1).T
     df.fillna("", inplace=True)
-    return (df, num_per_twitch_metrics)
+    return df, num_per_twitch_metrics

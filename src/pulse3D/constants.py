@@ -244,7 +244,7 @@ MIN_NUMBER_VALLEYS = 3
 
 
 """
-curibio.sdk constants
+pulse3D constants
 """
 METADATA_EXCEL_SHEET_NAME = "metadata"
 METADATA_RECORDING_ROW_START = 0

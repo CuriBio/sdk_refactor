@@ -59,13 +59,13 @@ def serialize_main_dict(per_twitch_dict: Dict[int, Any], metrics_to_create: Iter
     Returns:
         serialized: dictionary of serialized per-twitch values
     """
+
     def add_metric(twitch: int, metric: UUID) -> Union[str, Dict[str, Any]]:
         # get current per_twitch_metric dictionary
         temp_metric_dict = per_twitch_dict[twitch][metric]
 
-        if metric in [TIME_DIFFERENCE_UUID]:
-            time_diff: Dict[str, Dict[str, str]] = dict()
-            time_diff = {str(perc): dict() for perc in range(10, 95, 5)}
+        if metric == TIME_DIFFERENCE_UUID:
+            time_diff: Dict[str, Dict[str, str]] = {str(perc): dict() for perc in range(10, 95, 5)}
 
             for twitch_width_perc in range(10, 95, 5):
                 temp_width_dict = temp_metric_dict[twitch_width_perc]
@@ -78,9 +78,8 @@ def serialize_main_dict(per_twitch_dict: Dict[int, Any], metrics_to_create: Iter
 
             return time_diff
 
-        if metric in [WIDTH_UUID]:
-            widths: Dict[str, Dict[str, Any]] = dict()
-            widths = {str(perc): dict() for perc in range(10, 95, 5)}
+        if metric == WIDTH_UUID:
+            widths: Dict[str, Dict[str, Any]] = {str(perc): dict() for perc in range(10, 95, 5)}
 
             for twitch_width_perc in range(10, 95, 5):
                 temp_width_dict = temp_metric_dict[twitch_width_perc]
@@ -99,7 +98,7 @@ def serialize_main_dict(per_twitch_dict: Dict[int, Any], metrics_to_create: Iter
         return str(per_twitch_dict[twitch][metric])
 
     serialized: Dict[str, Any] = {
-        str(twitch): {add_metric(twitch, metric) for metric in metrics_to_create}
+        str(twitch): {str(metric): add_metric(twitch, metric) for metric in metrics_to_create}
         for twitch in per_twitch_dict.keys()
     }
     return serialized

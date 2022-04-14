@@ -53,19 +53,18 @@ def encode_dict(d):
     """
     result = {}
     for key, value in d.items():
-        if isinstance(key, uuid.UUID):
+        # fix key
+        if isinstance(key, (int, uuid.UUID, np.int64)):
             key = str(key)
-        if isinstance(key, int):
-            key = str(key)
-        if isinstance(key, np.int64):
-            key = str(key)
+        # fix value
         if isinstance(value, uuid.UUID):
             value = str(value)
-        if isinstance(value, tuple):
+        elif isinstance(value, tuple):
             value = list(value)
         elif isinstance(value, dict):
             value = encode_dict(value)
-        result.update({key: value})
+        # add to new dict
+        result[key] = value
     return result
 
 
@@ -156,7 +155,8 @@ def test_metrics__TwitchBaselineToPeak():
 
     metric = metrics.TwitchPeakToBaseline(is_contraction=True)
     estimate = metric.fit(pv, w.force, twitch_indices)
-    assert np.all(expected == estimate)
+
+    np.testing.assert_array_equal(estimate, expected)
 
 
 def test_metrics__TwitchPeakToBaseline():
@@ -188,7 +188,7 @@ def test_metrics__TwitchPeakToBaseline():
     metric = metrics.TwitchPeakToBaseline(is_contraction=False)
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    assert np.all(expected == estimate)
+    np.testing.assert_array_equal(estimate, expected)
 
 
 def test_metrics__TwitchFracAmp():

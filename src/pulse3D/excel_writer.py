@@ -263,7 +263,7 @@ def write_xlsx(
             str(w[UTC_BEGINNING_RECORDING_UUID].replace(tzinfo=None)),
             "",
             "",
-            w["File Format Version"],
+            w[FILE_FORMAT_VERSION_METADATA_KEY],
             w.get(MANTARRAY_SERIAL_NUMBER_UUID, ""),
             w.get(SOFTWARE_RELEASE_VERSION_UUID, ""),
             w.get(SOFTWARE_BUILD_NUMBER_UUID, ""),

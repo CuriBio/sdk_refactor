@@ -6,7 +6,7 @@
 .. image:: images/curi_logo.png
     :width: 600
 
-Welcome to curibio.sdk's documentation!
+Welcome to Pulse3D's documentation!
 =================================================
 
 Welcome to Curi Bio's Software Development Kit! This tool will allow you to take
@@ -21,7 +21,7 @@ from |mybinder_link|.
 
 .. |mybinder_link| raw:: html
 
-   <a href="https://pypi.org/project/curibio.sdk/" target="_blank">PyPI</a>
+   <a href="https://pypi.org/project/pulse3D/" target="_blank">PyPI</a>
 
 
 .. toctree::

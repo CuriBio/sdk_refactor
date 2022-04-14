@@ -18,7 +18,7 @@ Click |python_link| to navigate to further instructions for downloading Python.
 
 The update to the newest version of the SDK can be downloaded by running::
 
-    pip install curibio.sdk --upgrade
+    pip install pulse3D --upgrade
 
 Running Batch Analysis
 ----------------------
@@ -40,7 +40,7 @@ the change directory command, click |cd_link| for more information.
 
 3. Run this command (the part in quotes is a simple python script)::
 
-    python3 -c "from curibio.sdk import check_if_latest_version, create_xlsx_for_all_recordings; check_if_latest_version(); create_xlsx_for_all_recordings()"
+    python3 -c "from pulse3D import check_if_latest_version, create_xlsx_for_all_recordings; check_if_latest_version(); create_xlsx_for_all_recordings()"
 
 As it runs, you should see updates of something like "Analyzing recording 3 of 25" to let you
 know how it's progressing.
@@ -63,4 +63,4 @@ Troubleshooting
 If the command in Step 3 of Running Batch Analysis isn't working, try using python
 instead of python3::
 
-    python -c "from curibio.sdk import check_if_latest_version, create_xlsx_for_all_recordings; check_if_latest_version(); create_xlsx_for_all_recordings()"
+    python -c "from pulse3D import check_if_latest_version, create_xlsx_for_all_recordings; check_if_latest_version(); create_xlsx_for_all_recordings()"

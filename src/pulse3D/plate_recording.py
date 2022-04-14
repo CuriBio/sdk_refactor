@@ -479,9 +479,7 @@ def _load_optical_file_attrs(sheet: Worksheet):
 
     value = _get_excel_metadata_value(sheet, TISSUE_SAMPLING_PERIOD_UUID)
     if value is None:
-        raise NotImplementedError(
-            "Tissue Sampling Period should not be None here"
-        )
+        raise NotImplementedError("Tissue Sampling Period should not be None here")
     sampling_period = int(round(1 / float(value), 6) * MICRO_TO_BASE_CONVERSION)
 
     interpolation_value_str = _get_excel_metadata_value(sheet, INTERPOLATION_VALUE_UUID)

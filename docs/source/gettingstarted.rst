@@ -175,33 +175,33 @@ When navigating away from the page you may see the following pop-up dialog:
 If all analysis is done and all files have been downloaded,
 then it is OK to press ``leave``.
 
-Adding Arguments to write.xlsx()
+Adding Arguments to write_xlsx()
 --------------------------------
 
 If you would like to add twitch width values to the per twitch metrics sheet and aggregate metrics
-sheet you can do so by adding a ``twitch_width_values`` argument to ``write.xlsx()``. There are five possible twitch widths that an be included which
+sheet you can do so by adding a ``twitch_width_values`` argument to ``write_xlsx()``. There are five possible twitch widths that an be included which
 are 10, 25, 50, 75, 90. You can include any combination of the five or none at all. However if a value is included
 other than the five listed, an error will occur. If none are specified, then by default all will
 be shown. An example of adding this argument is::
 
-    recording.write_xlsx('.', twitch_width_values=(10, 25, 90))
+    write_xlsx(pr, twitch_width_values=(10, 25, 90))
 
 or::
 
-    recording.write_xlsx('.', twitch_width_values=(10))
+    write_xlsx(pr, twitch_width_values=(10,))
 
 If you would like to include the twitch coordinate values for the twitch widths, that can be done so
-by including a ``show_twitch_coordinate_values`` argument in ``write.xlsx()``. In order to do so the
+by including a ``show_twitch_coordinate_values`` argument in ``write_xlsx()``. In order to do so the
 argument must be set to ``True`` as by default it is set to ``False``. If it is set to ``True``
 then the twitch coordinate values that will be included will be for the twitch widths that are specified or if it isn't
 specified then all will be included. This metric will be included in the per twitch metrics sheet. An example of
 this is::
 
-    recording.write_xlsx('.', twitch_width_values=(10, 25, 90), show_twitch_coordinate_values=True)
+    write_xlsx(pr, twitch_width_values=(10, 25, 90), show_twitch_coordinate_values=True)
 
 or::
 
-    recording.write_xlsx('.', show_twitch_coordinate_values=True)
+    write_xlsx(pr, show_twitch_coordinate_values=True)
 
 If you would like to include the twitch time difference metric (the time difference between various
 points on the curve and the peak) on the per twitch metrics sheet then you can do so by including a ``show_twitch_time_diff_values``
@@ -209,8 +209,8 @@ argument in ``write_xlsx()``. In order to do so the argument must be set to ``Tr
 If it is set to ``True`` then the twitch time difference values that will be included will be for the twitch widths that are specified or if it isn't
 specified then all will be included. An example of this is::
 
-    recording.write_xlsx('.', twitch_width_values=(10, 25, 90), show_twitch_coordinate_values=True, show_twitch_time_diff_values=True)
+    write_xlsx(pr, twitch_width_values=(10, 25, 90), show_twitch_coordinate_values=True, show_twitch_time_diff_values=True)
 
 or::
 
-    recording.write_xlsx('.', show_twitch_time_diff_values=True)
+    write_xlsx(pr, show_twitch_time_diff_values=True)

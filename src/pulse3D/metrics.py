@@ -12,7 +12,6 @@ from functools import partial
 from hashlib import sha256
 from typing import Any
 from typing import Dict
-from typing import Iterable
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -983,7 +982,7 @@ class TwitchPeakToBaseline(BaseMetric):
             get_diff(peak_time, valley_time) for peak_time, valley_time in zip(peak_times, valley_times)
         ]
         estimates = pd.Series(estimates_list, index=twitch_indices.keys()) / MICRO_TO_BASE_CONVERSION
-        return estimates 
+        return estimates
 
 
 def interpolate_x_for_y_between_two_points(  # pylint:disable=invalid-name # (Eli 9/1/20: I can't think of a shorter name to describe this concept fully)

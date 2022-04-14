@@ -1,6 +1,12 @@
 Changelog for Curi Bio Software Development Kit
 ===============================================
 
+0.23.6 (2022-04-14)
+-------------------
+- Fixed issue where desired twitch widths weren't being output in aggregate metrics sheet
+- Fixed documentation
+
+
 0.23.5 (2022-04-07)
 -------------------
 - Added metadata for stim barcode

@@ -180,7 +180,7 @@ def create_frequency_vs_time_charts(
 
 def write_xlsx(
     plate_recording: PlateRecording,
-    start_time: Union[float, int] = 0.0,
+    start_time: Union[float, int] = 0,
     end_time: Union[float, int] = np.inf,
     twitch_widths: Tuple[int, ...] = (50, 90),
 ):
@@ -198,10 +198,6 @@ def write_xlsx(
     # make sure windows bounds are floats
     start_time = float(start_time)
     end_time = float(end_time)
-
-    # create output file name
-    input_file_name = os.path.splitext(os.path.basename(plate_recording.path))[0]
-    output_file_name = f"{input_file_name}-pulse3D-output.xlsx"
 
     # get metadata from first well file
     w = [pw for pw in plate_recording if pw][0]
@@ -234,6 +230,14 @@ def write_xlsx(
     end_time = min(end_time, max_final_time_us)
     is_full_analysis = start_time == 0 and end_time == max_final_time_us
 
+    # create output file name
+    input_file_name_no_ext = os.path.splitext(os.path.basename(plate_recording.path))[0]
+    if is_full_analysis:
+        output_file_name = f"{input_file_name_no_ext}_full.xlsx"
+    else:
+        output_file_name = f"{input_file_name_no_ext}_{start_time}-{end_time}.xlsx"
+
+    # create metadata sheet format as DataFrame
     metadata = {
         "A": [
             "Recording Information:",

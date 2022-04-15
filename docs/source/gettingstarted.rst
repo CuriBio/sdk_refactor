@@ -223,7 +223,7 @@ An example of using this argument::
 
 
 ``end_time``
-^^^^^^^^^^^^^^
+^^^^^^^^^^^^
 
 Specifies the latest timepoint (in seconds) to use in analysis.
 If not given, the analysis will run through the latest recorded timepoint in the recording file.

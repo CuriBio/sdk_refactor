@@ -5,6 +5,7 @@ Changelog for Curi Bio Software Development Kit
 -------------------
 - Fixed issue where desired twitch widths weren't being output in aggregate metrics sheet
 - Fixed code snippets in documentation
+- Changed output file name to include input file name
 - Removed ``name`` param of ``write_xlsx`` function
 
 0.23.5 (2022-04-07)

@@ -13,12 +13,11 @@ each of which can be executed independently of others.
 Getting Started with Jupyter
 ----------------------------
 
-Click |mybinder_link| to navigate to the online
-notebook.
+Click |mybinder_link| to navigate to the online notebook.
 
 .. |mybinder_link| raw:: html
 
-   <a href="https://jupyter-sdk.curibio.com" target="_blank">here</a>
+   <a href="https://mybinder.org/v2/gh/curibio/jupyter_sdk/v0.23.6?filepath=intro.ipynb" target="_blank">here</a>
 
 You should land on a page that looks like this:
 

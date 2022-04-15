@@ -178,39 +178,31 @@ then it is OK to press ``leave``.
 Adding Arguments to write_xlsx()
 --------------------------------
 
-If you would like to add twitch width values to the per twitch metrics sheet and aggregate metrics
-sheet you can do so by adding a ``twitch_width_values`` argument to ``write_xlsx()``. There are five possible twitch widths that an be included which
-are 10, 25, 50, 75, 90. You can include any combination of the five or none at all. However if a value is included
-other than the five listed, an error will occur. If none are specified, then by default all will
-be shown. An example of adding this argument is::
+There are a few arguments you can use to modify the ``.xlsx`` output file. They are:
+- ``twitch_widths``
+- ``start_time``
+- ``end_time``
 
-    write_xlsx(r, twitch_width_values=(10, 25, 90))
+Any combination of these arguments can be given. Omitting them all is fine too.
+Their behavior is documented in detail below.
 
-or::
 
-    write_xlsx(r, twitch_width_values=(10,))
+``twitch_widths``
+^^^^^^^^^^^^^^^^^
 
-If you would like to include the twitch coordinate values for the twitch widths, that can be done so
-by including a ``show_twitch_coordinate_values`` argument in ``write_xlsx()``. In order to do so the
-argument must be set to ``True`` as by default it is set to ``False``. If it is set to ``True``
-then the twitch coordinate values that will be included will be for the twitch widths that are specified or if it isn't
-specified then all will be included. This metric will be included in the per twitch metrics sheet. An example of
-this is::
+If you would like to add specific twitch width values to the per twitch metrics sheet and aggregate metrics
+sheet you can do so by adding the ``twitch_widths`` argument to ``write_xlsx()``.
+The twitch width values that can be given are any multiple of 5 between 10 and 90 (includes 10 and 90).
+You can include any combination of valid values. However if a value is included that is either outside
+of the accepted range or not a multiple of 5, an error will occur.
+If the ``twitch_widths`` argument is not given, then by default only 50 and 90 will be shown.
+A few examples of using this argument::
 
-    write_xlsx(r, twitch_width_values=(10, 25, 90), show_twitch_coordinate_values=True)
+    # use only 10, 25, and 90
+    write_xlsx(r, twitch_widths=(10, 25, 90))
+    # use only 10
+    write_xlsx(r, twitch_widths=(10,))
+    # use all valid values
+    write_xlsx(r, twitch_widths=tuple(range(10, 95, 5)))
 
-or::
 
-    write_xlsx(r, show_twitch_coordinate_values=True)
-
-If you would like to include the twitch time difference metric (the time difference between various
-points on the curve and the peak) on the per twitch metrics sheet then you can do so by including a ``show_twitch_time_diff_values``
-argument in ``write_xlsx()``. In order to do so the argument must be set to ``True`` as by default it is set to ``False``.
-If it is set to ``True`` then the twitch time difference values that will be included will be for the twitch widths that are specified or if it isn't
-specified then all will be included. An example of this is::
-
-    write_xlsx(r, twitch_width_values=(10, 25, 90), show_twitch_coordinate_values=True, show_twitch_time_diff_values=True)
-
-or::
-
-    write_xlsx(r, show_twitch_time_diff_values=True)

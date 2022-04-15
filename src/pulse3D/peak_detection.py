@@ -273,7 +273,6 @@ def data_metrics(
 
         for metric_id in metrics:
             if metric_id in metrics_to_create:
-
                 metric = metric_mapper[metric_id]
                 estimate = metric.fit(**metric_parameters)
                 metric.add_per_twitch_metrics(per_twitch_df, metric_id, estimate)

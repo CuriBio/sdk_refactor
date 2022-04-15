@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import datetime
 import logging
+import os
 from typing import Any
 from typing import List
 from typing import Tuple
@@ -177,7 +178,6 @@ def create_frequency_vs_time_charts(
 
 def write_xlsx(
     plate_recording: PlateRecording,
-    name: str = None,
     start_time: float = 0.0,
     end_time: float = np.inf,
     twitch_widths: Tuple[int, ...] = (50, 90),
@@ -185,19 +185,20 @@ def write_xlsx(
     """Write plate recording waveform and computed metrics to Excel spredsheet.
 
     Args:
-        plate_recording (PlateRecording): loaded plate recording object
-        name (str, optional): File name of Excel spreadsheet. Defaults to None.
-        start_time (float): Start time of windowed analysis. Defaults to 0.0.
-        end_time (float): End time of windowed analysis. Defaults to np.inf.
+        plate_recording (PlateRecording): loaded PlateRecording object
+        start_time (float): Start time of windowed analysis. Defaults to 0.
+        end_time (float): End time of windowed analysis. Defaults to infinity.
 
     Raises:
         NotImplementedError: if peak finding algorithm fails for unexpected reason
-        ValueError: if start and end times are outside of expected bounds, or do not
+        ValueError: if start and end times are outside of expected bounds, or do not ?
     """
+    # create output file name
+    input_file_name = os.path.splitext(os.path.basename(plate_recording.path))[0]
+    output_file_name = f"{input_file_name}-pulse3D-output.xlsx"
+
     # get metadata from first well file
     w = [pw for pw in plate_recording if pw][0]
-    if name is None:
-        name = f"{w[PLATE_BARCODE_UUID]}__{w[UTC_BEGINNING_RECORDING_UUID].strftime('%Y_%m_%d_%H%M%S')}.xlsx"
     interpolated_data_period = (
         w[INTERPOLATION_VALUE_UUID] if plate_recording.is_optical_recording else INTERPOLATED_DATA_PERIOD_US
     )
@@ -370,10 +371,10 @@ def write_xlsx(
     continuous_waveforms_df = pd.DataFrame(continuous_waveforms)
 
     _write_xlsx(
-        name=name,
-        metadata_df=metadata_df,
-        continuous_waveforms_df=continuous_waveforms_df,
-        data=data,
+        output_file_name,
+        metadata_df,
+        continuous_waveforms_df,
+        data,
         is_optical_recording=plate_recording.is_optical_recording,
         twitch_widths=twitch_widths,
     )
@@ -381,14 +382,14 @@ def write_xlsx(
 
 
 def _write_xlsx(
-    name: str,
+    output_file_name: str,
     metadata_df: pd.DataFrame,
     continuous_waveforms_df: pd.DataFrame,
     data: List[Dict[Any, Any]],
     is_optical_recording: bool = False,
     twitch_widths: Tuple[int, ...] = (50, 90),
 ):
-    with pd.ExcelWriter(name) as writer:
+    with pd.ExcelWriter(output_file_name) as writer:
         log.info("Writing H5 file metadata")
         metadata_df.to_excel(writer, sheet_name="metadata", index=False, header=False)
         ws = writer.sheets["metadata"]
@@ -464,7 +465,7 @@ def _write_xlsx(
                     num_data_points,  # number of twitches
                     num_metrics,
                 )
-        log.info(f"Writing {name}")
+        log.info(f"Writing {output_file_name}")
 
 
 def create_waveform_charts(
@@ -622,9 +623,9 @@ def aggregate_metrics_df(data: List[Dict[Any, Any]], widths: Tuple[int, ...] = (
 
     for metric_id in ALL_METRICS:
         if metric_id in (WIDTH_UUID, RELAXATION_TIME_UUID, CONTRACTION_TIME_UUID):
-            for k in widths:
-                name = CALCULATED_METRIC_DISPLAY_NAMES[metric_id].format(k)
-                metric_df = combined[metric_id][k].drop(columns=["n"]).T
+            for width in widths:
+                name = CALCULATED_METRIC_DISPLAY_NAMES[metric_id].format(width)
+                metric_df = combined[metric_id][width].drop(columns=["n"]).T
                 df = _append_aggregate_measures_df(df, metric_df, name)
         else:
             name = CALCULATED_METRIC_DISPLAY_NAMES[metric_id]

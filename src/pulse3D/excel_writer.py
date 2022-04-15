@@ -5,6 +5,7 @@ import os
 from typing import Any
 from typing import List
 from typing import Tuple
+from typing import Union
 
 import numpy as np
 import pandas as pd
@@ -20,6 +21,7 @@ from .peak_detection import peak_detector
 from .plate_recording import PlateRecording
 from .plotting import plotting_parameters
 from .utils import truncate
+from .utils import truncate_float
 from .utils import xl_col_to_name
 
 
@@ -178,8 +180,8 @@ def create_frequency_vs_time_charts(
 
 def write_xlsx(
     plate_recording: PlateRecording,
-    start_time: float = 0.0,
-    end_time: float = np.inf,
+    start_time: Union[float, int] = 0.0,
+    end_time: Union[float, int] = np.inf,
     twitch_widths: Tuple[int, ...] = (50, 90),
 ):
     """Write plate recording waveform and computed metrics to Excel spredsheet.
@@ -193,6 +195,10 @@ def write_xlsx(
         NotImplementedError: if peak finding algorithm fails for unexpected reason
         ValueError: if start and end times are outside of expected bounds, or do not ?
     """
+    # make sure windows bounds are floats
+    start_time = float(start_time)
+    end_time = float(end_time)
+
     # create output file name
     input_file_name = os.path.splitext(os.path.basename(plate_recording.path))[0]
     output_file_name = f"{input_file_name}-pulse3D-output.xlsx"
@@ -203,23 +209,30 @@ def write_xlsx(
         w[INTERPOLATION_VALUE_UUID] if plate_recording.is_optical_recording else INTERPOLATED_DATA_PERIOD_US
     )
 
-    # get max_time from all wells
-    max_time = max([w.force[0][-1] for w in plate_recording if w])
-    min_time = min([w.force[0][-1] for w in plate_recording if w])
-    time_points = np.arange(interpolated_data_period, max_time, interpolated_data_period)
+    # get max and min of final timepoints across each well
+    raw_timepoints = [w.force[0][-1] for w in plate_recording if w]
+    max_final_time_secs = max(raw_timepoints)
+    interpolated_timepoints_secs = np.arange(
+        interpolated_data_period, max_final_time_secs, interpolated_data_period
+    )
 
-    # Kristian 1/25/22
+    max_final_time_us = max_final_time_secs / MICRO_TO_BASE_CONVERSION
+    # produce min final time truncated to 1 decimal place
+    min_final_time_us = truncate_float(min(raw_timepoints) / MICRO_TO_BASE_CONVERSION, 1)
+
     if start_time < 0:
-        raise ValueError(f"Window start time ({start_time}) cannot be negative.")
-    if start_time >= (min_time / MICRO_TO_BASE_CONVERSION):
+        raise ValueError(f"Window start time ({start_time}s) cannot be negative")
+    if start_time >= round(min_final_time_us, 1):
         raise ValueError(
-            f"Window start time ({start_time}s) cannot be after longest time of shortest recording ({(min_time/MICRO_TO_BASE_CONVERSION):.1f})."
+            f"Window start time ({start_time}s) greater than the max timepoint of this recording ({min_final_time_us:.1f}s)"
         )
     if end_time <= start_time:
-        raise ValueError(f"Window end time ({end_time}) must come after window start time ({start_time}).")
+        raise ValueError(
+            f"Window end time ({end_time}s) must be greater than window start time ({start_time}s)"
+        )
 
-    end_time = np.min([end_time, max_time / MICRO_TO_BASE_CONVERSION])
-    is_full_analysis = np.all([(start_time == 0), (end_time == max_time / MICRO_TO_BASE_CONVERSION)])
+    end_time = min(end_time, max_final_time_us)
+    is_full_analysis = start_time == 0 and end_time == max_final_time_us
 
     metadata = {
         "A": [
@@ -301,12 +314,16 @@ def write_xlsx(
 
         # find bounding indices with respect to well recording
         well_start_idx, well_end_idx = truncate(
-            source_series=time_points, lower_bound=well_file.force[0][0], upper_bound=well_file.force[0][-1]
+            source_series=interpolated_timepoints_secs,
+            lower_bound=well_file.force[0][0],
+            upper_bound=well_file.force[0][-1],
         )
 
         # find bounding indices of specified start/end windows
         window_start_idx, window_end_idx = truncate(
-            source_series=time_points / MICRO_TO_BASE_CONVERSION, lower_bound=start_time, upper_bound=end_time
+            source_series=interpolated_timepoints_secs / MICRO_TO_BASE_CONVERSION,
+            lower_bound=start_time,
+            upper_bound=end_time,
         )
 
         start_idx = np.max([window_start_idx, well_start_idx])
@@ -316,8 +333,10 @@ def write_xlsx(
         interp_data_fn = interpolate.interp1d(well_file.force[0, :], well_file.force[1, :])
 
         # interpolate, normalize, and scale data
-        interpolated_force = interp_data_fn(time_points[start_idx:end_idx])
-        interpolated_well_data = np.row_stack([time_points[start_idx:end_idx], interpolated_force])
+        interpolated_force = interp_data_fn(interpolated_timepoints_secs[start_idx:end_idx])
+        interpolated_well_data = np.row_stack(
+            [interpolated_timepoints_secs[start_idx:end_idx], interpolated_force]
+        )
 
         min_value = min(interpolated_force)
         interpolated_force -= min_value
@@ -358,13 +377,15 @@ def write_xlsx(
                 "force": interpolated_well_data,
                 "num_data_points": len(interpolated_well_data[0]),
                 "start_time": start_time,
-                "end_time": np.min([time_points[-1] / MICRO_TO_BASE_CONVERSION, end_time]),
+                "end_time": np.min([interpolated_timepoints_secs[-1] / MICRO_TO_BASE_CONVERSION, end_time]),
             }
         )
 
     # waveform table
     continuous_waveforms = {
-        "Time (seconds)": pd.Series(time_points[start_idx:end_idx] / MICRO_TO_BASE_CONVERSION)
+        "Time (seconds)": pd.Series(
+            interpolated_timepoints_secs[start_idx:end_idx] / MICRO_TO_BASE_CONVERSION
+        )
     }
     for d in data:
         continuous_waveforms[f"{d['well_name']} - Active Twitch Force (μN)"] = pd.Series(d["interp_data"])

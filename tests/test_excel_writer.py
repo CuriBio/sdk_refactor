@@ -20,6 +20,12 @@ def test_write_xlsx__runs_without_error():
             "MA20223322__2020_09_02_173919",
         )
     )
+
+    # save dir before switching to temp dir
+    cwd = os.getcwd()
     with tempfile.TemporaryDirectory() as tmpdir:
-        test_path = os.path.join(tmpdir, "test.xlsx")
-        write_xlsx(pr, name=test_path)
+        # switch to temp dir so output file is automatically deleted
+        os.chdir(tmpdir)
+        write_xlsx(pr)
+        # switch dir back to avoid causing issues with other tests
+        os.chdir(cwd)

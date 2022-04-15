@@ -2,6 +2,7 @@
 """General utility/helpers."""
 import json
 import logging
+import math
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -21,6 +22,14 @@ from .constants import WIDTH_RISING_COORDS_UUID
 from .constants import WIDTH_UUID
 
 logger = logging.getLogger(__name__)
+
+
+def truncate_float(value: float, digits: int) -> float:
+    if digits < 1:
+        raise ValueError("If truncating all decimals off of a float, just use builtin int() instead")
+    # from https://stackoverflow.com/questions/8595973/truncate-to-three-decimals-in-python
+    stepper = 10.0 ** digits
+    return math.trunc(stepper * value) / stepper
 
 
 def truncate(

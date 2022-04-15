@@ -178,7 +178,9 @@ then it is OK to press ``leave``.
 Adding Arguments to write_xlsx()
 --------------------------------
 
-There are a few arguments you can use to modify the ``.xlsx`` output file. They are:
+There are a few arguments you can add to the ``write_xlsx`` function to modify the ``.xlsx`` output file.
+They are:
+
 - ``twitch_widths``
 - ``start_time``
 - ``end_time``
@@ -190,19 +192,46 @@ Their behavior is documented in detail below.
 ``twitch_widths``
 ^^^^^^^^^^^^^^^^^
 
-If you would like to add specific twitch width values to the per twitch metrics sheet and aggregate metrics
-sheet you can do so by adding the ``twitch_widths`` argument to ``write_xlsx()``.
-The twitch width values that can be given are any multiple of 5 between 10 and 90 (includes 10 and 90).
+Specifies which twitch width values to add to the per twitch metrics sheet and aggregate metrics sheet.
+The twitch width values that can be given are any multiple of 5 between 10 and 90 (including 10 and 90).
 You can include any combination of valid values. However if a value is included that is either outside
-of the accepted range or not a multiple of 5, an error will occur.
-If the ``twitch_widths`` argument is not given, then by default only 50 and 90 will be shown.
+of the accepted range or not a multiple of 5, an error will occur. If this argument is
+not given, then by default only 50 and 90 will be written to the output file.
 A few examples of using this argument::
 
     # use only 10, 25, and 90
     write_xlsx(r, twitch_widths=(10, 25, 90))
+
     # use only 10
     write_xlsx(r, twitch_widths=(10,))
+
     # use all valid values
     write_xlsx(r, twitch_widths=tuple(range(10, 95, 5)))
 
 
+``start_time``
+^^^^^^^^^^^^^^
+
+Specifies the earliest timepoint (in seconds) to use in analysis.
+If not given, the analysis will start from the first recorded timepoint in the recording file.
+An example of using this argument::
+
+    # start analysis 5 seconds into the recording
+    write_xlsx(r, start_time=5)
+
+    # start analysis 1.5 seconds into the recording
+    write_xlsx(r, start_time=1.5)
+
+
+``end_time``
+^^^^^^^^^^^^^^
+
+Specifies the latest timepoint (in seconds) to use in analysis.
+If not given, the analysis will run through the latest recorded timepoint in the recording file.
+An example of using this argument::
+
+    # stop analysis 10 seconds into the recording
+    write_xlsx(r, end_time=10)
+
+    # stop analysis 12.5 seconds into the recording
+    write_xlsx(r, end_time=12.5)

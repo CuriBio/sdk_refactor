@@ -3,7 +3,7 @@
 Jupyter Notebooks
 =================
 
-Jupyter is the environment that CuriBio SDK is designed to be used in. It allows creation
+Jupyter is the environment that Pulse3D is designed to be used in. It allows creation
 of Python Notebooks which consist of Code Cells (also referred to as just 'cells') that contain Python code,
 each of which can be executed independently of others.
 
@@ -45,7 +45,7 @@ there are only 3 cells, so if they are all ran in order the last cell should
 have a 3 next to it. If a cell is re-run, the number will change.
 
 
-Working With the SDK
+Working With Pulse3D
 ====================
 
 This section will demonstrate how to upload H5 files to Jupyter, convert them to

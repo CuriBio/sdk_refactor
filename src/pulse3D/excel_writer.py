@@ -330,8 +330,8 @@ def write_xlsx(
             upper_bound=end_time,
         )
 
-        start_idx = np.max([window_start_idx, well_start_idx])
-        end_idx = np.min([window_end_idx, well_end_idx])
+        start_idx = max(window_start_idx, well_start_idx)
+        end_idx = min(window_end_idx, well_end_idx)
 
         # fit interpolation function on recorded data
         interp_data_fn = interpolate.interp1d(well_file.force[0, :], well_file.force[1, :])

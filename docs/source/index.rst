@@ -30,9 +30,6 @@ from |mybinder_link|.
 
    gettingstarted
 
-   using-locally
-
-
 Indices and tables
 ==================
 

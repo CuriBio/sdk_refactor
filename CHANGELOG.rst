@@ -1,5 +1,5 @@
-Changelog for Curi Bio Software Development Kit
-===============================================
+Changelog for Pulse3D
+=====================
 
 0.23.6 (2022-04-14)
 -------------------

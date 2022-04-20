@@ -2,6 +2,7 @@
 """General utility/helpers."""
 import json
 import logging
+import math
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -21,6 +22,14 @@ from .constants import WIDTH_RISING_COORDS_UUID
 from .constants import WIDTH_UUID
 
 logger = logging.getLogger(__name__)
+
+
+def truncate_float(value: float, digits: int) -> float:
+    if digits < 1:
+        raise ValueError("If truncating all decimals off of a float, just use builtin int() instead")
+    # from https://stackoverflow.com/questions/8595973/truncate-to-three-decimals-in-python
+    stepper = 10.0 ** digits
+    return math.trunc(stepper * value) / stepper
 
 
 def truncate(
@@ -59,21 +68,13 @@ def serialize_main_dict(per_twitch_dict: Dict[int, Any], metrics_to_create: Iter
     Returns:
         serialized: dictionary of serialized per-twitch values
     """
-    # initialize serialized dictionary
-    serialized: Dict[str, Dict[str, Any]] = dict()
-
-    serialized = {
-        str(int(twitch)): {str(metric): None for metric in metrics_to_create}
-        for twitch in per_twitch_dict.keys()
-    }
 
     def add_metric(twitch: int, metric: UUID) -> Union[str, Dict[str, Any]]:
         # get current per_twitch_metric dictionary
         temp_metric_dict = per_twitch_dict[twitch][metric]
 
-        if metric in [TIME_DIFFERENCE_UUID]:
-            time_diff: Dict[str, Dict[str, str]] = dict()
-            time_diff = {str(perc): dict() for perc in range(10, 95, 5)}
+        if metric == TIME_DIFFERENCE_UUID:
+            time_diff: Dict[str, Dict[str, str]] = {str(perc): dict() for perc in range(10, 95, 5)}
 
             for twitch_width_perc in range(10, 95, 5):
                 temp_width_dict = temp_metric_dict[twitch_width_perc]
@@ -86,9 +87,8 @@ def serialize_main_dict(per_twitch_dict: Dict[int, Any], metrics_to_create: Iter
 
             return time_diff
 
-        if metric in [WIDTH_UUID]:
-            widths: Dict[str, Dict[str, Any]] = dict()
-            widths = {str(perc): dict() for perc in range(10, 95, 5)}
+        if metric == WIDTH_UUID:
+            widths: Dict[str, Dict[str, Any]] = {str(perc): dict() for perc in range(10, 95, 5)}
 
             for twitch_width_perc in range(10, 95, 5):
                 temp_width_dict = temp_metric_dict[twitch_width_perc]
@@ -106,12 +106,10 @@ def serialize_main_dict(per_twitch_dict: Dict[int, Any], metrics_to_create: Iter
 
         return str(per_twitch_dict[twitch][metric])
 
-    # iterate over twitches
-    for twitch in per_twitch_dict.keys():
-        # iterate over metrics
-        for metric in metrics_to_create:
-            serialized[str(int(twitch))][str(metric)] = add_metric(twitch, metric)
-
+    serialized: Dict[str, Any] = {
+        str(twitch): {str(metric): add_metric(twitch, metric) for metric in metrics_to_create}
+        for twitch in per_twitch_dict.keys()
+    }
     return serialized
 
 
@@ -129,8 +127,7 @@ def deserialize_main_dict(json_file: str, metrics_to_create: Iterable[UUID]) -> 
         serialized = json.load(file_object)
 
     twitches = serialized.keys()
-    deserialized: Dict[int, Dict[UUID, Any]] = dict()
-    deserialized = {int(twitch): {metric: None for metric in metrics_to_create} for twitch in twitches}
+    deserialized: Dict[int, Dict[UUID, Any]] = {int(twitch): {} for twitch in twitches}
 
     def add_metric(twitch: int, metric: UUID) -> Union[float, Dict[int, Any]]:
         twitch_dict = serialized[twitch]
@@ -138,7 +135,7 @@ def deserialize_main_dict(json_file: str, metrics_to_create: Iterable[UUID]) -> 
         # get dictionary associated with specific metrics
         temp_metric_dict = twitch_dict[str(metric)]
 
-        if metric in [TIME_DIFFERENCE_UUID]:
+        if metric == TIME_DIFFERENCE_UUID:
             time_diffs: Dict[int, Dict[UUID, float]]
             time_diffs = {perc: dict() for perc in range(10, 95, 5)}
 
@@ -149,11 +146,11 @@ def deserialize_main_dict(json_file: str, metrics_to_create: Iterable[UUID]) -> 
 
                 keys = map(UUID, temp_width_dict.keys())
                 values = map(float, [temp_width_dict[submetric] for submetric in temp_width_dict.keys()])
-                time_diffs[int(twitch_width_perc)] = dict(zip(keys, values))
+                time_diffs[twitch_width_perc] = dict(zip(keys, values))
 
             return time_diffs
 
-        if metric in [WIDTH_UUID]:
+        if metric == WIDTH_UUID:
             widths: Dict[int, Dict[UUID, Union[float, List[float]]]]
             widths = {perc: dict() for perc in range(10, 95, 5)}
 
@@ -201,13 +198,10 @@ def serialize_aggregate_dict(
     def by_twitch_width(temp_metric: UUID) -> Dict[str, Any]:
         temp_metric_dict = aggregate_dict[temp_metric]
         by_width: Dict[str, Dict[str, Any]]
-        by_width = {str(perc): {str(estimate): None for estimate in estimates} for perc in range(10, 95, 5)}
-
-        for twitch_width_perc in range(10, 95, 5):
-            for estimate in estimates:
-                by_width[str(twitch_width_perc)][str(estimate)] = str(
-                    temp_metric_dict[twitch_width_perc][estimate]
-                )
+        by_width = {
+            str(perc): {estimate: str(temp_metric_dict[perc][estimate]) for estimate in estimates}
+            for perc in range(10, 95, 5)
+        }
 
         return by_width
 
@@ -236,7 +230,6 @@ def deserialize_aggregate_dict(json_file: str, metrics_to_create: Iterable[UUID]
         serialized: dictionary of de-serialized aggregate metrics
     """
     deserialized: Dict[UUID, Dict[Union[str, int], Any]] = dict()
-    deserialized = {}
 
     with open(json_file, "r") as file_object:
         serialized = json.load(file_object)

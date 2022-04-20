@@ -4,24 +4,15 @@
    contain the root `toctree` directive.
 
 .. image:: images/curi_logo.png
-    :width: 600
+    :width: 400
 
-Welcome to curibio.sdk's documentation!
-=================================================
+Welcome to the Pulse documentation!
+===================================
 
-Welcome to Curi Bio's Software Development Kit! This tool will allow you to take
-the data you have obtained from the Mantarray system and quickly view the data
-and analyze the results.
+Welcome to Pulse, Curi Bio's data analysis platform for tissue contractility.
+This tool will allow you to view and analyze the data captured using Mantarray platform.
 
-Click :ref:`here <gettingstarted>` to learn how to get started right
-away by using the SDK in your browser
-
-If you want to create more complex analysis pipelines, you can install the SDK
-from |mybinder_link|.
-
-.. |mybinder_link| raw:: html
-
-   <a href="https://pypi.org/project/curibio.sdk/" target="_blank">PyPI</a>
+Click :ref:`here <gettingstarted>` to learn how to get started right away.
 
 
 .. toctree::
@@ -29,9 +20,6 @@ from |mybinder_link|.
    :caption: Contents:
 
    gettingstarted
-
-   using-locally
-
 
 Indices and tables
 ==================

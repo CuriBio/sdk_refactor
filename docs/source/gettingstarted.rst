@@ -3,7 +3,7 @@
 Jupyter Notebooks
 =================
 
-Jupyter is the environment that CuriBio SDK is designed to be used in. It allows creation
+Jupyter is the environment that Pulse3D is designed to be used in. It allows creation
 of Python Notebooks which consist of Code Cells (also referred to as just 'cells') that contain Python code,
 each of which can be executed independently of others.
 
@@ -13,12 +13,11 @@ each of which can be executed independently of others.
 Getting Started with Jupyter
 ----------------------------
 
-Click |mybinder_link| to navigate to the online
-notebook.
+Click |mybinder_link| to navigate to the online notebook.
 
 .. |mybinder_link| raw:: html
 
-   <a href="https://jupyter-sdk.curibio.com" target="_blank">here</a>
+   <a href="https://mybinder.org/v2/gh/curibio/jupyter_sdk/v0.23.6?filepath=intro.ipynb" target="_blank">here</a>
 
 You should land on a page that looks like this:
 
@@ -46,7 +45,7 @@ there are only 3 cells, so if they are all ran in order the last cell should
 have a 3 next to it. If a cell is re-run, the number will change.
 
 
-Working With the SDK
+Working With Pulse3D
 ====================
 
 This section will demonstrate how to upload H5 files to Jupyter, convert them to
@@ -175,42 +174,63 @@ When navigating away from the page you may see the following pop-up dialog:
 If all analysis is done and all files have been downloaded,
 then it is OK to press ``leave``.
 
-Adding Arguments to write.xlsx()
+Adding Arguments to write_xlsx()
 --------------------------------
 
-If you would like to add twitch width values to the per twitch metrics sheet and aggregate metrics
-sheet you can do so by adding a ``twitch_width_values`` argument to ``write.xlsx()``. There are five possible twitch widths that an be included which
-are 10, 25, 50, 75, 90. You can include any combination of the five or none at all. However if a value is included
-other than the five listed, an error will occur. If none are specified, then by default all will
-be shown. An example of adding this argument is::
+There are a few arguments you can add to the ``write_xlsx`` function to modify the ``.xlsx`` output file.
+They are:
 
-    recording.write_xlsx('.', twitch_width_values=(10, 25, 90))
+- ``twitch_widths``
+- ``start_time``
+- ``end_time``
 
-or::
+Any combination of these arguments can be given. Omitting them all is fine too.
+Their behavior is documented in detail below.
 
-    recording.write_xlsx('.', twitch_width_values=(10))
 
-If you would like to include the twitch coordinate values for the twitch widths, that can be done so
-by including a ``show_twitch_coordinate_values`` argument in ``write.xlsx()``. In order to do so the
-argument must be set to ``True`` as by default it is set to ``False``. If it is set to ``True``
-then the twitch coordinate values that will be included will be for the twitch widths that are specified or if it isn't
-specified then all will be included. This metric will be included in the per twitch metrics sheet. An example of
-this is::
+``twitch_widths``
+^^^^^^^^^^^^^^^^^
 
-    recording.write_xlsx('.', twitch_width_values=(10, 25, 90), show_twitch_coordinate_values=True)
+Specifies which twitch width values to add to the per twitch metrics sheet and aggregate metrics sheet.
+The twitch width values that can be given are any multiple of 5 between 10 and 90 (including 10 and 90).
+You can include any combination of valid values. However if a value is included that is either outside
+of the accepted range or not a multiple of 5, an error will occur. If this argument is
+not given, then by default only 50 and 90 will be written to the output file.
+A few examples of using this argument::
 
-or::
+    # use only 10, 25, and 90
+    write_xlsx(r, twitch_widths=(10, 25, 90))
 
-    recording.write_xlsx('.', show_twitch_coordinate_values=True)
+    # use only 10
+    write_xlsx(r, twitch_widths=(10,))
 
-If you would like to include the twitch time difference metric (the time difference between various
-points on the curve and the peak) on the per twitch metrics sheet then you can do so by including a ``show_twitch_time_diff_values``
-argument in ``write_xlsx()``. In order to do so the argument must be set to ``True`` as by default it is set to ``False``.
-If it is set to ``True`` then the twitch time difference values that will be included will be for the twitch widths that are specified or if it isn't
-specified then all will be included. An example of this is::
+    # use all valid values
+    write_xlsx(r, twitch_widths=tuple(range(10, 95, 5)))
 
-    recording.write_xlsx('.', twitch_width_values=(10, 25, 90), show_twitch_coordinate_values=True, show_twitch_time_diff_values=True)
 
-or::
+``start_time``
+^^^^^^^^^^^^^^
 
-    recording.write_xlsx('.', show_twitch_time_diff_values=True)
+Specifies the earliest timepoint (in seconds) to use in analysis.
+If not given, the analysis will start from the first recorded timepoint in the recording file.
+An example of using this argument::
+
+    # start analysis 5 seconds into the recording
+    write_xlsx(r, start_time=5)
+
+    # start analysis 1.5 seconds into the recording
+    write_xlsx(r, start_time=1.5)
+
+
+``end_time``
+^^^^^^^^^^^^
+
+Specifies the latest timepoint (in seconds) to use in analysis.
+If not given, the analysis will run through the latest recorded timepoint in the recording file.
+An example of using this argument::
+
+    # stop analysis 10 seconds into the recording
+    write_xlsx(r, end_time=10)
+
+    # stop analysis 12.5 seconds into the recording
+    write_xlsx(r, end_time=12.5)

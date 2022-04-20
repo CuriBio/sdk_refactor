@@ -471,8 +471,6 @@ def _get_excel_metadata_value(sheet: Worksheet, metadata_uuid: uuid.UUID) -> Opt
         )
     row, col = xl_cell_to_rowcol(cell_name)
     result = _get_cell_value(sheet, row, col)
-    # if result is None and metadata_uuid != INTERPOLATION_VALUE_UUID:
-    #     raise MetadataNotFoundError(f"Metadata entry not found for {metadata_description}")
     return result
 
 
@@ -481,9 +479,7 @@ def _load_optical_file_attrs(sheet: Worksheet):
 
     value = _get_excel_metadata_value(sheet, TISSUE_SAMPLING_PERIOD_UUID)
     if value is None:
-        raise NotImplementedError(
-            "Tissue Sampling Period should not be None. A MetadataNotFoundError should have been raised"
-        )
+        raise NotImplementedError("Tissue Sampling Period should not be None here")
     sampling_period = int(round(1 / float(value), 6) * MICRO_TO_BASE_CONVERSION)
 
     interpolation_value_str = _get_excel_metadata_value(sheet, INTERPOLATION_VALUE_UUID)
@@ -500,7 +496,7 @@ def _load_optical_file_attrs(sheet: Worksheet):
     well_name = _get_excel_metadata_value(sheet, WELL_NAME_UUID)
 
     attrs = {
-        FILE_FORMAT_VERSION_METADATA_KEY: "0.1.1",
+        FILE_FORMAT_VERSION_METADATA_KEY: "N/A",
         TISSUE_SENSOR_READINGS: raw_tissue_reading,
         REFERENCE_SENSOR_READINGS: np.zeros(raw_tissue_reading.shape),
         str(INTERPOLATION_VALUE_UUID): interpolation_value,

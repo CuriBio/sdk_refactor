@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Generic exceptions for the Mantarray SDK."""
+"""Generic exceptions for the Mantarray SW."""
 from typing import Tuple
 
 

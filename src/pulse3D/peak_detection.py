@@ -252,7 +252,7 @@ def data_metrics(
         BASELINE_TO_PEAK_UUID: TwitchPeakToBaseline(rounded=rounded, is_contraction=True),
         CONTRACTION_TIME_UUID: TwitchPeakTime(rounded=rounded, is_contraction=True),
         CONTRACTION_VELOCITY_UUID: TwitchVelocity(rounded=rounded, is_contraction=True),
-        FRACTION_MAX_UUID: TwitchFractionAmplitude(rounded=rounded),
+        FRACTION_MAX_UUID: TwitchFractionAmplitude(),
         IRREGULARITY_INTERVAL_UUID: TwitchIrregularity(rounded=rounded),
         PEAK_TO_BASELINE_UUID: TwitchPeakToBaseline(rounded=rounded, is_contraction=False),
         RELAXATION_TIME_UUID: TwitchPeakTime(rounded=rounded, is_contraction=False),
@@ -273,7 +273,6 @@ def data_metrics(
 
         for metric_id in metrics:
             if metric_id in metrics_to_create:
-
                 metric = metric_mapper[metric_id]
                 estimate = metric.fit(**metric_parameters)
                 metric.add_per_twitch_metrics(per_twitch_df, metric_id, estimate)

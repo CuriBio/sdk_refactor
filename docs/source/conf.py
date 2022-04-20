@@ -20,8 +20,8 @@ from typing import List
 
 # -- Project information -----------------------------------------------------
 
-project = "curibio.sdk"
-copyright = "2020, Curi Bio"  # pylint: disable=redefined-builtin
+project = "Pulse3D"
+copyright = "2022, Curi Bio"  # pylint: disable=redefined-builtin
 author = "Curi Bio"
 
 # The full version, including alpha/beta/rc tags

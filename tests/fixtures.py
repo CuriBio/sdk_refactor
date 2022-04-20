@@ -6,10 +6,6 @@ from pulse3D.utils import deserialize_main_dict
 import pytest
 from stdlib_utils import get_current_file_abs_directory
 
-# from curibio.sdk import ExcelWellFile
-# from curibio.sdk import PlateRecording
-# from curibio.sdk import WellFile
-
 PATH_OF_CURRENT_FILE = get_current_file_abs_directory()
 
 

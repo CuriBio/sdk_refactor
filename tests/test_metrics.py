@@ -1,17 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Tests for PlateRecording subclass.
-
-To create a file to look at: python3 -c "import os; from curibio.sdk import PlateRecording; PlateRecording([os.path.join('tests','h5','v0.3.1','MA20123456__2020_08_17_145752__A1.h5')]).write_xlsx('.',file_name='temp.xlsx')"
-To create a file to look at: python3 -c "import os; from curibio.sdk import PlateRecording; PlateRecording([os.path.join('tests','h5','v0.3.1','MA201110001__2020_09_03_213024__A3.h5')]).write_xlsx('.',file_name='temp.xlsx')"
-To create a file to look at: python3 -c "import os; from curibio.sdk import PlateRecording; PlateRecording.from_directory(os.path.join('tests','h5','v0.3.1')).write_xlsx('.',file_name='temp.xlsx')"
-
-python3 -c "import os; from curibio.sdk import PlateRecording; PlateRecording([os.path.join('tests','h5','v0.3.1','MA201110001__2020_09_03_213024','MA201110001__2020_09_03_213024__A1.h5',),os.path.join('tests','h5','v0.3.1','MA201110001__2020_09_03_213024','MA201110001__2020_09_03_213024__B2.h5',),]).write_xlsx('.',file_name='temp.xlsx')"
-python3 -c "import os; from curibio.sdk import PlateRecording; PlateRecording([os.path.join('tests','h5','v0.3.1','"MA20123456__2020_08_17_145752__A2.h5')]).write_xlsx('.',file_name='temp.xlsx')"
-
-python3 -c "import os; from curibio.sdk import PlateRecording; PlateRecording([os.path.join('tests','h5','v0.3.1','MA201110001__2020_09_03_213024__A3.h5')]).write_xlsx('.',file_name='temp.xlsx',twitch_width_values=(25,), show_twitch_coordinate_values=True)"
-python3 -c "import os; from curibio.sdk import PlateRecording; PlateRecording([os.path.join('tests','h5','v0.3.1','MA201110001__2020_09_03_213024__A3.h5')]).write_xlsx('.',file_name='temp.xlsx', show_twitch_coordinate_values=True, show_twitch_time_diff_values=True)"
-
-"""
+"""Tests for PlateRecording subclass"""
 
 import os
 import uuid
@@ -53,19 +41,18 @@ def encode_dict(d):
     """
     result = {}
     for key, value in d.items():
-        if isinstance(key, uuid.UUID):
+        # fix key
+        if isinstance(key, (int, uuid.UUID, np.int64)):
             key = str(key)
-        if isinstance(key, int):
-            key = str(key)
-        if isinstance(key, np.int64):
-            key = str(key)
+        # fix value
         if isinstance(value, uuid.UUID):
             value = str(value)
-        if isinstance(value, tuple):
+        elif isinstance(value, tuple):
             value = list(value)
         elif isinstance(value, dict):
             value = encode_dict(value)
-        result.update({key: value})
+        # add to new dict
+        result[key] = value
     return result
 
 
@@ -156,7 +143,8 @@ def test_metrics__TwitchBaselineToPeak():
 
     metric = metrics.TwitchPeakToBaseline(is_contraction=True)
     estimate = metric.fit(pv, w.force, twitch_indices)
-    assert np.all(expected == estimate)
+
+    np.testing.assert_array_equal(estimate, expected)
 
 
 def test_metrics__TwitchPeakToBaseline():
@@ -188,7 +176,7 @@ def test_metrics__TwitchPeakToBaseline():
     metric = metrics.TwitchPeakToBaseline(is_contraction=False)
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    assert np.all(expected == estimate)
+    np.testing.assert_array_equal(estimate, expected)
 
 
 def test_metrics__TwitchFracAmp():

@@ -101,39 +101,42 @@ def test_PlateRecording__creates_mean_of_baseline_data_correctly(mocker):
                 )
 
 
-def test_PlateRecording__creates_time_force_dataframe_correctly(mocker):
-    # spy for easy access to baseline data array
-    spied_mfd_from_memsic = mocker.spy(plate_recording, "calculate_magnetic_flux_density_from_memsic")
+def test_PlateRecording__wrties_time_force_csv_with_no_errors(mocker):
     # mock instead of spy so magnet finding alg doesn't run
-    mocked_find_positions = mocker.patch.object(
+    mocker.patch.object(
         plate_recording,
         "find_magnet_positions",
         autospec=True,
         side_effect=lambda x, y: {"X": np.zeros((x.shape[-1], 24))},
     )
 
-    PlateRecording(
+    zip_pr = PlateRecording(
         os.path.join(
             PATH_OF_CURRENT_FILE,
             "magnet_finding",
             "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
         )
     )
-    raw_baseline_data = spied_mfd_from_memsic.spy_return
+    h5_pr = PlateRecording.from_directory(
+        os.path.join(
+            PATH_OF_CURRENT_FILE,
+            "h5",
+            "v0.3.2",
+        )
+    )
+    # raw_baseline_data = spied_mfd_from_memsic.spy_return
+    with tempfile.TemporaryDirectory() as output_dir:
+        zip_pr._write_time_force_csv(output_dir)
+        for pr in h5_pr:
+            df, _ = pr._write_time_force_csv(output_dir)
+            assert len(df.index) == 7975
+            assert len(df.columns) == 25
 
-    actual_baseline_mean_arr = mocked_find_positions.call_args[0][1]
-    assert actual_baseline_mean_arr.shape == (24, 3, 3, 1)
-    for well_idx in range(actual_baseline_mean_arr.shape[0]):
-        for sensor_idx in range(actual_baseline_mean_arr.shape[1]):
-            for axis_idx in range(actual_baseline_mean_arr.shape[2]):
-                expected_mean = np.mean(
-                    raw_baseline_data[well_idx, sensor_idx, axis_idx, -BASELINE_MEAN_NUM_DATA_POINTS:]
-                )
-                assert actual_baseline_mean_arr[well_idx, sensor_idx, axis_idx] == expected_mean, (
-                    well_idx,
-                    sensor_idx,
-                    axis_idx,
-                )
+        assert (
+            "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.csv"
+            in os.listdir(output_dir)
+        )
+        assert "MA20223322__2020_09_02_173919.csv" in os.listdir(output_dir)
 
 
 def test_PlateRecording__removes_dropped_samples_from_raw_tissue_signal_before_converting_to_mfd(mocker):

@@ -16,6 +16,7 @@ from nptyping import NDArray
 import numpy as np
 from openpyxl import load_workbook
 from openpyxl.worksheet.worksheet import Worksheet
+import pandas as pd
 from semver import VersionInfo
 from xlsxwriter.utility import xl_cell_to_rowcol
 
@@ -374,6 +375,24 @@ class PlateRecording:
             well_file.displacement = np.array([adjusted_time_indices, x])
             well_file.force = calculate_force_from_displacement(well_file.displacement)
 
+    def write_time_force_csv(self, output_dir: str):
+        # get recording name
+        recording_name = os.path.splitext(os.path.basename(self.path))[0]
+        output_path = os.path.join(output_dir, f"{recording_name}.csv")
+
+        # set indexes to time points
+        time_force_dict: Dict[str, pd.DataFrame] = dict()
+        force_data = dict({"Time (microseconds)": pd.Series(self.wells[0].force[0])})
+
+        for idx, well in enumerate(self.wells):
+            force_data[str(idx)] = pd.Series(well.force[1])
+
+        time_force_df = pd.DataFrame(force_data)
+        time_force_df.to_csv(output_path, index=False)
+        time_force_dict[recording_name] = time_force_df
+
+        return time_force_df, output_path
+
     @staticmethod
     def from_directory(path):
         # multi zip files
@@ -387,8 +406,9 @@ class PlateRecording:
             yield PlateRecording(of)
 
         # directory of .h5 files
-        if glob.glob(os.path.join(path, "**", "*.h5"), recursive=True):
-            yield PlateRecording(path)
+        for dir in glob.glob(os.path.join(path, "*"), recursive=True):
+            if glob.glob(os.path.join(dir, "*.h5"), recursive=True):
+                yield PlateRecording(dir)
 
     def __iter__(self):
         self._iter = 0

@@ -101,6 +101,44 @@ def test_PlateRecording__creates_mean_of_baseline_data_correctly(mocker):
                 )
 
 
+def test_PlateRecording__wrties_time_force_csv_with_no_errors(mocker):
+    # mock instead of spy so magnet finding alg doesn't run
+    mocker.patch.object(
+        plate_recording,
+        "find_magnet_positions",
+        autospec=True,
+        side_effect=lambda x, y: {"X": np.zeros((x.shape[-1], 24))},
+    )
+
+    zip_pr = PlateRecording(
+        os.path.join(
+            PATH_OF_CURRENT_FILE,
+            "magnet_finding",
+            "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
+        )
+    )
+    h5_pr = PlateRecording.from_directory(
+        os.path.join(
+            PATH_OF_CURRENT_FILE,
+            "h5",
+            "v0.3.2",
+        )
+    )
+    # raw_baseline_data = spied_mfd_from_memsic.spy_return
+    with tempfile.TemporaryDirectory() as output_dir:
+        zip_pr.write_time_force_csv(output_dir)
+        for pr in h5_pr:
+            df, _ = pr.write_time_force_csv(output_dir)
+            assert len(df.index) == 7975
+            assert len(df.columns) == 25
+
+        assert (
+            "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.csv"
+            in os.listdir(output_dir)
+        )
+        assert "MA20223322__2020_09_02_173919.csv" in os.listdir(output_dir)
+
+
 def test_PlateRecording__removes_dropped_samples_from_raw_tissue_signal_before_converting_to_mfd(mocker):
     spied_fix = mocker.spy(plate_recording, "fix_dropped_samples")
     spied_mfd = mocker.spy(plate_recording, "calculate_magnetic_flux_density_from_memsic")

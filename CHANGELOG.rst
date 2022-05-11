@@ -1,6 +1,12 @@
 Changelog for Pulse3D
 =====================
 
+0.23.7 (2022-05-11)
+-------------------
+
+- Add write_time_force_csv method to PlateRecording
+- Updated diagram png
+
 0.23.6 (2022-04-14)
 -------------------
 - Fixed issue where desired twitch widths weren't being output in aggregate metrics sheet

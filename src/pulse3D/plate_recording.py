@@ -375,13 +375,9 @@ class PlateRecording:
             well_file.displacement = np.array([adjusted_time_indices, x])
             well_file.force = calculate_force_from_displacement(well_file.displacement)
 
-    def _write_time_force_csv(self, output_dir: str):
+    def write_time_force_csv(self, output_dir: str):
         # get recording name
-        if self.path.endswith(".zip") or self.path.endswith(".xlsx"):
-            recording_name = os.path.basename(self.path).split(".")[0]
-        else:
-            recording_name = os.path.basename(self.path)
-
+        recording_name = os.path.splitext(os.path.basename(self.path))[0]
         output_path = os.path.join(output_dir, f"{recording_name}.csv")
 
         # set indexes to time points

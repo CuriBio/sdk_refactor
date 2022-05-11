@@ -126,9 +126,9 @@ def test_PlateRecording__wrties_time_force_csv_with_no_errors(mocker):
     )
     # raw_baseline_data = spied_mfd_from_memsic.spy_return
     with tempfile.TemporaryDirectory() as output_dir:
-        zip_pr._write_time_force_csv(output_dir)
+        zip_pr.write_time_force_csv(output_dir)
         for pr in h5_pr:
-            df, _ = pr._write_time_force_csv(output_dir)
+            df, _ = pr.write_time_force_csv(output_dir)
             assert len(df.index) == 7975
             assert len(df.columns) == 25
 

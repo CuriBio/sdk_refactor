@@ -269,7 +269,7 @@ def write_xlsx(
             "Software Build Version",
             "Firmware Version (Main Controller)",
             "",
-            "Pulse3D Version",
+            ".Version",
             "File Creation Timestamp",
             "Analysis Type (Full or Windowed)",
             "Analysis Start Time (seconds)",

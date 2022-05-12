@@ -33,6 +33,7 @@ from .transforms import calculate_force_from_displacement
 from .transforms import calculate_voltage_from_gmr
 from .transforms import create_filter
 from .transforms import noise_cancellation
+from .utils import truncate_float
 
 log = logging.getLogger(__name__)
 
@@ -382,10 +383,14 @@ class PlateRecording:
 
         # set indexes to time points
         time_force_dict: Dict[str, pd.DataFrame] = dict()
-        force_data = dict({"Time (microseconds)": pd.Series(self.wells[0].force[0])})
+        truncated_time_sec = [
+            truncate_float(ms / MICRO_TO_BASE_CONVERSION, 2) for ms in self.wells[0].force[0]
+        ]
+        force_data = dict({"Time (s)": pd.Series(truncated_time_sec)})
 
-        for idx, well in enumerate(self.wells):
-            force_data[str(idx)] = pd.Series(well.force[1])
+        for well in self.wells:
+            well_name = well.get(WELL_NAME_UUID, None)
+            force_data[well_name] = pd.Series(well.force[1])
 
         time_force_df = pd.DataFrame(force_data)
         time_force_df.to_csv(output_path, index=False)

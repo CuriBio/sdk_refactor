@@ -26,6 +26,8 @@ def test_write_xlsx__runs_without_error():
     with tempfile.TemporaryDirectory() as tmpdir:
         # switch to temp dir so output file is automatically deleted
         os.chdir(tmpdir)
-        write_xlsx(pr)
+        output_file_name = write_xlsx(pr)
         # switch dir back to avoid causing issues with other tests
         os.chdir(cwd)
+
+    assert isinstance(output_file_name, str)

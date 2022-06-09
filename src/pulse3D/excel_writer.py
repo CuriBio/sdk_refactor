@@ -405,6 +405,8 @@ def write_xlsx(
     )
     log.info("Done")
 
+    return output_file_name
+
 
 def _write_xlsx(
     output_file_name: str,

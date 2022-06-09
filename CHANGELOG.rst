@@ -1,14 +1,18 @@
 Changelog for Pulse3D
 =====================
 
+
+0.23.9 (2022-06-08)
+-------------------
+- Change ``write_xlsx`` to return name of generated output file
+
+
 0.23.8 (2022-05-12)
 -------------------
-
 - Updated column and index values to well names and seconds for write_time_force_csv method
 
 0.23.7 (2022-05-11)
 -------------------
-
 - Add write_time_force_csv method to PlateRecording
 - Updated diagram png
 

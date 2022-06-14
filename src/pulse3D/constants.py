@@ -221,12 +221,12 @@ BESSEL_LOWPASS_10_UUID = uuid.UUID("7d64cac3-b841-4912-b734-c0cf20a81e7a")
 BESSEL_LOWPASS_30_UUID = uuid.UUID("eee66c75-4dc4-4eb4-8d48-6c608bf28d91")
 BUTTERWORTH_LOWPASS_30_UUID = uuid.UUID("de8d8cef-65bf-4119-ada7-bdecbbaa897a")
 
-# General mangetic field to force conversion factor. Obtained 03/09/2021 by Kevin Grey, Valid as of 11/19/21
+# General mangetic field to force conversion factor. Obtained 03/09/2021 by Kevin Gray, Valid as of 11/19/21
 MILLIMETERS_PER_MILLITESLA = 23.25
 NEWTONS_PER_MILLIMETER = 0.000159
 
 # Beta 1 GMR to magnetic field conversion values. Valid as of 11/19/21
-MILLIVOLTS_PER_MILLITESLA = 1073.6  # Obtained 03/09/2021 by Kevin Grey
+MILLIVOLTS_PER_MILLITESLA = 1073.6  # Obtained 03/09/2021 by Kevin Gray
 MIDSCALE_CODE = 0x800000
 RAW_TO_SIGNED_CONVERSION_VALUE = 2 ** 23  # subtract this value from raw hardware data
 REFERENCE_VOLTAGE = 2.5

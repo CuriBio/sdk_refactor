@@ -181,7 +181,7 @@ def calculate_voltage_from_gmr(
 ) -> NDArray[(2, Any), np.float64]:
     """Convert 'signed' 24-bit values from an ADC to measured voltage.
 
-    Conversion values were obtained 03/09/2021 by Kevin Grey
+    Conversion values were obtained 03/09/2021 by Kevin Gray
 
     Args:
         gmr_data: time and GMR numpy array. Typically coming from filtered_gmr_data
@@ -202,7 +202,7 @@ def calculate_displacement_from_voltage(
 ) -> NDArray[(2, Any), np.float64]:
     """Convert voltage to displacement.
 
-    Conversion values were obtained 03/09/2021 by Kevin Grey
+    Conversion values were obtained 03/09/2021 by Kevin Gray
 
     Args:
         voltage_data: time and Voltage numpy array. Typically coming from calculate_voltage_from_gmr
@@ -229,7 +229,7 @@ def calculate_force_from_displacement(
 ) -> NDArray[(2, Any), np.float64]:
     """Convert displacement to force.
 
-    Conversion values were obtained 03/09/2021 by Kevin Grey
+    Conversion values were obtained 03/09/2021 by Kevin Gray
 
     Args:
         displacement_data: time and Displacement numpy array. Typically coming from calculate_displacement_from_voltage or the magnet finding alg

@@ -101,7 +101,7 @@ def test_PlateRecording__creates_mean_of_baseline_data_correctly(mocker):
                 )
 
 
-def test_PlateRecording__wrties_time_force_csv_with_no_errors(mocker):
+def test_PlateRecording__writes_time_force_csv_with_no_errors(mocker):
     # mock instead of spy so magnet finding alg doesn't run
     mocker.patch.object(
         plate_recording,

@@ -21,12 +21,7 @@ MIN_SUPPORTED_FILE_VERSION = "0.1.1"
 CURRENT_BETA1_HDF5_FILE_FORMAT_VERSION = "0.4.2"
 CURRENT_BETA2_HDF5_FILE_FORMAT_VERSION = "1.0.0"
 FILE_FORMAT_VERSION_METADATA_KEY = "File Format Version"
-FILE_MIGRATION_PATHS = immutabledict(
-    {
-        "0.3.1": "0.4.1",
-        "0.4.1": "0.4.2",
-    }
-)
+FILE_MIGRATION_PATHS = immutabledict({"0.3.1": "0.4.1", "0.4.1": "0.4.2"})
 
 NOT_APPLICABLE_H5_METADATA = uuid.UUID(
     "59d92e00-99d5-4460-9a28-5a1a0fe9aecf"
@@ -81,6 +76,7 @@ STIMULATION_PROTOCOL_UUID = uuid.UUID("ede638ce-544e-427a-b1d9-c40784d7c82d")
 IS_CALIBRATION_FILE_UUID = uuid.UUID("9a6f90eb-fe34-423b-bfed-fb441d6d9e5f")
 CHANNEL_FIRMWARE_VERSION_UUID = uuid.UUID("d9694cfe-824c-41f8-915e-91e41ce7af32")
 BOOT_FLAGS_UUID = uuid.UUID("762f6715-ffcd-4e8d-b707-638dd5777841")
+INITIAL_MAGNET_FINDING_PARAMS = uuid.UUID("da5f2f6d-6874-4e53-be10-90c4bfbd3d45")
 METADATA_UUID_DESCRIPTIONS = immutabledict(
     {
         # General values
@@ -134,6 +130,7 @@ METADATA_UUID_DESCRIPTIONS = immutabledict(
         IS_CALIBRATION_FILE_UUID: "Is this file a calibration (empty plate) recording",
         CHANNEL_FIRMWARE_VERSION_UUID: "Firmware Version (Channel Controller)",
         BOOT_FLAGS_UUID: "Hardware/firmware flags present on device bootup",
+        INITIAL_MAGNET_FINDING_PARAMS: "JSON string of the initial magnet finding params that should be used in Pulse3D",
     }
 )
 
@@ -221,12 +218,12 @@ BESSEL_LOWPASS_10_UUID = uuid.UUID("7d64cac3-b841-4912-b734-c0cf20a81e7a")
 BESSEL_LOWPASS_30_UUID = uuid.UUID("eee66c75-4dc4-4eb4-8d48-6c608bf28d91")
 BUTTERWORTH_LOWPASS_30_UUID = uuid.UUID("de8d8cef-65bf-4119-ada7-bdecbbaa897a")
 
-# General mangetic field to force conversion factor. Obtained 03/09/2021 by Kevin Grey, Valid as of 11/19/21
+# General mangetic field to force conversion factor. Obtained 03/09/2021 by Kevin Gray, Valid as of 11/19/21
 MILLIMETERS_PER_MILLITESLA = 23.25
 NEWTONS_PER_MILLIMETER = 0.000159
 
 # Beta 1 GMR to magnetic field conversion values. Valid as of 11/19/21
-MILLIVOLTS_PER_MILLITESLA = 1073.6  # Obtained 03/09/2021 by Kevin Grey
+MILLIVOLTS_PER_MILLITESLA = 1073.6  # Obtained 03/09/2021 by Kevin Gray
 MIDSCALE_CODE = 0x800000
 RAW_TO_SIGNED_CONVERSION_VALUE = 2 ** 23  # subtract this value from raw hardware data
 REFERENCE_VOLTAGE = 2.5

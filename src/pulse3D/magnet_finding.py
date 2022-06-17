@@ -4,6 +4,7 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import TYPE_CHECKING
+from typing import Union
 
 from mantarray_magnet_finding.magnet_finding import get_positions
 from nptyping import NDArray
@@ -20,9 +21,10 @@ if TYPE_CHECKING:
 def find_magnet_positions(
     fields: NDArray[(24, 3, 3, Any), float],
     baseline: NDArray[(24, 3, 3, Any), float],
+    initial_magnet_finding_params: Dict[str, Union[int, float]],
     filter_outputs: bool = True,
 ) -> Dict[str, NDArray[(1, Any), float]]:
-    output_dict = get_positions(fields - baseline)
+    output_dict = get_positions(fields - baseline, **initial_magnet_finding_params)
     if filter_outputs:
         for param, output_arr in output_dict.items():
             output_dict[param] = filter_magnet_positions(output_arr)

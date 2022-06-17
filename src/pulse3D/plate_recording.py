@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import datetime
 import glob
+import json
 import logging
 import math
 import os
@@ -338,6 +339,8 @@ class PlateRecording:
         ):
             raise NotImplementedError("All 24 wells must have a calibration file present")
 
+        initial_magnet_finding_params = json.loads(self.wells[0].get(INITIAL_MAGNET_FINDING_PARAMS, r"{}"))
+
         # load data
         plate_data_array = format_well_file_data(self.wells)
         fixed_plate_data_array = fix_dropped_samples(plate_data_array)
@@ -362,10 +365,12 @@ class PlateRecording:
 
         # pass data into magnet finding alg
         log.info("Estimating magnet positions")
-        estimated_magnet_positions = find_magnet_positions(plate_data_array_mt, baseline_data_mt)
+        estimated_magnet_positions = find_magnet_positions(
+            plate_data_array_mt, baseline_data_mt, initial_magnet_finding_params
+        )
 
         # create displacement and force arrays for each WellFile
-        log.info("Create diplacement and force data for ")
+        log.info("Create diplacement and force data for each well")
         for well_idx in range(24):
             well_file = self.wells[well_idx]
             x = estimated_magnet_positions["X"][:, well_idx]

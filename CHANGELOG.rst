@@ -6,7 +6,6 @@ Changelog for Pulse3D
 - Add support for V1 Mantarray data files.
 
 
-
 0.23.9 (2022-06-08)
 -------------------
 - Change ``write_xlsx`` to return name of generated output file

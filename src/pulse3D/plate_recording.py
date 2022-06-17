@@ -369,11 +369,15 @@ class PlateRecording:
             plate_data_array_mt, baseline_data_mt, initial_magnet_finding_params
         )
 
+        flip_data = self.wells[0].version >= VersionInfo.parse("1.1.0")
+
         # create displacement and force arrays for each WellFile
         log.info("Create diplacement and force data for each well")
         for well_idx in range(24):
             well_file = self.wells[well_idx]
             x = estimated_magnet_positions["X"][:, well_idx]
+            if flip_data:
+                x *= -1
 
             # have time indices start at 0
             adjusted_time_indices = well_file[TIME_INDICES] - well_file[TIME_INDICES][0]

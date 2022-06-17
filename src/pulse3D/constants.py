@@ -21,12 +21,7 @@ MIN_SUPPORTED_FILE_VERSION = "0.1.1"
 CURRENT_BETA1_HDF5_FILE_FORMAT_VERSION = "0.4.2"
 CURRENT_BETA2_HDF5_FILE_FORMAT_VERSION = "1.0.0"
 FILE_FORMAT_VERSION_METADATA_KEY = "File Format Version"
-FILE_MIGRATION_PATHS = immutabledict(
-    {
-        "0.3.1": "0.4.1",
-        "0.4.1": "0.4.2",
-    }
-)
+FILE_MIGRATION_PATHS = immutabledict({"0.3.1": "0.4.1", "0.4.1": "0.4.2"})
 
 NOT_APPLICABLE_H5_METADATA = uuid.UUID(
     "59d92e00-99d5-4460-9a28-5a1a0fe9aecf"

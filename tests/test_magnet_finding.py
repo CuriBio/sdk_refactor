@@ -202,7 +202,7 @@ def test_PlateRecording__passes_data_to_magnet_finding_alg_correctly__using_mean
 
 
 @pytest.mark.parametrize(
-    "path_to_recording,initial_params",
+    "path_to_recording,initial_params,flip_data",
     [
         (
             os.path.join(
@@ -210,32 +210,46 @@ def test_PlateRecording__passes_data_to_magnet_finding_alg_correctly__using_mean
                 "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
             ),
             {},
+            False,
         ),
         (
             os.path.join("h5", "v1.1.0", "ML2022126006_Position 1 Baseline_2022_06_15_004655.zip"),
             {"X": 0, "Y": 2, "Z": -5, "REMN": 1200},
+            True,
         ),
     ],
 )
-def test_PlateRecording__passes_initial_params_to_magnet_finding_alg_correctly(
-    path_to_recording,
-    initial_params,
-    mocker,
+def test_PlateRecording__passes_initial_params_to_magnet_finding_alg_correctly__and_flips_displacement_result_correctly(
+    path_to_recording, initial_params, flip_data, mocker
 ):
+    # mock so no filtering occurs
+    mocker.patch.object(magnet_finding, "filter_magnet_positions", side_effect=lambda data: data)
+
+    def create_displacement(data):
+        return np.arange(data.shape[-1] * 24).reshape((data.shape[-1], 24))
+
     # mock so slow function doesn't actually run
     mocked_get_positions = mocker.patch.object(
         magnet_finding,
         "get_positions",
-        side_effect=lambda data, *args, **kwargs: {"X": np.zeros((data.shape[-1], 24))},
+        side_effect=lambda data, *args, **kwargs: {"X": create_displacement(data)},
     )
 
     test_zip_file_path = os.path.join(PATH_OF_CURRENT_FILE, path_to_recording)
 
     # test alg input
-    PlateRecording(test_zip_file_path)
+    pr = PlateRecording(test_zip_file_path)
 
     mocked_get_positions.assert_called_once()
     assert mocked_get_positions.call_args[1] == initial_params
+
+    expected_displacement = create_displacement(mocked_get_positions.call_args[0][0])
+    if flip_data:
+        expected_displacement *= -1
+    for well_idx, wf in enumerate(pr):
+        np.testing.assert_array_almost_equal(
+            wf.displacement[1], expected_displacement[:, well_idx], err_msg=f"Well {well_idx}"
+        )
 
 
 @pytest.mark.parametrize(

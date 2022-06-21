@@ -232,6 +232,7 @@ def test_PlateRecording__passes_initial_params_to_magnet_finding_alg_correctly__
     mocked_get_positions = mocker.patch.object(
         magnet_finding,
         "get_positions",
+        autospec=True,
         side_effect=lambda data, *args, **kwargs: {"X": create_displacement(data)},
     )
 

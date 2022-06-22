@@ -16,11 +16,14 @@ def test_write_xlsx__runs_without_error():
         os.path.join(
             PATH_OF_CURRENT_FILE,
             "h5",
-            "v0.3.2",
-            "MA20223322__2020_09_02_173919",
+            "v1.1.0",
+            "ML2022126006_Position 1 Baseline_2022_06_15_004655.zip",
         )
     )
 
+    write_xlsx(pr)
+
+    return
     # save dir before switching to temp dir
     cwd = os.getcwd()
     with tempfile.TemporaryDirectory() as tmpdir:

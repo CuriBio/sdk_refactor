@@ -23,7 +23,6 @@ def test_write_xlsx__runs_without_error():
 
     write_xlsx(pr)
 
-    return
     # save dir before switching to temp dir
     cwd = os.getcwd()
     with tempfile.TemporaryDirectory() as tmpdir:

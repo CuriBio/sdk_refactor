@@ -1,9 +1,15 @@
 Changelog for Pulse3D
 =====================
 
+0.24.1 (2022-06-21)
+-------------------
+- Rename constant for UUID value
+- Add Apple M1 chip support
+
+
 0.24.0 (2022-06-17)
 -------------------
-- Add support for V1 Mantarray data files.
+- Add support for V1 Mantarray data files
 
 
 0.23.9 (2022-06-08)

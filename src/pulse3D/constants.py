@@ -76,7 +76,7 @@ STIMULATION_PROTOCOL_UUID = uuid.UUID("ede638ce-544e-427a-b1d9-c40784d7c82d")
 IS_CALIBRATION_FILE_UUID = uuid.UUID("9a6f90eb-fe34-423b-bfed-fb441d6d9e5f")
 CHANNEL_FIRMWARE_VERSION_UUID = uuid.UUID("d9694cfe-824c-41f8-915e-91e41ce7af32")
 BOOT_FLAGS_UUID = uuid.UUID("762f6715-ffcd-4e8d-b707-638dd5777841")
-INITIAL_MAGNET_FINDING_PARAMS = uuid.UUID("da5f2f6d-6874-4e53-be10-90c4bfbd3d45")
+INITIAL_MAGNET_FINDING_PARAMS_UUID = uuid.UUID("da5f2f6d-6874-4e53-be10-90c4bfbd3d45")
 METADATA_UUID_DESCRIPTIONS = immutabledict(
     {
         # General values
@@ -130,7 +130,7 @@ METADATA_UUID_DESCRIPTIONS = immutabledict(
         IS_CALIBRATION_FILE_UUID: "Is this file a calibration (empty plate) recording",
         CHANNEL_FIRMWARE_VERSION_UUID: "Firmware Version (Channel Controller)",
         BOOT_FLAGS_UUID: "Hardware/firmware flags present on device bootup",
-        INITIAL_MAGNET_FINDING_PARAMS: "JSON string of the initial magnet finding params that should be used in Pulse3D",
+        INITIAL_MAGNET_FINDING_PARAMS_UUID: "JSON string of the initial magnet finding params that should be used in Pulse3D",
     }
 )
 

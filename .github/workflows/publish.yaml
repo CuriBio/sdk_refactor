@@ -28,7 +28,6 @@ jobs:
           - "macos-10.15"
           # - "macos-11.0"
         python-version:
-            - 3.7
             - 3.8
             - 3.9
         include:
@@ -148,14 +147,6 @@ jobs:
       #   run: |
       #     pre-commit install
       #     pre-commit run -a
-
-      - name: Run Tests with randomly generated seed
-        if: github.event.inputs.randomlyseed == ''
-        run: pytest -xsvv --cov-report=xml --full-ci --include-slow-tests -n auto
-
-      - name: Run Tests with supplied pytest-randomly seed
-        if: github.event.inputs.randomlyseed != ''
-        run: pytest -xsvv --cov-report=xml --full-ci --include-slow-tests -n auto --randomly-seed=${{ github.event.inputs.randomlyseed }}
 
       - name: Install Doc dependencies
         # only check Sphinx docs build on the fastest job
@@ -284,7 +275,6 @@ jobs:
   #         - "macos-10.15"
   #         # - "macos-11.0"
   #       python-version:
-  #           - 3.7
   #           - 3.8
   #           - 3.9
   #   name: Install from Test PyPI and run tests on Python ${{ matrix.python-version }} on ${{ matrix.os }}
@@ -365,7 +355,6 @@ jobs:
           - "windows-2019"
           - "macos-10.15"
         python-version:
-            - 3.7
             - 3.8
             - 3.9
     name: Publish to PyPI for Python ${{ matrix.python-version }} on ${{ matrix.os }}
@@ -436,7 +425,6 @@ jobs:
   #         - "macos-10.15"
   #         # - "macos-11.0"
   #       python-version:
-  #           - 3.7
   #           - 3.8
   #           - 3.9
   #   name: Test installation from PyPI for Python ${{ matrix.python-version }} on ${{ matrix.os }}

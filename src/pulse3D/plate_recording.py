@@ -413,13 +413,14 @@ class PlateRecording:
 
     def load_time_force_data(self, path: str):
         time_force_df = pd.read_parquet(path)
+        ms_converted_time = [s * MICRO_TO_BASE_CONVERSION for s in time_force_df["Time (s)"].tolist()]
 
         for well in self.wells:
-            column = str(well[WELL_INDEX_UUID])
+            column = str(well[WELL_NAME_UUID])
             log.info(f"Loading time force data for well at index: {column}")
 
             well.force = [
-                time_force_df["Time (microseconds)"].tolist(),
+                ms_converted_time,
                 time_force_df[column].tolist(),
             ]
 

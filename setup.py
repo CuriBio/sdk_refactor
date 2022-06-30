@@ -27,7 +27,7 @@ if USE_CYTHON:
 
 setup(
     name="Pulse3D",
-    version="0.24.1",
+    version="0.24.2",
     description="Pulse3D Analysis Platform",
     url="https://github.com/CuriBio/Pulse3D",
     project_urls={"Documentation": "https://pulse3D.readthedocs.io/en/latest/"},

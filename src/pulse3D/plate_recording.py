@@ -343,9 +343,7 @@ class PlateRecording:
         ):
             raise NotImplementedError("All 24 wells must have a calibration file present")
 
-        initial_magnet_finding_params = json.loads(
-            self.wells[0].get(INITIAL_MAGNET_FINDING_PARAMS_UUID, r"{}")
-        )
+        initial_magnet_finding_params = json.loads(self.wells[0].get(INITIAL_MAGNET_FINDING_PARAMS_UUID, r"{}"))
 
         # load data
         plate_data_array = format_well_file_data(self.wells)

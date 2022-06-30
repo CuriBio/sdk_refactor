@@ -415,7 +415,7 @@ class PlateRecording:
 
         for well in self.wells:
             column = str(well[WELL_NAME_UUID])
-            log.info(f"Loading time force data for well at index: {column}")
+            log.info(f"Loading time force data for well: {column}")
 
             well.force = [
                 ms_converted_time,

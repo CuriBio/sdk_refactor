@@ -305,7 +305,7 @@ class WellFile:
 
 
 class PlateRecording:
-    def __init__(self, path, use_mean_of_baseline=True):
+    def __init__(self, path, calc_time_force=True, use_mean_of_baseline=True):
         self.path = path
         self.wells = []
         self._iter = 0
@@ -326,7 +326,11 @@ class PlateRecording:
 
         if self.wells:  # might not be any well files in the path
             # currently file versions 1.0.0 and above must have all their data processed together
-            if not self.is_optical_recording and self.wells[0].version >= VersionInfo.parse("1.0.0"):
+            if (
+                not self.is_optical_recording
+                and self.wells[0].version >= VersionInfo.parse("1.0.0")
+                and calc_time_force
+            ):
                 self._process_plate_data(calibration_recordings, use_mean_of_baseline=use_mean_of_baseline)
 
     def _process_plate_data(self, calibration_recordings, use_mean_of_baseline):
@@ -391,7 +395,6 @@ class PlateRecording:
         output_path = os.path.join(output_dir, f"{recording_name}.csv")
 
         # set indexes to time points
-        time_force_dict: Dict[str, pd.DataFrame] = dict()
         truncated_time_sec = [
             truncate_float(ms / MICRO_TO_BASE_CONVERSION, 2) for ms in self.wells[0].force[0]
         ]
@@ -403,26 +406,38 @@ class PlateRecording:
 
         time_force_df = pd.DataFrame(force_data)
         time_force_df.to_csv(output_path, index=False)
-        time_force_dict[recording_name] = time_force_df
 
         return time_force_df, output_path
 
+    def load_time_force_data(self, path: str):
+        time_force_df = pd.read_parquet(path)
+        ms_converted_time = [s * MICRO_TO_BASE_CONVERSION for s in time_force_df["Time (s)"].tolist()]
+
+        for well in self.wells:
+            column = str(well[WELL_NAME_UUID])
+            log.info(f"Loading time force data for well: {column}")
+
+            well.force = [
+                ms_converted_time,
+                time_force_df[column].tolist(),
+            ]
+
     @staticmethod
-    def from_directory(path):
+    def from_directory(path, calc_time_force=True):
         # multi zip files
         for zf in glob.glob(os.path.join(path, "*.zip"), recursive=True):
             log.info(f"Loading recording from file {zf}")
-            yield PlateRecording(zf)
+            yield PlateRecording(zf, calc_time_force)
 
         # multi optical files
         for of in glob.glob(os.path.join(path, "*.xlsx"), recursive=True):
             log.info(f"Loading optical data from file {of}")
-            yield PlateRecording(of)
+            yield PlateRecording(of, calc_time_force)
 
         # directory of .h5 files
         for dir in glob.glob(os.path.join(path, "*"), recursive=True):
             if glob.glob(os.path.join(dir, "*.h5"), recursive=True):
-                yield PlateRecording(dir)
+                yield PlateRecording(dir, calc_time_force)
 
     def __iter__(self):
         self._iter = 0

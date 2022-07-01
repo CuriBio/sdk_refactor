@@ -431,12 +431,12 @@ class PlateRecording:
         # multi optical files
         for of in glob.glob(os.path.join(path, "*.xlsx"), recursive=True):
             log.info(f"Loading optical data from file {of}")
-            yield PlateRecording(of)
+            yield PlateRecording(of, calc_time_force)
 
         # directory of .h5 files
         for dir in glob.glob(os.path.join(path, "*"), recursive=True):
             if glob.glob(os.path.join(dir, "*.h5"), recursive=True):
-                yield PlateRecording(dir)
+                yield PlateRecording(dir, calc_time_force)
 
     def __iter__(self):
         self._iter = 0

@@ -343,7 +343,9 @@ class PlateRecording:
         ):
             raise NotImplementedError("All 24 wells must have a calibration file present")
 
-        initial_magnet_finding_params = json.loads(self.wells[0].get(INITIAL_MAGNET_FINDING_PARAMS_UUID, r"{}"))
+        initial_magnet_finding_params = json.loads(
+            self.wells[0].get(INITIAL_MAGNET_FINDING_PARAMS_UUID, r"{}")
+        )
 
         # load data
         plate_data_array = format_well_file_data(self.wells)
@@ -411,16 +413,13 @@ class PlateRecording:
 
     def load_time_force_data(self, path: str):
         time_force_df = pd.read_parquet(path)
-        ms_converted_time = [s * MICRO_TO_BASE_CONVERSION for s in time_force_df["Time (s)"].tolist()]
+        ms_converted_time = [s * MICRO_TO_BASE_CONVERSION for s in time_force_df["Time (s)"]]
 
         for well in self.wells:
             column = str(well[WELL_NAME_UUID])
-            log.info(f"Loading time force data for well at index: {column}")
+            log.info(f"Loading time force data for well: {column}")
 
-            well.force = [
-                ms_converted_time,
-                time_force_df[column].tolist(),
-            ]
+            well.force = np.vstack((ms_converted_time, time_force_df[column])).astype(np.float64)
 
     @staticmethod
     def from_directory(path, calc_time_force=True):
@@ -432,12 +431,12 @@ class PlateRecording:
         # multi optical files
         for of in glob.glob(os.path.join(path, "*.xlsx"), recursive=True):
             log.info(f"Loading optical data from file {of}")
-            yield PlateRecording(of, calc_time_force)
+            yield PlateRecording(of)
 
         # directory of .h5 files
         for dir in glob.glob(os.path.join(path, "*"), recursive=True):
             if glob.glob(os.path.join(dir, "*.h5"), recursive=True):
-                yield PlateRecording(dir, calc_time_force)
+                yield PlateRecording(dir)
 
     def __iter__(self):
         self._iter = 0

@@ -22,6 +22,10 @@ TWITCH_WIDTH_PERCENTS = np.arange(10, 95, 5)
 TWITCH_WIDTH_INDEX_OF_CONTRACTION_VELOCITY_START = np.where(TWITCH_WIDTH_PERCENTS == 10)[0]
 TWITCH_WIDTH_INDEX_OF_CONTRACTION_VELOCITY_END = np.where(TWITCH_WIDTH_PERCENTS == 90)[0]
 
+import logging
+
+log = logging.getLogger(__name__)
+
 
 def peak_detector(
     filtered_magnetic_signal: NDArray[(2, Any), int],
@@ -219,6 +223,7 @@ def find_twitch_indices(
 def data_metrics(
     peak_and_valley_indices: Tuple[NDArray[int], NDArray[int]],
     filtered_data: NDArray[(2, Any), int],
+    baseline_widths_to_use: Tuple[int, ...],
     rounded: bool = False,
     metrics_to_create: Iterable[UUID] = ALL_METRICS,
 ) -> Tuple[DataFrame, DataFrame]:
@@ -249,12 +254,16 @@ def data_metrics(
     metric_mapper: Dict[UUID, BaseMetric] = {
         AMPLITUDE_UUID: TwitchAmplitude(rounded=rounded),
         AUC_UUID: TwitchAUC(rounded=rounded),
-        BASELINE_TO_PEAK_UUID: TwitchPeakToBaseline(rounded=rounded, is_contraction=True),
+        BASELINE_TO_PEAK_UUID: TwitchPeakTime(
+            rounded=rounded, is_contraction=True, twitch_width_percents=[baseline_widths_to_use[0]]
+        ),
         CONTRACTION_TIME_UUID: TwitchPeakTime(rounded=rounded, is_contraction=True),
         CONTRACTION_VELOCITY_UUID: TwitchVelocity(rounded=rounded, is_contraction=True),
         FRACTION_MAX_UUID: TwitchFractionAmplitude(),
         IRREGULARITY_INTERVAL_UUID: TwitchIrregularity(rounded=rounded),
-        PEAK_TO_BASELINE_UUID: TwitchPeakToBaseline(rounded=rounded, is_contraction=False),
+        PEAK_TO_BASELINE_UUID: TwitchPeakTime(
+            rounded=rounded, is_contraction=False, twitch_width_percents=[baseline_widths_to_use[1]]
+        ),
         RELAXATION_TIME_UUID: TwitchPeakTime(rounded=rounded, is_contraction=False),
         RELAXATION_VELOCITY_UUID: TwitchVelocity(rounded=rounded, is_contraction=False),
         TWITCH_FREQUENCY_UUID: TwitchFrequency(rounded=rounded),
@@ -266,7 +275,6 @@ def data_metrics(
     for metric_type, metrics in CALCULATED_METRICS.items():
         per_twitch_df = dfs["per_twitch"][metric_type]
         aggregate_df = dfs["aggregate"][metric_type]
-
         # sort first to improve performance
         per_twitch_df.sort_index(inplace=True)
         aggregate_df.sort_index(inplace=True)

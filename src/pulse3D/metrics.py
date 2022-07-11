@@ -496,7 +496,7 @@ class TwitchVelocity(BaseMetric):
 
         # change in force / change in time
         velocity = abs((Y_end - Y_start) / (X_end - X_start))
-        velocity *= MICRO_TO_BASE_CONVERSION ** 2
+        velocity *= MICRO_TO_BASE_CONVERSION**2
 
         return velocity
 
@@ -874,7 +874,7 @@ class TwitchPeakTime(BaseMetric):
             twitch_indices=twitch_indices_hashable,
             filtered_data=filtered_data_hashable,
             rounded=self.rounded,
-            twitch_width_percents=tuple(self.twitch_width_percents),
+            twitch_width_percents=tuple(TWITCH_WIDTH_PERCENTS),
         )
 
         time_difference = self.calculate_twitch_time_diff(
@@ -895,7 +895,11 @@ class TwitchPeakTime(BaseMetric):
         for iter_percent in self.twitch_width_percents:
             estimates = metrics[iter_percent]
             aggregate_estimates = self.create_statistics_df(estimates, rounded=self.rounded)
-            aggregate_df[metric_id, iter_percent] = aggregate_estimates
+            try:
+                aggregate_df[metric_id, iter_percent] = aggregate_estimates
+            except ValueError:
+                # Exception occurs when used for C10 to Peak and Peak to R90 metrics
+                aggregate_df[metric_id] = aggregate_estimates
 
     def calculate_twitch_time_diff(
         self,
@@ -937,6 +941,7 @@ class TwitchPeakTime(BaseMetric):
 
         estimates_dict = {twitch_index: {} for twitch_index in twitch_indices.keys()}  # type: ignore
         for iter_twitch_idx in twitch_indices.keys():
+
             for iter_percent in self.twitch_width_percents:
                 percent = iter_percent
                 if is_contraction:
@@ -947,6 +952,7 @@ class TwitchPeakTime(BaseMetric):
 
                 estimates_dict[iter_twitch_idx][iter_percent] = diff_fn(peak_time, percent_time)
         estimates = pd.DataFrame.from_dict(estimates_dict, orient="index")
+
         return estimates / MICRO_TO_BASE_CONVERSION
 
 
@@ -978,6 +984,7 @@ class TwitchPeakToBaseline(BaseMetric):
 
         peak_times = [time_series[k] for k in twitch_indices.keys()]
         valley_times = [time_series[twitch_indices[k][valley_key]] for k in twitch_indices.keys()]
+
         estimates_list = [
             get_diff(peak_time, valley_time) for peak_time, valley_time in zip(peak_times, valley_times)
         ]

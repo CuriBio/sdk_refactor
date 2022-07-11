@@ -201,10 +201,10 @@ ALL_METRICS = [
     CONTRACTION_VELOCITY_UUID,
     RELAXATION_VELOCITY_UUID,
     IRREGULARITY_INTERVAL_UUID,
-    BASELINE_TO_PEAK_UUID,
-    PEAK_TO_BASELINE_UUID,
     WIDTH_UUID,
     RELAXATION_TIME_UUID,
+    PEAK_TO_BASELINE_UUID,
+    BASELINE_TO_PEAK_UUID,
     CONTRACTION_TIME_UUID,
 ]
 
@@ -225,13 +225,13 @@ NEWTONS_PER_MILLIMETER = 0.000159
 # Beta 1 GMR to magnetic field conversion values. Valid as of 11/19/21
 MILLIVOLTS_PER_MILLITESLA = 1073.6  # Obtained 03/09/2021 by Kevin Gray
 MIDSCALE_CODE = 0x800000
-RAW_TO_SIGNED_CONVERSION_VALUE = 2 ** 23  # subtract this value from raw hardware data
+RAW_TO_SIGNED_CONVERSION_VALUE = 2**23  # subtract this value from raw hardware data
 REFERENCE_VOLTAGE = 2.5
 ADC_GAIN = 2
 
 # Beta 2 Memsic to magnetic field conversion factors. Valid as of 11/19/21
-MEMSIC_CENTER_OFFSET = 2 ** 15
-MEMSIC_MSB = 2 ** 16
+MEMSIC_CENTER_OFFSET = 2**15
+MEMSIC_MSB = 2**16
 MEMSIC_FULL_SCALE = 16
 GAUSS_PER_MILLITESLA = 10
 
@@ -289,8 +289,8 @@ CALCULATED_METRIC_DISPLAY_NAMES = {
     WIDTH_UUID: "Twitch Width {} (seconds)",
     RELAXATION_TIME_UUID: "Time From Peak to Relaxation {} (seconds)",
     CONTRACTION_TIME_UUID: "Time From Contraction {} to Peak (seconds)",
-    BASELINE_TO_PEAK_UUID: "Time From Baseline to Peak (seconds)",
-    PEAK_TO_BASELINE_UUID: "Time From Peak to Baseline (seconds)",
+    BASELINE_TO_PEAK_UUID: "Time From Contraction {} to Peak (seconds)",
+    PEAK_TO_BASELINE_UUID: "Time From Peak to Relaxation {} (seconds)",
 }
 
 CALCULATED_METRICS = immutabledict(

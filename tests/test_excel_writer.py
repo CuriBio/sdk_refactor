@@ -66,7 +66,7 @@ def test_write_xlsx__correctly_handles_new_twitch_widths():
     with tempfile.TemporaryDirectory() as tmpdir:
         # switch to temp dir so output file is automatically deleted
         os.chdir(tmpdir)
-        output_file_name = write_xlsx(pr, twitch_widths=(25, 75), baseline_widths_to_use=(5, 95))
+        output_file_name = write_xlsx(pr, twitch_widths=(20, 80), baseline_widths_to_use=(5, 95))
 
         output_filepath = os.path.join(tmpdir, output_file_name)
         # column = pd.read_excel(output_filepath, index_col=None, usecols=[0])
@@ -85,10 +85,10 @@ def test_write_xlsx__correctly_handles_new_twitch_widths():
         
         for metric in (
             "Time From Contraction 5 to Peak (seconds)",
-            "Time From Contraction 25 to Peak (seconds)",
-            "Time From Contraction 75 to Peak (seconds)",
-            "Time From Peak to Relaxation 25 (seconds)",
-            "Time From Peak to Relaxation 75 (seconds)",
+            "Time From Contraction 20 to Peak (seconds)",
+            "Time From Contraction 80 to Peak (seconds)",
+            "Time From Peak to Relaxation 20 (seconds)",
+            "Time From Peak to Relaxation 80 (seconds)",
             "Time From Peak to Relaxation 95 (seconds)",
         ):
             assert [metric] in df.values.tolist()

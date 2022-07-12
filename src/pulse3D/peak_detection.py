@@ -288,8 +288,6 @@ def data_metrics(
                 metric = metric_mapper[metric_id]
                 estimate = metric.fit(**metric_parameters)
                 metric.add_per_twitch_metrics(per_twitch_df, metric_id, estimate)
-                print("ID: ", metric_id)
-                print("EST: ", estimate)
                 metric.add_aggregate_metrics(aggregate_df, metric_id, estimate)
 
     per_twitch_df = concat([dfs["per_twitch"][j] for j in dfs["per_twitch"].keys()], axis=1)

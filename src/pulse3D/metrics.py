@@ -874,7 +874,7 @@ class TwitchPeakTime(BaseMetric):
             twitch_indices=twitch_indices_hashable,
             filtered_data=filtered_data_hashable,
             rounded=self.rounded,
-            twitch_width_percents=tuple(TWITCH_WIDTH_PERCENTS),
+            twitch_width_percents=tuple(self.twitch_width_percents),
         )
 
         time_difference = self.calculate_twitch_time_diff(
@@ -899,8 +899,17 @@ class TwitchPeakTime(BaseMetric):
             try:
                 aggregate_df[metric_id, iter_percent] = aggregate_estimates
             except ValueError:
-                # Exception occurs when used for C10 to Peak and Peak to R90 metrics
+                # Exception occurs when used for C10 to Peak and Peak to R90 metrics due to init df shape
                 aggregate_df[metric_id] = aggregate_estimates
+
+    def add_per_twitch_metrics(
+        self, main_df: DataFrame, metric_id: UUID, metrics: Union[NDArray[int], NDArray[float]]
+    ) -> None:
+        try:
+            main_df[metric_id] = metrics
+        except ValueError:
+            # Exception occurs when used for C10 to Peak and Peak to R90 metrics due to init df shape
+            main_df[metric_id] = metrics[self.twitch_width_percents[0]]
 
     def calculate_twitch_time_diff(
         self,

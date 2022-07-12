@@ -191,7 +191,8 @@ def write_xlsx(
         plate_recording (PlateRecording): loaded PlateRecording object
         start_time (float): Start time of windowed analysis. Defaults to 0.
         end_time (float): End time of windowed analysis. Defaults to infinity.
-
+        twitch_widths: Requested widths to add to output file
+        baseline_widths_to_use: Twitch widths to use as baseline metrics
     Raises:
         NotImplementedError: if peak finding algorithm fails for unexpected reason
         ValueError: if start and end times are outside of expected bounds, or do not ?
@@ -359,7 +360,9 @@ def write_xlsx(
 
             # compute metrics on interpolated well data
             log.info(f"Calculating metrics for well {well_name}")
-            metrics = data_metrics(peaks_and_valleys, interpolated_well_data, baseline_widths_to_use)
+            metrics = data_metrics(
+                peaks_and_valleys, interpolated_well_data, baseline_widths_to_use=baseline_widths_to_use
+            )
 
         except TwoPeaksInARowError:
             error_msg = "Error: Two Contractions in a Row Detected"
@@ -630,7 +633,7 @@ def aggregate_metrics_df(
     Args:
         data (list): list of data metrics and metadata associated with each well
         widths (tuple of ints, optional): twitch-widths to return data for. Defaults to (50, 90).
-
+        baseline_widths_to_use: twitch widths to use as baseline metrics
     Returns:
         df (DataFrame): aggregate data frame of all metric aggregate measures
     """
@@ -714,7 +717,7 @@ def per_twitch_df(
     Args:
         data (list): list of data metrics and metadata associated with each well
         widths (tuple of ints, optional): twitch-widths to return data for. Defaults to (50, 90).
-
+        baseline_widths_to_use: twitch widths to use as baseline metrics
     Returns:
         df (DataFrame): per-twitch data frame of all metrics
     """
@@ -740,7 +743,9 @@ def per_twitch_df(
                     num_per_twitch_metrics += 1
             elif metric_id in (BASELINE_TO_PEAK_UUID, PEAK_TO_BASELINE_UUID):
                 baseline_width = (
-                    baseline_widths_to_use[0] if metric_id == BASELINE_TO_PEAK_UUID else baseline_widths_to_use[1]
+                    baseline_widths_to_use[0]
+                    if metric_id == BASELINE_TO_PEAK_UUID
+                    else baseline_widths_to_use[1]
                 )
                 # prevents duplicate entries in file if entered baseline(s) is/are the same as the entered twitch widths
                 if baseline_width not in widths:

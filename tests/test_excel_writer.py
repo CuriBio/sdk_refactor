@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 import os
 import tempfile
-import pandas as pd
 
+import pandas as pd
 from pulse3D.excel_writer import write_xlsx
 from pulse3D.plate_recording import PlateRecording
 import pytest
@@ -82,7 +82,7 @@ def test_write_xlsx__correctly_handles_new_twitch_widths():
             "Time From Peak to Relaxation 90 (seconds)",
         ):
             assert [metric] not in df.values.tolist()
-        
+
         for metric in (
             "Time From Contraction 5 to Peak (seconds)",
             "Time From Contraction 20 to Peak (seconds)",

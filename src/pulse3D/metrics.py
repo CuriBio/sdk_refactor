@@ -59,9 +59,8 @@ class BaseMetric:
     ) -> Union[NDArray[Float64], List[Dict[int, Dict[UUID, Any]]], DataFrame]:
         pass
 
-    @staticmethod
     def add_per_twitch_metrics(
-        main_df: DataFrame, metric_id: UUID, metrics: Union[NDArray[int], NDArray[float]]
+        self, main_df: DataFrame, metric_id: UUID, metrics: Union[NDArray[int], NDArray[float]]
     ) -> None:
         """Add estimated per-twitch metrics to per-twitch DataFrame.
 
@@ -496,7 +495,7 @@ class TwitchVelocity(BaseMetric):
 
         # change in force / change in time
         velocity = abs((Y_end - Y_start) / (X_end - X_start))
-        velocity *= MICRO_TO_BASE_CONVERSION**2
+        velocity *= MICRO_TO_BASE_CONVERSION ** 2
 
         return velocity
 

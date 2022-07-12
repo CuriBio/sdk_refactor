@@ -46,7 +46,9 @@ def add_peak_detection_series(
     marker_color = "#D95F02" if detector_type == "Valley" else "#7570B3"
 
     result_column = xl_col_to_name(PEAK_VALLEY_COLUMN_START + (well_index * 2) + offset)
-    continuous_waveform_sheet.write(f"{result_column}1", f"{well_name} {detector_type} Values")
+    continuous_waveform_sheet.write(
+        f"{result_column}1", f"{well_name} {detector_type} Values"
+    )
 
     for idx in indices:
         # convert peak/valley index to seconds
@@ -58,7 +60,9 @@ def add_peak_detection_series(
 
         if is_optical_recording:
             value = (
-                interpolated_data_function(uninterpolated_time_seconds * MICRO_TO_BASE_CONVERSION)
+                interpolated_data_function(
+                    uninterpolated_time_seconds * MICRO_TO_BASE_CONVERSION
+                )
                 - minimum_value
             ) * MICRO_TO_BASE_CONVERSION
 
@@ -72,7 +76,9 @@ def add_peak_detection_series(
 
         continuous_waveform_sheet.write(f"{result_column}{row}", value)
 
-    if waveform_charts is not None:  # Tanner (11/11/20): chart is None when skipping chart creation
+    if (
+        waveform_charts is not None
+    ):  # Tanner (11/11/20): chart is None when skipping chart creation
         for chart in waveform_charts:
             chart.add_series(
                 {
@@ -119,11 +125,15 @@ def create_force_frequency_relationship_charts(
     force_frequency_chart.set_x_axis({"name": x_axis_label})
     y_axis_label = CALCULATED_METRIC_DISPLAY_NAMES[AMPLITUDE_UUID]
 
-    force_frequency_chart.set_y_axis({"name": y_axis_label, "major_gridlines": {"visible": 0}})
+    force_frequency_chart.set_y_axis(
+        {"name": y_axis_label, "major_gridlines": {"visible": 0}}
+    )
     force_frequency_chart.set_size({"width": CHART_FIXED_WIDTH, "height": CHART_HEIGHT})
     force_frequency_chart.set_title({"name": f"Well {well_name}"})
 
-    well_row, well_col = TWENTY_FOUR_WELL_PLATE.get_row_and_column_from_well_index(well_index)
+    well_row, well_col = TWENTY_FOUR_WELL_PLATE.get_row_and_column_from_well_index(
+        well_index
+    )
 
     force_frequency_sheet.insert_chart(
         1 + well_row * (CHART_HEIGHT_CELLS + 1),
@@ -164,12 +174,16 @@ def create_frequency_vs_time_charts(
 
     y_axis_label = CALCULATED_METRIC_DISPLAY_NAMES[TWITCH_FREQUENCY_UUID]
 
-    frequency_chart.set_y_axis({"name": y_axis_label, "min": 0, "major_gridlines": {"visible": 0}})
+    frequency_chart.set_y_axis(
+        {"name": y_axis_label, "min": 0, "major_gridlines": {"visible": 0}}
+    )
 
     frequency_chart.set_size({"width": CHART_FIXED_WIDTH, "height": CHART_HEIGHT})
     frequency_chart.set_title({"name": f"Well {well_name}"})
 
-    well_row, well_col = TWENTY_FOUR_WELL_PLATE.get_row_and_column_from_well_index(well_index)
+    well_row, well_col = TWENTY_FOUR_WELL_PLATE.get_row_and_column_from_well_index(
+        well_index
+    )
 
     frequency_chart_sheet.insert_chart(
         1 + well_row * (CHART_HEIGHT_CELLS + 1),
@@ -202,7 +216,9 @@ def write_xlsx(
     # get metadata from first well file
     w = [pw for pw in plate_recording if pw][0]
     interpolated_data_period = (
-        w[INTERPOLATION_VALUE_UUID] if plate_recording.is_optical_recording else INTERPOLATED_DATA_PERIOD_US
+        w[INTERPOLATION_VALUE_UUID]
+        if plate_recording.is_optical_recording
+        else INTERPOLATED_DATA_PERIOD_US
     )
 
     # get max and min of final timepoints across each well
@@ -214,7 +230,9 @@ def write_xlsx(
 
     max_final_time_us = max_final_time_secs / MICRO_TO_BASE_CONVERSION
     # produce min final time truncated to 1 decimal place
-    min_final_time_us = truncate_float(min(raw_timepoints) / MICRO_TO_BASE_CONVERSION, 1)
+    min_final_time_us = truncate_float(
+        min(raw_timepoints) / MICRO_TO_BASE_CONVERSION, 1
+    )
 
     if start_time < 0:
         raise ValueError(f"Window start time ({start_time}s) cannot be negative")
@@ -307,7 +325,8 @@ def write_xlsx(
         # necessary for concatenating DFs together, in event that peak-finding fails and produces empty DF
         dfs = init_dfs()
         metrics = tuple(
-            concat([dfs[k][j] for j in dfs[k].keys()], axis=1) for k in ("per_twitch", "aggregate")
+            concat([dfs[k][j] for j in dfs[k].keys()], axis=1)
+            for k in ("per_twitch", "aggregate")
         )
 
         if well_file is None:
@@ -334,10 +353,14 @@ def write_xlsx(
         end_idx = min(window_end_idx, well_end_idx)
 
         # fit interpolation function on recorded data
-        interp_data_fn = interpolate.interp1d(well_file.force[0, :], well_file.force[1, :])
+        interp_data_fn = interpolate.interp1d(
+            well_file.force[0, :], well_file.force[1, :]
+        )
 
         # interpolate, normalize, and scale data
-        interpolated_force = interp_data_fn(interpolated_timepoints_secs[start_idx:end_idx])
+        interpolated_force = interp_data_fn(
+            interpolated_timepoints_secs[start_idx:end_idx]
+        )
         interpolated_well_data = np.row_stack(
             [interpolated_timepoints_secs[start_idx:end_idx], interpolated_force]
         )
@@ -374,25 +397,34 @@ def write_xlsx(
                 "peaks_and_valleys": peaks_and_valleys,
                 "metrics": metrics,
                 "well_index": well_index,
-                "well_name": TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_index),
+                "well_name": TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(
+                    well_index
+                ),
                 "min_value": min_value,
                 "interp_data": interpolated_force,
                 "interp_data_fn": interp_data_fn,
                 "force": interpolated_well_data,
                 "num_data_points": len(interpolated_well_data[0]),
                 "start_time": start_time,
-                "end_time": np.min([interpolated_timepoints_secs[-1] / MICRO_TO_BASE_CONVERSION, end_time]),
+                "end_time": np.min(
+                    [
+                        interpolated_timepoints_secs[-1] / MICRO_TO_BASE_CONVERSION,
+                        end_time,
+                    ]
+                ),
             }
         )
 
     # waveform table
     continuous_waveforms = {
         "Time (seconds)": pd.Series(
-            interpolated_timepoints_secs[start_idx:end_idx] / MICRO_TO_BASE_CONVERSION
+            interpolated_timepoints_secs[0:end_idx] / MICRO_TO_BASE_CONVERSION
         )
     }
     for d in data:
-        continuous_waveforms[f"{d['well_name']} - Active Twitch Force (μN)"] = pd.Series(d["interp_data"])
+        continuous_waveforms[
+            f"{d['well_name']} - Active Twitch Force (μN)"
+        ] = pd.Series(d["interp_data"])
     continuous_waveforms_df = pd.DataFrame(continuous_waveforms)
 
     _write_xlsx(
@@ -425,7 +457,9 @@ def _write_xlsx(
             ws.set_column(i_col_idx, i_col_idx, i_col_width)
 
         log.info("Writing continuous waveforms.")
-        continuous_waveforms_df.to_excel(writer, sheet_name="continuous-waveforms", index=False)
+        continuous_waveforms_df.to_excel(
+            writer, sheet_name="continuous-waveforms", index=False
+        )
         continuous_waveforms_sheet = writer.sheets["continuous-waveforms"]
         continuous_waveforms_sheet.set_column(0, 0, 18)
 
@@ -453,7 +487,9 @@ def _write_xlsx(
         # aggregate metrics sheet
         log.info("Writing aggregate metrics.")
         aggregate_df = aggregate_metrics_df(data, twitch_widths)
-        aggregate_df.to_excel(writer, sheet_name="aggregate-metrics", index=False, header=False)
+        aggregate_df.to_excel(
+            writer, sheet_name="aggregate-metrics", index=False, header=False
+        )
 
         # per twitch metrics sheet
         log.info("Writing per-twitch metrics.")
@@ -467,8 +503,12 @@ def _write_xlsx(
         for well_index, d in enumerate(data):
             dm = d["metrics"]
             if dm:
-                force_freq_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
-                freq_vs_time_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
+                force_freq_chart = wb.add_chart(
+                    {"type": "scatter", "subtype": "straight"}
+                )
+                freq_vs_time_chart = wb.add_chart(
+                    {"type": "scatter", "subtype": "straight"}
+                )
 
                 num_data_points = len(dm[0])
 
@@ -483,7 +523,9 @@ def _write_xlsx(
                     num_metrics,
                 )
 
-                log.info(f"Creating force frequency relationship chart for well {d['well_name']}")
+                log.info(
+                    f"Creating force frequency relationship chart for well {d['well_name']}"
+                )
                 create_force_frequency_relationship_charts(
                     force_freq_sheet,
                     force_freq_chart,
@@ -514,7 +556,9 @@ def create_waveform_charts(
         else dm["start_time"] + CHART_MAXIMUM_SNAPSHOT_LENGTH
     )
 
-    df_column = continuous_waveforms_df.columns.get_loc(f"{dm['well_name']} - Active Twitch Force (μN)")
+    df_column = continuous_waveforms_df.columns.get_loc(
+        f"{dm['well_name']} - Active Twitch Force (μN)"
+    )
 
     well_column = xl_col_to_name(df_column)
     full_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
@@ -523,8 +567,12 @@ def create_waveform_charts(
     snapshot_plot_params = plotting_parameters(upper_x_bound - lower_x_bound)
     snapshot_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
 
-    snapshot_chart.set_x_axis({"name": "Time (seconds)", "min": lower_x_bound, "max": upper_x_bound})
-    snapshot_chart.set_y_axis({"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0}})
+    snapshot_chart.set_x_axis(
+        {"name": "Time (seconds)", "min": lower_x_bound, "max": upper_x_bound}
+    )
+    snapshot_chart.set_y_axis(
+        {"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0}}
+    )
     snapshot_chart.set_title({"name": f"Well {dm['well_name']}"})
 
     snapshot_chart.add_series(
@@ -536,7 +584,9 @@ def create_waveform_charts(
         }
     )
 
-    snapshot_chart.set_size({"width": snapshot_plot_params["chart_width"], "height": CHART_HEIGHT})
+    snapshot_chart.set_size(
+        {"width": snapshot_plot_params["chart_width"], "height": CHART_HEIGHT}
+    )
     snapshot_chart.set_plotarea(
         {
             "layout": {
@@ -551,8 +601,12 @@ def create_waveform_charts(
     # plot full waveform
     full_plot_params = plotting_parameters(dm["end_time"] - dm["start_time"])
 
-    full_chart.set_x_axis({"name": "Time (seconds)", "min": dm["start_time"], "max": dm["end_time"]})
-    full_chart.set_y_axis({"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0}})
+    full_chart.set_x_axis(
+        {"name": "Time (seconds)", "min": dm["start_time"], "max": dm["end_time"]}
+    )
+    full_chart.set_y_axis(
+        {"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0}}
+    )
     full_chart.set_title({"name": f"Well {dm['well_name']}"})
 
     full_chart.add_series(
@@ -564,7 +618,9 @@ def create_waveform_charts(
         }
     )
 
-    full_chart.set_size({"width": full_plot_params["chart_width"], "height": CHART_HEIGHT})
+    full_chart.set_size(
+        {"width": full_plot_params["chart_width"], "height": CHART_HEIGHT}
+    )
     full_chart.set_plotarea(
         {
             "layout": {
@@ -608,14 +664,20 @@ def create_waveform_charts(
         minimum_value=dm["min_value"],
     )
 
-    (well_row, well_col) = TWENTY_FOUR_WELL_PLATE.get_row_and_column_from_well_index(df_column - 1)
+    (well_row, well_col) = TWENTY_FOUR_WELL_PLATE.get_row_and_column_from_well_index(
+        df_column - 1
+    )
     snapshot_sheet.insert_chart(
-        well_row * (CHART_HEIGHT_CELLS + 1), well_col * (CHART_FIXED_WIDTH_CELLS + 1), snapshot_chart
+        well_row * (CHART_HEIGHT_CELLS + 1),
+        well_col * (CHART_FIXED_WIDTH_CELLS + 1),
+        snapshot_chart,
     )
     full_sheet.insert_chart(1 + well_idx * (CHART_HEIGHT_CELLS + 1), 1, full_chart)
 
 
-def aggregate_metrics_df(data: List[Dict[Any, Any]], widths: Tuple[int, ...] = (50, 90)):
+def aggregate_metrics_df(
+    data: List[Dict[Any, Any]], widths: Tuple[int, ...] = (50, 90)
+):
     """Combine aggregate metrics for each well into single DataFrame.
 
     Args:
@@ -640,7 +702,10 @@ def aggregate_metrics_df(data: List[Dict[Any, Any]], widths: Tuple[int, ...] = (
     df = df.append(
         pd.Series(
             ["", "n (twitches)"]
-            + [len(d["metrics"][0]) if not d["error_msg"] else d["error_msg"] for d in data]
+            + [
+                len(d["metrics"][0]) if not d["error_msg"] else d["error_msg"]
+                for d in data
+            ]
         ),
         ignore_index=True,
     )
@@ -656,13 +721,17 @@ def aggregate_metrics_df(data: List[Dict[Any, Any]], widths: Tuple[int, ...] = (
                 df = _append_aggregate_measures_df(df, metric_df, name)
         else:
             name = CALCULATED_METRIC_DISPLAY_NAMES[metric_id]
-            metric_df = combined[metric_id].drop(columns=["n"]).T.droplevel(level=-1, axis=0)
+            metric_df = (
+                combined[metric_id].drop(columns=["n"]).T.droplevel(level=-1, axis=0)
+            )
             df = _append_aggregate_measures_df(df, metric_df, name)
 
     return df
 
 
-def _append_aggregate_measures_df(main_df: pd.DataFrame, metrics: pd.DataFrame, name: str):
+def _append_aggregate_measures_df(
+    main_df: pd.DataFrame, metrics: pd.DataFrame, name: str
+):
     """Append metric-specific aggregate measures to aggregate data frame.
 
     Includes an empty row after aggregate measures
@@ -700,19 +769,27 @@ def per_twitch_df(data: List[Dict[Any, Any]], widths: Tuple[int, ...] = (50, 90)
     series_list = []
     for d in data:  # for each well
         num_per_twitch_metrics = 0  # len(labels)
-        twitch_times = [d["force"][0, i] / MICRO_TO_BASE_CONVERSION for i in d["metrics"][0].index]
+        twitch_times = [
+            d["force"][0, i] / MICRO_TO_BASE_CONVERSION for i in d["metrics"][0].index
+        ]
 
         # get metrics for single well
         dm = d["metrics"][0]
-        series_list.append(pd.Series([d["well_name"]] + [f"Twitch {i+1}" for i in range(len(dm))]))
-        series_list.append(pd.Series(["Timepoint of Twitch Contraction"] + twitch_times))
+        series_list.append(
+            pd.Series([d["well_name"]] + [f"Twitch {i+1}" for i in range(len(dm))])
+        )
+        series_list.append(
+            pd.Series(["Timepoint of Twitch Contraction"] + twitch_times)
+        )
 
         num_per_twitch_metrics += 2
 
         for metric_id in ALL_METRICS:
             if metric_id in (WIDTH_UUID, RELAXATION_TIME_UUID, CONTRACTION_TIME_UUID):
                 for twitch_width in widths:
-                    values = [f"{CALCULATED_METRIC_DISPLAY_NAMES[metric_id].format(twitch_width)}"]
+                    values = [
+                        f"{CALCULATED_METRIC_DISPLAY_NAMES[metric_id].format(twitch_width)}"
+                    ]
                     temp = pd.Series(values + list(dm[metric_id][twitch_width]))
                     series_list.append(temp)
                     num_per_twitch_metrics += 1

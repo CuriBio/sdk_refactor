@@ -388,7 +388,6 @@ def write_xlsx(
             }
         )
 
-    log.info(f"{[item['error_msg'] for item in data]}")
     # waveform table
     continuous_waveforms = {
         "Time (seconds)": pd.Series(

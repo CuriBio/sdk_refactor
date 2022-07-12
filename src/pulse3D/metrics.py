@@ -894,7 +894,6 @@ class TwitchPeakTime(BaseMetric):
         for iter_percent in self.twitch_width_percents:
             estimates = metrics[iter_percent]
             aggregate_estimates = self.create_statistics_df(estimates, rounded=self.rounded)
-            # print(estimates, aggregate_estimates)
             try:
                 aggregate_df[metric_id, iter_percent] = aggregate_estimates
             except ValueError:

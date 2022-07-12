@@ -257,7 +257,10 @@ def data_metrics(
         BASELINE_TO_PEAK_UUID: TwitchPeakTime(
             rounded=rounded,
             is_contraction=True,
-            twitch_width_percents=[baseline_widths_to_use[0], 100 - baseline_widths_to_use[0]],
+            twitch_width_percents=[
+                baseline_widths_to_use[0],
+                100 - baseline_widths_to_use[0],
+            ],  # both required for calculate_twitch_time_diff
         ),
         CONTRACTION_TIME_UUID: TwitchPeakTime(rounded=rounded, is_contraction=True),
         CONTRACTION_VELOCITY_UUID: TwitchVelocity(rounded=rounded, is_contraction=True),
@@ -266,7 +269,10 @@ def data_metrics(
         PEAK_TO_BASELINE_UUID: TwitchPeakTime(
             rounded=rounded,
             is_contraction=False,
-            twitch_width_percents=[baseline_widths_to_use[1], 100 - baseline_widths_to_use[1]],
+            twitch_width_percents=[
+                baseline_widths_to_use[1],
+                100 - baseline_widths_to_use[1],
+            ],  # both required for calculate_twitch_time_diff
         ),
         RELAXATION_TIME_UUID: TwitchPeakTime(rounded=rounded, is_contraction=False),
         RELAXATION_VELOCITY_UUID: TwitchVelocity(rounded=rounded, is_contraction=False),

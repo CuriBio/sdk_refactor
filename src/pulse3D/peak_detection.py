@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Detecting peak and valleys of incoming Mantarray data."""
+import logging
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -21,6 +22,8 @@ from .metrics import *
 TWITCH_WIDTH_PERCENTS = np.arange(10, 95, 5)
 TWITCH_WIDTH_INDEX_OF_CONTRACTION_VELOCITY_START = np.where(TWITCH_WIDTH_PERCENTS == 10)[0]
 TWITCH_WIDTH_INDEX_OF_CONTRACTION_VELOCITY_END = np.where(TWITCH_WIDTH_PERCENTS == 90)[0]
+
+log = logging.getLogger(__name__)
 
 
 def peak_detector(
@@ -221,6 +224,7 @@ def data_metrics(
     filtered_data: NDArray[(2, Any), int],
     rounded: bool = False,
     metrics_to_create: Iterable[UUID] = ALL_METRICS,
+    baseline_widths_to_use: Tuple[int, ...] = (10, 90),
 ) -> Tuple[DataFrame, DataFrame]:
     # pylint:disable=too-many-locals # Eli (9/8/20): there are a lot of metrics to calculate that need local variables
     """Find all data metrics for individual twitches and averages.
@@ -230,6 +234,7 @@ def data_metrics(
         filtered_data: a 2D array of the time and voltage data after it has gone through noise cancellation
         rounded: whether to round estimates to the nearest int
         metrics_to_create: list of desired metrics
+        baseline_widths_to_use: twitch widths to use as baseline metrics
     Returns:
         per_twitch_df: a dictionary of individual peak metrics in which the twitch timepoint is accompanied by a dictionary in which the UUIDs for each twitch metric are the key and with its accompanying value as the value. For the Twitch Width metric UUID, another dictionary is stored in which the key is the percentage of the way down and the value is another dictionary in which the UUIDs for the rising coord, falling coord or width value are stored with the value as an int for the width value or a tuple of ints for the x/y coordinates
         aggregate_df: a dictionary of entire metric statistics. Most metrics have the stats underneath the UUID, but for twitch widths, there is an additional dictionary where the percent of repolarization is the key
@@ -249,12 +254,26 @@ def data_metrics(
     metric_mapper: Dict[UUID, BaseMetric] = {
         AMPLITUDE_UUID: TwitchAmplitude(rounded=rounded),
         AUC_UUID: TwitchAUC(rounded=rounded),
-        BASELINE_TO_PEAK_UUID: TwitchPeakToBaseline(rounded=rounded, is_contraction=True),
+        BASELINE_TO_PEAK_UUID: TwitchPeakTime(
+            rounded=rounded,
+            is_contraction=True,
+            twitch_width_percents=[
+                baseline_widths_to_use[0],
+                100 - baseline_widths_to_use[0],
+            ],  # both required for calculate_twitch_time_diff
+        ),
         CONTRACTION_TIME_UUID: TwitchPeakTime(rounded=rounded, is_contraction=True),
         CONTRACTION_VELOCITY_UUID: TwitchVelocity(rounded=rounded, is_contraction=True),
         FRACTION_MAX_UUID: TwitchFractionAmplitude(),
         IRREGULARITY_INTERVAL_UUID: TwitchIrregularity(rounded=rounded),
-        PEAK_TO_BASELINE_UUID: TwitchPeakToBaseline(rounded=rounded, is_contraction=False),
+        PEAK_TO_BASELINE_UUID: TwitchPeakTime(
+            rounded=rounded,
+            is_contraction=False,
+            twitch_width_percents=[
+                baseline_widths_to_use[1],
+                100 - baseline_widths_to_use[1],
+            ],  # both required for calculate_twitch_time_diff
+        ),
         RELAXATION_TIME_UUID: TwitchPeakTime(rounded=rounded, is_contraction=False),
         RELAXATION_VELOCITY_UUID: TwitchVelocity(rounded=rounded, is_contraction=False),
         TWITCH_FREQUENCY_UUID: TwitchFrequency(rounded=rounded),
@@ -266,7 +285,6 @@ def data_metrics(
     for metric_type, metrics in CALCULATED_METRICS.items():
         per_twitch_df = dfs["per_twitch"][metric_type]
         aggregate_df = dfs["aggregate"][metric_type]
-
         # sort first to improve performance
         per_twitch_df.sort_index(inplace=True)
         aggregate_df.sort_index(inplace=True)

@@ -36,6 +36,7 @@ def test_peak_detection__analyzes_data_correctly_when_twitches_point_down():
     non_flipped_peaks, non_flipped_valleys = peak_detector(
         test_arr, twitches_point_up=True, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS
     )
+
     flipped_peaks, flipped_valleys = peak_detector(
         flipped_arr,
         twitches_point_up=False,

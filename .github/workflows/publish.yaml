@@ -495,32 +495,32 @@ jobs:
   #       if: github.event.inputs.randomlyseed != ''
   #       run: pytest -xsvv --full-ci --include-slow-tests -n auto --randomly-seed=${{ github.event.inputs.randomlyseed }}
 
-  # create_tag:
-  #   needs: [install_from_pypi]
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       os:
-  #         - "ubuntu-20.04"
-  #   name: Creating tag on ${{ matrix.os }}
-  #   runs-on: ${{ matrix.os }}
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v2
-  #       with:
-  #         fetch-depth: 1
+  create_tag:
+    needs: [publish_to_pypi]
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - "ubuntu-20.04"
+    name: Creating tag on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
 
-  #     - name: Extract version number # Adapted from: https://stackoverflow.com/questions/58033366/how-to-get-current-branch-within-github-actions
-  #       shell: bash
-  #       run: echo '##[set-output name=package-version;]$(echo $(grep -Po "(?<=    version=\")[0-9.]+" setup.py))'
-  #       id: extract_version
+      - name: Extract version number # Adapted from: https://stackoverflow.com/questions/58033366/how-to-get-current-branch-within-github-actions
+        shell: bash
+        run: echo '##[set-output name=package-version;]$(echo $(grep -Po "(?<=    version=\")[0-9.]+" setup.py))'
+        id: extract_version
 
-  #     - name: Tagging commit
-  #       run: |
-  #         echo "About to tag with: v${{ steps.extract_version.outputs.package-version }}"
-  #         git tag "v${{ steps.extract_version.outputs.package-version }}"
-  #         git tag -l
+      - name: Tagging commit
+        run: |
+          echo "About to tag with: v${{ steps.extract_version.outputs.package-version }}"
+          git tag "v${{ steps.extract_version.outputs.package-version }}"
+          git tag -l
 
-  #     - name: Pushing Tag
-  #       if: github.event.inputs.dry_run != '1'
-  #       run: git push --tags
+      - name: Pushing Tag
+        if: github.event.inputs.dry_run != '1'
+        run: git push --tags

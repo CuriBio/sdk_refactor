@@ -59,9 +59,8 @@ class BaseMetric:
     ) -> Union[NDArray[Float64], List[Dict[int, Dict[UUID, Any]]], DataFrame]:
         pass
 
-    @staticmethod
     def add_per_twitch_metrics(
-        main_df: DataFrame, metric_id: UUID, metrics: Union[NDArray[int], NDArray[float]]
+        self, main_df: DataFrame, metric_id: UUID, metrics: Union[NDArray[int], NDArray[float]]
     ) -> None:
         """Add estimated per-twitch metrics to per-twitch DataFrame.
 
@@ -895,7 +894,20 @@ class TwitchPeakTime(BaseMetric):
         for iter_percent in self.twitch_width_percents:
             estimates = metrics[iter_percent]
             aggregate_estimates = self.create_statistics_df(estimates, rounded=self.rounded)
-            aggregate_df[metric_id, iter_percent] = aggregate_estimates
+            try:
+                aggregate_df[metric_id, iter_percent] = aggregate_estimates
+            except ValueError:
+                # Exception occurs when used for C10 to Peak and Peak to R90 metrics due to init df shape
+                aggregate_df[metric_id] = aggregate_estimates
+
+    def add_per_twitch_metrics(
+        self, main_df: DataFrame, metric_id: UUID, metrics: Union[NDArray[int], NDArray[float]]
+    ) -> None:
+        try:
+            main_df[metric_id] = metrics
+        except ValueError:
+            # Exception occurs when used for C10 to Peak and Peak to R90 metrics due to init df shape
+            main_df[metric_id] = metrics[self.twitch_width_percents[0]]
 
     def calculate_twitch_time_diff(
         self,
@@ -937,6 +949,7 @@ class TwitchPeakTime(BaseMetric):
 
         estimates_dict = {twitch_index: {} for twitch_index in twitch_indices.keys()}  # type: ignore
         for iter_twitch_idx in twitch_indices.keys():
+
             for iter_percent in self.twitch_width_percents:
                 percent = iter_percent
                 if is_contraction:
@@ -947,6 +960,7 @@ class TwitchPeakTime(BaseMetric):
 
                 estimates_dict[iter_twitch_idx][iter_percent] = diff_fn(peak_time, percent_time)
         estimates = pd.DataFrame.from_dict(estimates_dict, orient="index")
+
         return estimates / MICRO_TO_BASE_CONVERSION
 
 
@@ -978,6 +992,7 @@ class TwitchPeakToBaseline(BaseMetric):
 
         peak_times = [time_series[k] for k in twitch_indices.keys()]
         valley_times = [time_series[twitch_indices[k][valley_key]] for k in twitch_indices.keys()]
+
         estimates_list = [
             get_diff(peak_time, valley_time) for peak_time, valley_time in zip(peak_times, valley_times)
         ]

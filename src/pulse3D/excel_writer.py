@@ -197,6 +197,7 @@ def write_xlsx(
     start_time: Union[float, int] = 0,
     end_time: Union[float, int] = np.inf,
     twitch_widths: Tuple[int, ...] = (50, 90),
+    baseline_widths_to_use: Tuple[int, ...] = (10, 90),
 ):
     """Write plate recording waveform and computed metrics to Excel spredsheet.
 
@@ -204,7 +205,8 @@ def write_xlsx(
         plate_recording (PlateRecording): loaded PlateRecording object
         start_time (float): Start time of windowed analysis. Defaults to 0.
         end_time (float): End time of windowed analysis. Defaults to infinity.
-
+        twitch_widths: Requested widths to add to output file
+        baseline_widths_to_use: Twitch widths to use as baseline metrics
     Raises:
         NotImplementedError: if peak finding algorithm fails for unexpected reason
         ValueError: if start and end times are outside of expected bounds, or do not ?
@@ -220,7 +222,6 @@ def write_xlsx(
         if plate_recording.is_optical_recording
         else INTERPOLATED_DATA_PERIOD_US
     )
-
     # get max and min of final timepoints across each well
     raw_timepoints = [w.force[0][-1] for w in plate_recording if w]
     max_final_time_secs = max(raw_timepoints)
@@ -382,7 +383,9 @@ def write_xlsx(
 
             # compute metrics on interpolated well data
             log.info(f"Calculating metrics for well {well_name}")
-            metrics = data_metrics(peaks_and_valleys, interpolated_well_data)
+            metrics = data_metrics(
+                peaks_and_valleys, interpolated_well_data, baseline_widths_to_use=baseline_widths_to_use
+            )
 
         except TwoPeaksInARowError:
             error_msg = "Error: Two Contractions in a Row Detected"
@@ -421,10 +424,9 @@ def write_xlsx(
             interpolated_timepoints_secs[0:end_idx] / MICRO_TO_BASE_CONVERSION
         )
     }
+
     for d in data:
-        continuous_waveforms[
-            f"{d['well_name']} - Active Twitch Force (μN)"
-        ] = pd.Series(d["interp_data"])
+        continuous_waveforms[f"{d['well_name']} - Active Twitch Force (μN)"] = pd.Series(d["interp_data"])
     continuous_waveforms_df = pd.DataFrame(continuous_waveforms)
 
     _write_xlsx(
@@ -434,9 +436,10 @@ def write_xlsx(
         data,
         is_optical_recording=plate_recording.is_optical_recording,
         twitch_widths=twitch_widths,
+        baseline_widths_to_use=baseline_widths_to_use,
     )
-    log.info("Done")
 
+    log.info("Done")
     return output_file_name
 
 
@@ -447,6 +450,7 @@ def _write_xlsx(
     data: List[Dict[Any, Any]],
     is_optical_recording: bool = False,
     twitch_widths: Tuple[int, ...] = (50, 90),
+    baseline_widths_to_use: Tuple[int, ...] = (10, 90),
 ):
     with pd.ExcelWriter(output_file_name) as writer:
         log.info("Writing H5 file metadata")
@@ -486,14 +490,12 @@ def _write_xlsx(
 
         # aggregate metrics sheet
         log.info("Writing aggregate metrics.")
-        aggregate_df = aggregate_metrics_df(data, twitch_widths)
-        aggregate_df.to_excel(
-            writer, sheet_name="aggregate-metrics", index=False, header=False
-        )
+        aggregate_df = aggregate_metrics_df(data, twitch_widths, baseline_widths_to_use)
+        aggregate_df.to_excel(writer, sheet_name="aggregate-metrics", index=False, header=False)
 
         # per twitch metrics sheet
         log.info("Writing per-twitch metrics.")
-        pdf, num_metrics = per_twitch_df(data, twitch_widths)
+        pdf, num_metrics = per_twitch_df(data, twitch_widths, baseline_widths_to_use)
         pdf.to_excel(writer, sheet_name="per-twitch-metrics", index=False, header=False)
 
         # freq/force charts
@@ -676,14 +678,16 @@ def create_waveform_charts(
 
 
 def aggregate_metrics_df(
-    data: List[Dict[Any, Any]], widths: Tuple[int, ...] = (50, 90)
+    data: List[Dict[Any, Any]],
+    widths: Tuple[int, ...] = (50, 90),
+    baseline_widths_to_use: Tuple[int, ...] = (10, 90),
 ):
     """Combine aggregate metrics for each well into single DataFrame.
 
     Args:
         data (list): list of data metrics and metadata associated with each well
         widths (tuple of ints, optional): twitch-widths to return data for. Defaults to (50, 90).
-
+        baseline_widths_to_use: twitch widths to use as baseline metrics
     Returns:
         df (DataFrame): aggregate data frame of all metric aggregate measures
     """
@@ -718,6 +722,15 @@ def aggregate_metrics_df(
             for width in widths:
                 name = CALCULATED_METRIC_DISPLAY_NAMES[metric_id].format(width)
                 metric_df = combined[metric_id][width].drop(columns=["n"]).T
+                df = _append_aggregate_measures_df(df, metric_df, name)
+        elif metric_id in (BASELINE_TO_PEAK_UUID, PEAK_TO_BASELINE_UUID):
+            baseline_width = (
+                baseline_widths_to_use[0] if metric_id == BASELINE_TO_PEAK_UUID else baseline_widths_to_use[1]
+            )
+            # prevents duplicate entries in file if entered baseline(s) is/are the same as the entered twitch widths
+            if baseline_width not in widths:
+                name = CALCULATED_METRIC_DISPLAY_NAMES[metric_id].format(baseline_width)
+                metric_df = combined[metric_id].drop(columns=["n"]).T.droplevel(level=-1, axis=0)
                 df = _append_aggregate_measures_df(df, metric_df, name)
         else:
             name = CALCULATED_METRIC_DISPLAY_NAMES[metric_id]
@@ -755,13 +768,17 @@ def _append_aggregate_measures_df(
     return main_df
 
 
-def per_twitch_df(data: List[Dict[Any, Any]], widths: Tuple[int, ...] = (50, 90)):
+def per_twitch_df(
+    data: List[Dict[Any, Any]],
+    widths: Tuple[int, ...] = (50, 90),
+    baseline_widths_to_use: Tuple[int, ...] = (10, 90),
+):
     """Combine per-twitch metrics for each well into single DataFrame.
 
     Args:
         data (list): list of data metrics and metadata associated with each well
         widths (tuple of ints, optional): twitch-widths to return data for. Defaults to (50, 90).
-
+        baseline_widths_to_use: twitch widths to use as baseline metrics
     Returns:
         df (DataFrame): per-twitch data frame of all metrics
     """
@@ -791,6 +808,18 @@ def per_twitch_df(data: List[Dict[Any, Any]], widths: Tuple[int, ...] = (50, 90)
                         f"{CALCULATED_METRIC_DISPLAY_NAMES[metric_id].format(twitch_width)}"
                     ]
                     temp = pd.Series(values + list(dm[metric_id][twitch_width]))
+                    series_list.append(temp)
+                    num_per_twitch_metrics += 1
+            elif metric_id in (BASELINE_TO_PEAK_UUID, PEAK_TO_BASELINE_UUID):
+                baseline_width = (
+                    baseline_widths_to_use[0]
+                    if metric_id == BASELINE_TO_PEAK_UUID
+                    else baseline_widths_to_use[1]
+                )
+                # prevents duplicate entries in file if entered baseline(s) is/are the same as the entered twitch widths
+                if baseline_width not in widths:
+                    values = [CALCULATED_METRIC_DISPLAY_NAMES[metric_id].format(baseline_width)]
+                    temp = pd.Series(values + list(dm[metric_id]))
                     series_list.append(temp)
                     num_per_twitch_metrics += 1
             else:

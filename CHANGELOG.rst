@@ -1,6 +1,11 @@
 Changelog for Pulse3D
 =====================
 
+0.24.4 (2022-07-12)
+-------------------
+- Added ``baseline_widths_to_use`` to ``write_xlsx`` args to replace existing baseline metric
+- Default baseline metric changed to C10 and R90
+
 0.24.1 (2022-06-21)
 -------------------
 - Rename constant for UUID value

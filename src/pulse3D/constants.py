@@ -201,10 +201,10 @@ ALL_METRICS = [
     CONTRACTION_VELOCITY_UUID,
     RELAXATION_VELOCITY_UUID,
     IRREGULARITY_INTERVAL_UUID,
-    BASELINE_TO_PEAK_UUID,
-    PEAK_TO_BASELINE_UUID,
     WIDTH_UUID,
     RELAXATION_TIME_UUID,
+    PEAK_TO_BASELINE_UUID,
+    BASELINE_TO_PEAK_UUID,
     CONTRACTION_TIME_UUID,
 ]
 
@@ -289,8 +289,8 @@ CALCULATED_METRIC_DISPLAY_NAMES = {
     WIDTH_UUID: "Twitch Width {} (seconds)",
     RELAXATION_TIME_UUID: "Time From Peak to Relaxation {} (seconds)",
     CONTRACTION_TIME_UUID: "Time From Contraction {} to Peak (seconds)",
-    BASELINE_TO_PEAK_UUID: "Time From Baseline to Peak (seconds)",
-    PEAK_TO_BASELINE_UUID: "Time From Peak to Baseline (seconds)",
+    BASELINE_TO_PEAK_UUID: "Time From Contraction {} to Peak (seconds)",
+    PEAK_TO_BASELINE_UUID: "Time From Peak to Relaxation {} (seconds)",
 }
 
 CALCULATED_METRICS = immutabledict(

@@ -1,6 +1,10 @@
 Changelog for Pulse3D
 =====================
 
+0.24.5 (2022-07-13)
+-------------------
+- Added updated image for the twitch metrics diagram used in the documentation
+
 0.24.4 (2022-07-12)
 -------------------
 - Added ``baseline_widths_to_use`` to ``write_xlsx`` args to replace existing baseline metric

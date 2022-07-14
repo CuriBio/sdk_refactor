@@ -856,8 +856,8 @@ class TwitchPeakTime(BaseMetric):
         if twitch_width_percents is None:
             twitch_width_percents = TWITCH_WIDTH_PERCENTS
 
-        self.is_contraction = is_contraction
         self.twitch_width_percents = twitch_width_percents
+        self.is_contraction = is_contraction
 
     def fit(
         self,

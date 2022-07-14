@@ -224,6 +224,7 @@ def data_metrics(
     filtered_data: NDArray[(2, Any), int],
     rounded: bool = False,
     metrics_to_create: Iterable[UUID] = ALL_METRICS,
+    twitch_width_percents: NDArray = np.arange(10, 95, 5),
     baseline_widths_to_use: Tuple[int, ...] = (10, 90),
 ) -> Tuple[DataFrame, DataFrame]:
     # pylint:disable=too-many-locals # Eli (9/8/20): there are a lot of metrics to calculate that need local variables
@@ -234,6 +235,7 @@ def data_metrics(
         filtered_data: a 2D array of the time and voltage data after it has gone through noise cancellation
         rounded: whether to round estimates to the nearest int
         metrics_to_create: list of desired metrics
+        twitch_width_percents: twitch width percents including those input by user
         baseline_widths_to_use: twitch widths to use as baseline metrics
     Returns:
         per_twitch_df: a dictionary of individual peak metrics in which the twitch timepoint is accompanied by a dictionary in which the UUIDs for each twitch metric are the key and with its accompanying value as the value. For the Twitch Width metric UUID, another dictionary is stored in which the key is the percentage of the way down and the value is another dictionary in which the UUIDs for the rising coord, falling coord or width value are stored with the value as an int for the width value or a tuple of ints for the x/y coordinates
@@ -248,7 +250,7 @@ def data_metrics(
         "twitch_indices": twitch_indices,
     }
 
-    dfs = init_dfs(twitch_indices.keys())
+    dfs = init_dfs(twitch_indices.keys(), twitch_widths_range=twitch_width_percents)
 
     # Kristian (10/26/21): dictionary of metric functions. this could probably be made cleaner at some point
     metric_mapper: Dict[UUID, BaseMetric] = {
@@ -257,28 +259,26 @@ def data_metrics(
         BASELINE_TO_PEAK_UUID: TwitchPeakTime(
             rounded=rounded,
             is_contraction=True,
-            twitch_width_percents=[
-                baseline_widths_to_use[0],
-                100 - baseline_widths_to_use[0],
-            ],  # both required for calculate_twitch_time_diff
+            twitch_width_percents=[baseline_widths_to_use[0], 100 - baseline_widths_to_use[0]],
         ),
-        CONTRACTION_TIME_UUID: TwitchPeakTime(rounded=rounded, is_contraction=True),
+        CONTRACTION_TIME_UUID: TwitchPeakTime(
+            rounded=rounded, is_contraction=True, twitch_width_percents=twitch_width_percents
+        ),
         CONTRACTION_VELOCITY_UUID: TwitchVelocity(rounded=rounded, is_contraction=True),
         FRACTION_MAX_UUID: TwitchFractionAmplitude(),
         IRREGULARITY_INTERVAL_UUID: TwitchIrregularity(rounded=rounded),
         PEAK_TO_BASELINE_UUID: TwitchPeakTime(
             rounded=rounded,
             is_contraction=False,
-            twitch_width_percents=[
-                baseline_widths_to_use[1],
-                100 - baseline_widths_to_use[1],
-            ],  # both required for calculate_twitch_time_diff
+            twitch_width_percents=[baseline_widths_to_use[1], 100 - baseline_widths_to_use[1]],
         ),
-        RELAXATION_TIME_UUID: TwitchPeakTime(rounded=rounded, is_contraction=False),
+        RELAXATION_TIME_UUID: TwitchPeakTime(
+            rounded=rounded, is_contraction=False, twitch_width_percents=twitch_width_percents
+        ),
         RELAXATION_VELOCITY_UUID: TwitchVelocity(rounded=rounded, is_contraction=False),
         TWITCH_FREQUENCY_UUID: TwitchFrequency(rounded=rounded),
         TWITCH_PERIOD_UUID: TwitchPeriod(rounded=rounded),
-        WIDTH_UUID: TwitchWidth(rounded=rounded),
+        WIDTH_UUID: TwitchWidth(rounded=rounded, twitch_width_percents=twitch_width_percents),
     }
 
     # Kristian (12/27/21): add scalar metrics to corresponding DataFrames
@@ -322,7 +322,7 @@ def _find_start_indices(starts_with_peak: bool) -> Tuple[int, int]:
     return peak_idx, valley_idx
 
 
-def init_dfs(indices: Iterable[int] = []):
+def init_dfs(indices: Iterable[int] = [], twitch_widths_range: Tuple[int, ...] = (50, 90)):
     """Initialize empty dataframes for metrics computations.
 
     Note: scalar metrics are those representing a single value per twitch (e.g. AUC, AMPLITUDE, etc.)
@@ -339,7 +339,7 @@ def init_dfs(indices: Iterable[int] = []):
     per_twitch_scalar.columns = per_twitch_scalar.sort_index(axis=1, level=[0], ascending=[True]).columns
 
     columns = pd.MultiIndex.from_product(
-        [CALCULATED_METRICS["by_width"], np.arange(10, 95, 5)], names=["metric", "width"]
+        [CALCULATED_METRICS["by_width"], twitch_widths_range], names=["metric", "width"]
     )
     per_twitch_by_width = pd.DataFrame(index=indices, columns=columns)
     per_twitch_by_width.columns = per_twitch_by_width.sort_index(
@@ -359,7 +359,7 @@ def init_dfs(indices: Iterable[int] = []):
     columns = pd.MultiIndex.from_product(
         [
             CALCULATED_METRICS["by_width"],
-            np.arange(10, 95, 5),
+            twitch_widths_range,
             ["n", "Mean", "StDev", "CoV", "SEM", "Min", "Max"],
         ],
         names=["metric", "width", "statistic"],

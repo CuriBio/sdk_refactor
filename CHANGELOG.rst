@@ -1,9 +1,11 @@
 Changelog for Pulse3D
 =====================
 
-0.24.5 (2022-07-13)
+0.24.5 (2022-07-14)
 -------------------
 - Added updated image for the twitch metrics diagram used in the documentation
+- Added ability for user to add any twitch width instead of only multiples of 5
+- Fixed delayed recording bug
 
 0.24.4 (2022-07-12)
 -------------------

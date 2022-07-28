@@ -184,6 +184,8 @@ def write_xlsx(
     end_time: Union[float, int] = np.inf,
     twitch_widths: Tuple[int, ...] = (50, 90),
     baseline_widths_to_use: Tuple[int, ...] = (10, 90),
+    prominence_factors: Tuple[Union[int, float], Union[int, float]] = (6, 6),
+    width_factors: Tuple[Union[int, float], Union[int, float]] = (7, 7),
 ):
     """Write plate recording waveform and computed metrics to Excel spredsheet.
 
@@ -358,7 +360,7 @@ def write_xlsx(
             # compute peaks / valleys on interpolated well data
             log.info(f"Finding peaks and valleys for well {well_name}")
             peaks_and_valleys = peak_detector(
-                interpolated_well_data, start_time=start_time, end_time=end_time
+                interpolated_well_data, prominence_factors=prominence_factors, width_factors=width_factors, start_time=start_time, end_time=end_time
             )
 
             log.info(f"Finding twitch indices for well {well_name}")

@@ -2,7 +2,7 @@
 .idea/
 .~c9*
 .vscode/
-nikitas_testingdedug.py
+nikitas_testingdebug.py
 
 # CI caches
 .npm_cache/

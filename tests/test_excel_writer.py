@@ -27,7 +27,7 @@ def test_write_xlsx__runs_without_error():
     with tempfile.TemporaryDirectory() as tmpdir:
         # switch to temp dir so output file is automatically deleted
         os.chdir(tmpdir)
-        output_file_name = write_xlsx(pr,prominence_factors=(5,5),width_factos=(6,6))
+        output_file_name = write_xlsx(pr,prominence_factors=(5,5),width_factors=(6,6))
 
         output_filepath = os.path.join(tmpdir, output_file_name)
         # column = pd.read_excel(output_filepath, index_col=None, usecols=[0])

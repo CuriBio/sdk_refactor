@@ -6,10 +6,12 @@ import logging
 import math
 import os
 import tempfile
-from typing import Any
+from tracemalloc import start
+from typing import Any, Union, List
 from typing import Optional
 import uuid
 import zipfile
+from scipy import interpolate
 
 import h5py
 from mantarray_magnet_finding.utils import calculate_magnetic_flux_density_from_memsic
@@ -35,6 +37,7 @@ from .transforms import calculate_voltage_from_gmr
 from .transforms import create_filter
 from .transforms import noise_cancellation
 from .utils import truncate_float
+from .utils import truncate
 
 log = logging.getLogger(__name__)
 
@@ -208,6 +211,19 @@ class WellFile:
             self.displacement, in_mm=False
         )
 
+    def interpolate_force_data(self, adjusted_time_sec: List[Any] = []):
+        if not adjusted_time_sec[0]:
+            adjusted_time_sec = self.force[0, :]
+
+        # fit interpolation function on recorded data
+        interp_data_fn = interpolate.interp1d(adjusted_time_sec, self.force[1, :])
+        # interpolate, normalize, and scale data
+        interpolated_force = interp_data_fn(adjusted_time_sec)
+
+        min_value = min(interpolated_force)
+        interpolated_force -= min_value
+        return interpolated_force
+
     def get(self, key, default):
         try:
             return self[key]
@@ -305,11 +321,20 @@ class WellFile:
 
 
 class PlateRecording:
-    def __init__(self, path, calc_time_force=True, use_mean_of_baseline=True):
+    def __init__(
+        self,
+        path,
+        calc_time_force=True,
+        use_mean_of_baseline=True,
+        start_time: Union[float, int] = 0,
+        end_time: Union[float, int] = np.inf,
+    ):
         self.path = path
         self.wells = []
         self._iter = 0
         self.is_optical_recording = False
+        self.start_time = start_time * MICRO_TO_BASE_CONVERSION
+        self.end_time = end_time * MICRO_TO_BASE_CONVERSION
 
         if self.path.endswith(".zip"):
             with tempfile.TemporaryDirectory() as tmpdir:
@@ -384,11 +409,18 @@ class PlateRecording:
             x = estimated_magnet_positions["X"][:, well_idx]
             if flip_data:
                 x *= -1
-
             # have time indices start at 0
             adjusted_time_indices = well_file[TIME_INDICES] - well_file[TIME_INDICES][0]
 
-            well_file.displacement = np.array([adjusted_time_indices, x])
+            start_idx, end_idx = truncate(
+                source_series=adjusted_time_indices,
+                lower_bound=self.start_time,
+                upper_bound=self.end_time,
+            )
+            well_file.displacement = np.array(
+                [adjusted_time_indices[start_idx : end_idx + 1], x[start_idx : end_idx + 1]]
+            )
+            
             well_file.force = calculate_force_from_displacement(well_file.displacement)
 
     def write_time_force_csv(self, output_dir: str):
@@ -397,16 +429,25 @@ class PlateRecording:
         output_path = os.path.join(output_dir, f"{recording_name}.csv")
 
         # set indexes to time points
+        
+        interpolated_timepoints_secs = np.arange(
+            self.wells[0].force[0][0], self.wells[0].force[0][-1], 10000
+        )
         truncated_time_sec = [
-            truncate_float(ms / MICRO_TO_BASE_CONVERSION, 2) for ms in self.wells[0].force[0]
+            truncate_float(ms / MICRO_TO_BASE_CONVERSION, 2) for ms in interpolated_timepoints_secs
         ]
+        
         force_data = dict({"Time (s)": pd.Series(truncated_time_sec)})
-
+        
         for well in self.wells:
             well_name = well.get(WELL_NAME_UUID, None)
-            force_data[well_name] = pd.Series(well.force[1])
+
+            interpolated_force = well.interpolate_force_data(interpolated_timepoints_secs)
+            interpolated_force *= MICRO_TO_BASE_CONVERSION
+            force_data[well_name] = pd.Series(interpolated_force)
 
         time_force_df = pd.DataFrame(force_data)
+        print(time_force_df)
         time_force_df.to_csv(output_path, index=False)
 
         return time_force_df, output_path
@@ -418,8 +459,7 @@ class PlateRecording:
         for well in self.wells:
             column = str(well[WELL_NAME_UUID])
             log.info(f"Loading time force data for well: {column}")
-
-            well.force = np.vstack((ms_converted_time, time_force_df[column])).astype(np.float64)
+            well.force = np.vstack((ms_converted_time, time_force_df[column].values)).astype(np.float64)
 
     @staticmethod
     def from_directory(path, calc_time_force=True):

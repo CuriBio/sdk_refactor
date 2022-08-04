@@ -409,6 +409,7 @@ def write_xlsx(
     continuous_waveforms = {
         "Time (seconds)": pd.Series(interpolated_timepoints_secs[0:end_idx] / MICRO_TO_BASE_CONVERSION)
     }
+    print(data[3]["interp_data"])
 
     for d in data:
         continuous_waveforms[f"{d['well_name']} - Active Twitch Force (μN)"] = pd.Series(d["interp_data"])

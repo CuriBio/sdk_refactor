@@ -9,7 +9,7 @@ from mantarray_magnet_finding.utils import load_h5_folder_as_array
 import numpy as np
 from pulse3D import magnet_finding
 from pulse3D import plate_recording
-from pulse3D.constants import BASELINE_MEAN_NUM_DATA_POINTS
+from pulse3D.constants import BASELINE_MEAN_NUM_DATA_POINTS, MICRO_TO_BASE_CONVERSION
 from pulse3D.magnet_finding import fix_dropped_samples
 from pulse3D.magnet_finding import format_well_file_data
 from pulse3D.plate_recording import load_files
@@ -134,19 +134,20 @@ def test_PlateRecording__does_not_run_mag_finding_algo_when_calc_time_force_is_f
         )
         # calc real force values to compare against
         force_pr = PlateRecording(recording_path)
-
         # write parquet file of time force raw data
-        time_force_df, _ = force_pr.write_time_force_csv(tmpdir)
+        time_force_df, _ = force_pr.write_time_force_csv("/Users/lucipak/Desktop")
+        
         time_force_df.to_parquet(parquet_path)
 
         # PlateRecording without force data
         no_force_pr = PlateRecording(recording_path, calc_time_force=False)
         no_force_pr.load_time_force_data(parquet_path)
-
+    
+        
         # assert all well force vals are the same
         for well_idx, well in enumerate(force_pr.wells):
-            for idx, val in enumerate(well.force[1]):
-                assert val == no_force_pr.wells[well_idx].force[1][idx]
+            for idx, val in enumerate(well.force[1]):     
+                assert val == no_force_pr.wells[well_idx].force[1][idx] 
 
 
 def test_PlateRecording__well_data_loaded_from_load_time_force_data_will_equal_orig_well_data(mocker):

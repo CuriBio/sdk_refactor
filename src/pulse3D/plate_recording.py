@@ -411,16 +411,15 @@ class PlateRecording:
                 x *= -1
             # have time indices start at 0
             adjusted_time_indices = well_file[TIME_INDICES] - well_file[TIME_INDICES][0]
-
             start_idx, end_idx = truncate(
                 source_series=adjusted_time_indices,
                 lower_bound=self.start_time,
                 upper_bound=self.end_time,
             )
             well_file.displacement = np.array(
-                [adjusted_time_indices[start_idx : end_idx + 1], x[start_idx : end_idx + 1]]
+                [adjusted_time_indices[start_idx : end_idx], x[start_idx : end_idx]]
             )
-            
+
             well_file.force = calculate_force_from_displacement(well_file.displacement)
 
     def write_time_force_csv(self, output_dir: str):
@@ -429,25 +428,21 @@ class PlateRecording:
         output_path = os.path.join(output_dir, f"{recording_name}.csv")
 
         # set indexes to time points
-        
-        interpolated_timepoints_secs = np.arange(
-            self.wells[0].force[0][0], self.wells[0].force[0][-1], 10000
-        )
+
+        interpolated_timepoints_secs = np.arange(self.wells[0].force[0][0], self.wells[0].force[0][-1], 10000)
         truncated_time_sec = [
             truncate_float(ms / MICRO_TO_BASE_CONVERSION, 2) for ms in interpolated_timepoints_secs
         ]
-        
+
         force_data = dict({"Time (s)": pd.Series(truncated_time_sec)})
-        
+
         for well in self.wells:
             well_name = well.get(WELL_NAME_UUID, None)
-
             interpolated_force = well.interpolate_force_data(interpolated_timepoints_secs)
             interpolated_force *= MICRO_TO_BASE_CONVERSION
             force_data[well_name] = pd.Series(interpolated_force)
 
         time_force_df = pd.DataFrame(force_data)
-        print(time_force_df)
         time_force_df.to_csv(output_path, index=False)
 
         return time_force_df, output_path

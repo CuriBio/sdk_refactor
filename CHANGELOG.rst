@@ -1,5 +1,6 @@
 Changelog for Pulse3D
 =====================
+
 0.24.6 (2022-08-01)
 -------------------
 - Added width and prominence factors to API. Can now be called from the binder inside the write exel function

@@ -210,7 +210,7 @@ A few examples of using this argument::
     write_xlsx(r, width_factors=(-3,3))
 
 ``prominence_factors``
-^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^
 
 Specifies how much a peak should stand out compared to the rest of the signal immediately surrounding it.
 Prominence factors are supplied as a pair of numbers greater than 0. The parameter is optional, but both numbers

@@ -121,15 +121,14 @@ def test_PlateRecording__runs_mag_finding_algo_by_default(mocker):
 def test_PlateRecording__does_not_run_mag_finding_algo_when_calc_time_force_is_false(mocker):
     with tempfile.TemporaryDirectory() as tmpdir:
         recording_path = os.path.join(
-            tmpdir, "ML2022123456_overnight test_2022_06_14_155050.zip"
+            tmpdir, "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip"
         )
-        
-        parquet_path = os.path.join(tmpdir, "ML2022123456_overnight test_2022_06_14_155050.parquet")
+        parquet_path = os.path.join(tmpdir, "MA200440001__2020_02_09_190359.parquet")
         shutil.copy(
             os.path.join(
                 PATH_OF_CURRENT_FILE,
                 "magnet_finding",
-                "ML2022123456_overnight test_2022_06_14_155050.zip",
+                "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
             ),
             recording_path,
         )
@@ -143,7 +142,7 @@ def test_PlateRecording__does_not_run_mag_finding_algo_when_calc_time_force_is_f
         # PlateRecording without force data
         no_force_pr = PlateRecording(recording_path, calc_time_force=False, end_time=5)
         no_force_pr.load_time_force_data(parquet_path)
-        print(time_force_df)
+
         # assert all well force vals are the same
         for well_idx, well in enumerate(force_pr.wells):
             for idx, val in enumerate(well.force[1]):

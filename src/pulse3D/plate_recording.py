@@ -416,6 +416,7 @@ class PlateRecording:
                 lower_bound=self.start_time,
                 upper_bound=self.end_time,
             )
+
             well_file.displacement = np.array(
                 [adjusted_time_indices[start_idx : end_idx], x[start_idx : end_idx]]
             )
@@ -428,19 +429,16 @@ class PlateRecording:
         output_path = os.path.join(output_dir, f"{recording_name}.csv")
 
         # set indexes to time points
-
-        interpolated_timepoints_secs = np.arange(self.wells[0].force[0][0], self.wells[0].force[0][-1], 10000)
         truncated_time_sec = [
-            truncate_float(ms / MICRO_TO_BASE_CONVERSION, 2) for ms in interpolated_timepoints_secs
+            truncate_float(ms / MICRO_TO_BASE_CONVERSION, 2) for ms in self.wells[0].force[0]
         ]
+
 
         force_data = dict({"Time (s)": pd.Series(truncated_time_sec)})
 
         for well in self.wells:
             well_name = well.get(WELL_NAME_UUID, None)
-            interpolated_force = well.interpolate_force_data(interpolated_timepoints_secs)
-            interpolated_force *= MICRO_TO_BASE_CONVERSION
-            force_data[well_name] = pd.Series(interpolated_force)
+            force_data[well_name] = pd.Series(well.force[1])
 
         time_force_df = pd.DataFrame(force_data)
         time_force_df.to_csv(output_path, index=False)

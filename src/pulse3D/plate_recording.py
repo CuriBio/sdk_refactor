@@ -404,7 +404,7 @@ class PlateRecording:
             )
 
             well_file.displacement = np.array(
-                [adjusted_time_indices[start_idx:end_idx], x[start_idx:end_idx]]
+                [adjusted_time_indices[start_idx : end_idx + 1], x[start_idx : end_idx + 1]]
             )
 
             well_file.force = calculate_force_from_displacement(well_file.displacement)

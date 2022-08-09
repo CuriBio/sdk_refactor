@@ -1,8 +1,5 @@
 Changelog for Pulse3D
 =====================
-0.24.7 (2022-08-09)
--------------------
-- Added width and prominence factors to documentation.
 
 0.24.6 (2022-08-01)
 -------------------

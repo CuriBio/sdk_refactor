@@ -6,12 +6,11 @@ import logging
 import math
 import os
 import tempfile
-from tracemalloc import start
-from typing import Any, Union, List
+from typing import Any
 from typing import Optional
+from typing import Union
 import uuid
 import zipfile
-from scipy import interpolate
 
 import h5py
 from mantarray_magnet_finding.utils import calculate_magnetic_flux_density_from_memsic
@@ -36,8 +35,8 @@ from .transforms import calculate_force_from_displacement
 from .transforms import calculate_voltage_from_gmr
 from .transforms import create_filter
 from .transforms import noise_cancellation
-from .utils import truncate_float
 from .utils import truncate
+from .utils import truncate_float
 
 log = logging.getLogger(__name__)
 
@@ -210,19 +209,6 @@ class WellFile:
         self.force: NDArray[(2, Any), np.float64] = calculate_force_from_displacement(
             self.displacement, in_mm=False
         )
-
-    def interpolate_force_data(self, adjusted_time_sec: List[Any] = []):
-        if not adjusted_time_sec[0]:
-            adjusted_time_sec = self.force[0, :]
-
-        # fit interpolation function on recorded data
-        interp_data_fn = interpolate.interp1d(adjusted_time_sec, self.force[1, :])
-        # interpolate, normalize, and scale data
-        interpolated_force = interp_data_fn(adjusted_time_sec)
-
-        min_value = min(interpolated_force)
-        interpolated_force -= min_value
-        return interpolated_force
 
     def get(self, key, default):
         try:
@@ -418,7 +404,7 @@ class PlateRecording:
             )
 
             well_file.displacement = np.array(
-                [adjusted_time_indices[start_idx : end_idx], x[start_idx : end_idx]]
+                [adjusted_time_indices[start_idx:end_idx], x[start_idx:end_idx]]
             )
 
             well_file.force = calculate_force_from_displacement(well_file.displacement)
@@ -432,7 +418,6 @@ class PlateRecording:
         truncated_time_sec = [
             truncate_float(ms / MICRO_TO_BASE_CONVERSION, 2) for ms in self.wells[0].force[0]
         ]
-
 
         force_data = dict({"Time (s)": pd.Series(truncated_time_sec)})
 

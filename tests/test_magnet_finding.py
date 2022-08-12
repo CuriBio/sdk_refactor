@@ -133,16 +133,16 @@ def test_PlateRecording__does_not_run_mag_finding_algo_when_calc_time_force_is_f
             recording_path,
         )
         # calc real force values to compare against
-        force_pr = PlateRecording(recording_path)
+        force_pr = PlateRecording(recording_path, end_time=5)
 
         # write parquet file of time force raw data
         time_force_df, _ = force_pr.write_time_force_csv(tmpdir)
         time_force_df.to_parquet(parquet_path)
 
         # PlateRecording without force data
-        no_force_pr = PlateRecording(recording_path, calc_time_force=False)
+        no_force_pr = PlateRecording(recording_path, calc_time_force=False, end_time=5)
         no_force_pr.load_time_force_data(parquet_path)
-
+        
         # assert all well force vals are the same
         for well_idx, well in enumerate(force_pr.wells):
             for idx, val in enumerate(well.force[1]):

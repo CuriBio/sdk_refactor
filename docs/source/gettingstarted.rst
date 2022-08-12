@@ -200,14 +200,9 @@ A few examples of using this argument::
     # width factor of min=1 max=3
     write_xlsx(r, width_factors=(1,3))
 
-    # invalid width factor min=3
-    write_xlsx(r, width_factors=(3,))
-
     # width factor of min=20 max=30
     write_xlsx(r, width_factors=(20,30))
 
-    # invalid width factor min=-3 max=3
-    write_xlsx(r, width_factors=(-3,3))
 
 ``prominence_factors``
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -221,14 +216,8 @@ A few examples of using this argument::
     # prominence factor of min=1 max=3
     write_xlsx(r, prominence_factors=(1,3))
 
-    # invalid prominence factors min=3
-    write_xlsx(r, prominence_factors=(3,))
-
     # prominence factors of min=20 max=30
     write_xlsx(r, prominence_factors=(20,30))
-
-    # invalid prominence factors min=-3 max=3
-    write_xlsx(r, prominence_factors=(-3,3))
 
 ``twitch_widths``
 ^^^^^^^^^^^^^^^^^

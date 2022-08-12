@@ -426,6 +426,7 @@ def write_xlsx(
 
     for d in data:
         continuous_waveforms[f"{d['well_name']} - Active Twitch Force (μN)"] = pd.Series(d["interp_data"])
+
     continuous_waveforms_df = pd.DataFrame(continuous_waveforms)
 
     _write_xlsx(

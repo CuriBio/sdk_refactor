@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import numpy as np
+from pulse3D import peak_detection
 from pulse3D.constants import MICRO_TO_BASE_CONVERSION
 from pulse3D.constants import MIN_NUMBER_PEAKS
 from pulse3D.constants import MIN_NUMBER_VALLEYS
@@ -14,13 +15,9 @@ from pulse3D.peak_detection import find_twitch_indices
 from pulse3D.peak_detection import peak_detector
 import pytest
 
-# from .fixtures_compression import fixture_new_A1
-# from .fixtures_utils import _get_data_metrics
 
-# __fixtures__ = [fixture_new_A1]
-
-PROMINENCE_FACTORS = [4, 4]
-WIDTH_FACTORS = [2, 2]
+PROMINENCE_FACTORS = (4, 4)
+WIDTH_FACTORS = (2, 2)
 
 
 def get_test_data_array(flipped=False):
@@ -51,6 +48,67 @@ def test_peak_detection__analyzes_data_correctly_when_twitches_point_down():
     num_valleys = len(non_flipped_valleys)
     for idx in range(num_valleys):
         assert non_flipped_valleys[idx] == flipped_valleys[idx], idx
+
+
+@pytest.mark.parametrize("test_prominence", [(1, 2), (1,), 1])
+def test_peak_detection_input__prominence_factors(test_prominence, mocker):
+    filtered_magnetic_signal = np.array([np.arange(10), np.arange(10)])
+
+    max_prominence = filtered_magnetic_signal[1, -1]
+
+    if isinstance(test_prominence, int):
+        expected_prominences = (test_prominence, test_prominence)
+    elif len(test_prominence) == 1:
+        expected_prominences = (test_prominence[0], test_prominence[0])
+    else:
+        expected_prominences = test_prominence
+
+    mocked_find_peaks = mocker.patch.object(
+        peak_detection.signal,
+        "find_peaks",
+        autospec=True,
+        return_value=(mocker.MagicMock(), mocker.MagicMock()),
+    )
+
+    peak_detection.peak_detector(
+        prominence_factors=test_prominence, filtered_magnetic_signal=filtered_magnetic_signal
+    )
+
+    assert mocked_find_peaks.call_args_list[0][1]["prominence"] == max_prominence / expected_prominences[0]
+    assert mocked_find_peaks.call_args_list[1][1]["prominence"] == max_prominence / expected_prominences[1]
+
+
+@pytest.mark.parametrize("test_width", [(1, 2), (1,), 1])
+def test_peak_detection_input__width_factors(test_width, mocker):
+    filtered_magnetic_signal = np.array([np.arange(10), np.arange(10)])
+
+    max_possible_twitch_freq = 7
+    min_required_samples_between_twitches = round(MICRO_TO_BASE_CONVERSION / max_possible_twitch_freq, 0)
+
+    if isinstance(test_width, int):
+        expected_widths = (test_width, test_width)
+    elif len(test_width) == 1:
+        expected_widths = (test_width[0], test_width[0])
+    else:
+        expected_widths = test_width
+
+    mocked_find_peaks = mocker.patch.object(
+        peak_detection.signal,
+        "find_peaks",
+        autospec=True,
+        return_value=(mocker.MagicMock(), mocker.MagicMock()),
+    )
+
+    peak_detection.peak_detector(width_factors=test_width, filtered_magnetic_signal=filtered_magnetic_signal)
+
+    assert (
+        mocked_find_peaks.call_args_list[0][1]["width"]
+        == min_required_samples_between_twitches / expected_widths[0]
+    )
+    assert (
+        mocked_find_peaks.call_args_list[1][1]["width"]
+        == min_required_samples_between_twitches / expected_widths[1]
+    )
 
 
 def test_find_twitch_indices__raises_error_if_less_than_3_peaks_given():

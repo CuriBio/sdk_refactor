@@ -303,7 +303,11 @@ def write_xlsx(
 
     twitch_width_percents = np.unique(
         np.concatenate(
-            (list(twitch_widths), [(100 - width) for width in twitch_widths], np.arange(10, 95, 5))
+            (
+                list(twitch_widths),
+                [(100 - width) for width in twitch_widths],
+                np.arange(10, 95, 5),
+            )
         )
     )
 
@@ -416,7 +420,7 @@ def write_xlsx(
 
     for d in data:
         continuous_waveforms[f"{d['well_name']} - Active Twitch Force (μN)"] = pd.Series(d["interp_data"])
-    
+
     continuous_waveforms_df = pd.DataFrame(continuous_waveforms)
 
     _write_xlsx(

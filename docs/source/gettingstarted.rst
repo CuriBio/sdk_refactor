@@ -194,20 +194,15 @@ Their behavior is documented in detail below.
 Specifies how wide a signal should be to classify as a peak.
 width factors are supplied as a pair of numbers greater than 0. The parameter is optional, but both numbers
 should be provided separated by a comma if prominence factors are being set manually.
-By default, this parameter is set to (7,7). The first number is representing the minimum width and the second number is interpreted as maximum width.
+By default, this parameter is set to (7,7). The first number is the peak width the second number is valley width.
 A few examples of using this argument::
 
-    # width factor of min=1 max=3
+    # peak width = 1, valley width = 3
     write_xlsx(r, width_factors=(1,3))
 
-    # invalid width factor min=3
-    write_xlsx(r, width_factors=(3,))
-
-    # width factor of min=20 max=30
+    # peak width = 20, valley width = 30
     write_xlsx(r, width_factors=(20,30))
 
-    # invalid width factor min=-3 max=3
-    write_xlsx(r, width_factors=(-3,3))
 
 ``prominence_factors``
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -215,20 +210,14 @@ A few examples of using this argument::
 Specifies how much a peak should stand out compared to the rest of the signal immediately surrounding it.
 Prominence factors are supplied as a pair of numbers greater than 0. The parameter is optional, but both numbers
 should be provided separated by a comma if prominence factors are being set manually.
-By default, this parameter is set to (6,6). The first number is representing the minimum prominence and the second number is interpreted as maximum prominence.
+By default, this parameter is set to (6,6). The first number is representing the peak prominence and the second number is interpreted as valley prominence.
 A few examples of using this argument::
 
-    # prominence factor of min=1 max=3
+    # peak prominence = 1 valley prominence = 3
     write_xlsx(r, prominence_factors=(1,3))
 
-    # invalid prominence factors min=3
-    write_xlsx(r, prominence_factors=(3,))
-
-    # prominence factors of min=20 max=30
+    # peak prominence = 20 valley prominence = 30
     write_xlsx(r, prominence_factors=(20,30))
-
-    # invalid prominence factors min=-3 max=3
-    write_xlsx(r, prominence_factors=(-3,3))
 
 ``twitch_widths``
 ^^^^^^^^^^^^^^^^^

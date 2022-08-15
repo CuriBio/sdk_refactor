@@ -1,6 +1,6 @@
 Changelog for Pulse3D
 =====================
-0.24.8 (2022-08-05)
+0.24.8 (2022-08-15)
 -------------------
 - Added write_xlsx handling of single number input for width and prominence factors
 

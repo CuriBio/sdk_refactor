@@ -47,11 +47,9 @@ def peak_detector(
     Returns:
         A tuple containing a list of the indices of the peaks and a list of the indices of valleys
     """
-    # if width or prominence factors are a single number, make it a tuple
-    width_factors = width_factors if len(width_factors) == 2 else (width_factors[0], width_factors[0])
-    prominence_factors = (
-        prominence_factors if len(prominence_factors) == 2 else (prominence_factors[0], prominence_factors[0])
-    )
+    # make sure width and prominece factors are a tuple of two ints
+    width_factors = _format_factors(width_factors)
+    prominence_factors = _format_factors(prominence_factors)
 
     time_signal: NDArray[float] = filtered_magnetic_signal[0, :]
     magnetic_signal: NDArray[float] = filtered_magnetic_signal[1, :]
@@ -65,11 +63,11 @@ def peak_detector(
     if end_time <= start_time:
         end_time = np.inf
 
-    (peak_invertor_factor, valley_invertor_factor) = (1, -1) if twitches_point_up else (-1, 1)
+    peak_invertor_factor, valley_invertor_factor = (1, -1) if twitches_point_up else (-1, 1)
     sampling_period_us = filtered_magnetic_signal[0, 1] - filtered_magnetic_signal[0, 0]
 
     max_possible_twitch_freq = 7
-    min_required_samples_between_twitches = int(  # pylint:disable=invalid-name # (Eli 9/1/20): I can't think of a shorter name to describe this concept fully
+    min_required_samples_between_twitches = int(
         round(
             (1 / max_possible_twitch_freq) * MICRO_TO_BASE_CONVERSION / sampling_period_us,
             0,
@@ -133,6 +131,14 @@ def peak_detector(
         valley_indices = valley_indices[filtered_valleys]
 
     return peak_indices, valley_indices
+
+
+def _format_factors(factors):
+    if isinstance(factors, int):
+        expected_prominences = (factors, factors)
+    else:
+        expected_prominences = factors if len(factors) == 2 else (factors[0], factors[0])
+    return expected_prominences
 
 
 def too_few_peaks_or_valleys(

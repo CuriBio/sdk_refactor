@@ -203,12 +203,6 @@ def write_xlsx(
     start_time = float(start_time)
     end_time = float(end_time)
 
-    # make sure the width and prominence are tuples
-    prominence_factors = (
-        prominence_factors if len(prominence_factors) == 2 else (prominence_factors, prominence_factors)
-    )
-    width_factors = width_factors if len(width_factors) == 2 else (width_factors, width_factors)
-
     # get metadata from first well file
     w = [pw for pw in plate_recording if pw][0]
     interpolated_data_period = (

@@ -47,6 +47,12 @@ def peak_detector(
     Returns:
         A tuple containing a list of the indices of the peaks and a list of the indices of valleys
     """
+    # if width or prominence factors are a single number, make it a tuple
+    width_factors = width_factors if len(width_factors) == 2 else (width_factors[0], width_factors[0])
+    prominence_factors = (
+        prominence_factors if len(prominence_factors) == 2 else (prominence_factors[0], prominence_factors[0])
+    )
+
     time_signal: NDArray[float] = filtered_magnetic_signal[0, :]
     magnetic_signal: NDArray[float] = filtered_magnetic_signal[1, :]
 

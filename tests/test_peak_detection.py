@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import numpy as np
+from pulse3D import peak_detection
 from pulse3D.constants import MICRO_TO_BASE_CONVERSION
 from pulse3D.constants import MIN_NUMBER_PEAKS
 from pulse3D.constants import MIN_NUMBER_VALLEYS
@@ -13,6 +14,7 @@ from pulse3D.exceptions import TwoValleysInARowError
 from pulse3D.peak_detection import find_twitch_indices
 from pulse3D.peak_detection import peak_detector
 import pytest
+from scipy import signal
 
 # from .fixtures_compression import fixture_new_A1
 # from .fixtures_utils import _get_data_metrics
@@ -51,6 +53,54 @@ def test_peak_detection__analyzes_data_correctly_when_twitches_point_down():
     num_valleys = len(non_flipped_valleys)
     for idx in range(num_valleys):
         assert non_flipped_valleys[idx] == flipped_valleys[idx], idx
+
+
+@pytest.mark.parametrize(
+    "input_tuple,test_description",
+    [
+        ((1, 1), "Test regular"),
+        ((1,), "Test oneInput tuple"),
+    ],
+)
+def test_peak_detection_input__prominence_factors(input_tuple, test_description, mocker):
+    filtered_magnetic_signal = np.zeros(shape=(2, 10))
+    filtered_magnetic_signal[0, 1] = 10
+    filtered_magnetic_signal[0, 0] = 5
+
+    m = mocker.spy(peak_detection, "peak_detector")
+    assert (
+        peak_detection.peak_detector(
+            prominence_factors=input_tuple,
+            filtered_magnetic_signal=filtered_magnetic_signal,
+            start_time=0,
+            end_time=10,
+        )
+        != None
+    )
+
+
+@pytest.mark.parametrize(
+    "input_tuple,test_description",
+    [
+        ((1, 1), "Test regular"),
+        ((1,), "Test oneInput tuple"),
+    ],
+)
+def test_peak_detection_input__width_factors(input_tuple, test_description, mocker):
+    filtered_magnetic_signal = np.zeros(shape=(2, 10))
+    filtered_magnetic_signal[0, 1] = 10
+    filtered_magnetic_signal[0, 0] = 5
+
+    m = mocker.spy(peak_detection, "peak_detector")
+    assert (
+        peak_detection.peak_detector(
+            width_factors=input_tuple,
+            filtered_magnetic_signal=filtered_magnetic_signal,
+            start_time=0,
+            end_time=10,
+        )
+        != None
+    )
 
 
 def test_find_twitch_indices__raises_error_if_less_than_3_peaks_given():

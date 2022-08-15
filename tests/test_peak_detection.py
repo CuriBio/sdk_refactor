@@ -16,8 +16,8 @@ from pulse3D.peak_detection import peak_detector
 import pytest
 
 
-PROMINENCE_FACTORS = [4, 4]
-WIDTH_FACTORS = [2, 2]
+PROMINENCE_FACTORS = (4, 4)
+WIDTH_FACTORS = (2, 2)
 
 
 def get_test_data_array(flipped=False):

@@ -365,7 +365,6 @@ def write_xlsx(
         interpolated_force *= MICRO_TO_BASE_CONVERSION
         #find the biggest activation twitch force over all
         if max(interpolated_force) > max_activeTwitchForce:
-            print(max(interpolated_force))
             max_activeTwitchForce = max(interpolated_force)
         try:
             # compute peaks / valleys on interpolated well data

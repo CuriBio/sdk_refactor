@@ -200,7 +200,7 @@ A few examples of using this argument::
     # automatically set y-axis range.
     write_xlsx(r)
 
-    # set y-axis range to 0 - 100
+    # set y-axis range to 0 μN - 100 μN
     write_xlsx(r, max_y=100)
 
 

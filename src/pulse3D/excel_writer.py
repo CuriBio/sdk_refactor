@@ -186,6 +186,7 @@ def write_xlsx(
     baseline_widths_to_use: Tuple[int, ...] = (10, 90),
     prominence_factors: Tuple[Union[int, float], Union[int, float]] = (6, 6),
     width_factors: Tuple[Union[int, float], Union[int, float]] = (7, 7),
+    max_y: Union[int,float] = None
 ):
     """Write plate recording waveform and computed metrics to Excel spredsheet.
 

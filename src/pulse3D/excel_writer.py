@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from asyncio import constants
 import datetime
 import logging
 import os
@@ -316,7 +315,7 @@ def write_xlsx(
 
     log.info("Computing data metrics for each well.")
 
-    max_activeTwitchForce = 0
+    max_force_of_recording  = 0
     for well_file in plate_recording:
         # initialize some data structures
         error_msg = None
@@ -364,8 +363,9 @@ def write_xlsx(
         interpolated_force -= min_value
         interpolated_force *= MICRO_TO_BASE_CONVERSION
         #find the biggest activation twitch force over all
-        if max(interpolated_force) > max_activeTwitchForce:
-            max_activeTwitchForce = max(interpolated_force)
+
+        max_force_of_well = max(interpolated_force)
+        max_force_of_recording = max(max_force_of_recording, max_force_of_well)
         try:
             # compute peaks / valleys on interpolated well data
             log.info(f"Finding peaks and valleys for well {well_name}")
@@ -566,7 +566,7 @@ def create_waveform_charts(
     snapshot_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
 
     snapshot_chart.set_x_axis({"name": "Time (seconds)", "min": lower_x_bound, "max": upper_x_bound})
-    snapshot_chart.set_y_axis({"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0},"max":max_y})
+    snapshot_chart.set_y_axis({"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0}, "max": max_y})
     snapshot_chart.set_title({"name": f"Well {dm['well_name']}"})
 
     snapshot_chart.add_series(
@@ -594,7 +594,7 @@ def create_waveform_charts(
     full_plot_params = plotting_parameters(dm["end_time"] - dm["start_time"])
 
     full_chart.set_x_axis({"name": "Time (seconds)", "min": dm["start_time"], "max": dm["end_time"]})
-    full_chart.set_y_axis({"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0},"max":max_y})
+    full_chart.set_y_axis({"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0}, "max": max_y})
     full_chart.set_title({"name": f"Well {dm['well_name']}"})
 
     full_chart.add_series(

@@ -186,6 +186,7 @@ def write_xlsx(
     baseline_widths_to_use: Tuple[int, ...] = (10, 90),
     prominence_factors: Tuple[Union[int, float], Union[int, float]] = (6, 6),
     width_factors: Tuple[Union[int, float], Union[int, float]] = (7, 7),
+    max_y: Union[int,float] = None
 ):
     """Write plate recording waveform and computed metrics to Excel spredsheet.
 
@@ -195,6 +196,7 @@ def write_xlsx(
         end_time (float): End time of windowed analysis. Defaults to infinity.
         twitch_widths: Requested widths to add to output file
         baseline_widths_to_use: Twitch widths to use as baseline metrics
+        max_y (float or int): Sets the maximum bound for y-axis in the output graphs
     Raises:
         NotImplementedError: if peak finding algorithm fails for unexpected reason
         ValueError: if start and end times are outside of expected bounds, or do not ?
@@ -313,6 +315,7 @@ def write_xlsx(
 
     log.info("Computing data metrics for each well.")
 
+    max_force_of_recording  = 0
     for well_file in plate_recording:
         # initialize some data structures
         error_msg = None
@@ -359,7 +362,10 @@ def write_xlsx(
         min_value = min(interpolated_force)
         interpolated_force -= min_value
         interpolated_force *= MICRO_TO_BASE_CONVERSION
+        #find the biggest activation twitch force over all
 
+        max_force_of_well = max(interpolated_force)
+        max_force_of_recording = max(max_force_of_recording, max_force_of_well)
         try:
             # compute peaks / valleys on interpolated well data
             log.info(f"Finding peaks and valleys for well {well_name}")
@@ -412,7 +418,9 @@ def write_xlsx(
                 ),
             }
         )
-
+    #if the max y was not set by user then set it to be the max twitch force between all wells
+    if max_y is None:
+        max_y = int(max_force_of_recording)
     # waveform table
     continuous_waveforms = {
         "Time (seconds)": pd.Series(interpolated_timepoints_secs[0:end_idx] / MICRO_TO_BASE_CONVERSION)
@@ -428,6 +436,7 @@ def write_xlsx(
         metadata_df,
         continuous_waveforms_df,
         data,
+        max_y,
         is_optical_recording=plate_recording.is_optical_recording,
         twitch_widths=twitch_widths,
         baseline_widths_to_use=baseline_widths_to_use,
@@ -442,6 +451,7 @@ def _write_xlsx(
     metadata_df: pd.DataFrame,
     continuous_waveforms_df: pd.DataFrame,
     data: List[Dict[Any, Any]],
+    max_y: Union[float,int],
     is_optical_recording: bool = False,
     twitch_widths: Tuple[int, ...] = (50, 90),
     baseline_widths_to_use: Tuple[int, ...] = (10, 90),
@@ -470,6 +480,7 @@ def _write_xlsx(
         for well_idx, dm in enumerate(data):
             log.info(f'Creating waveform charts for well {dm["well_name"]}')
             create_waveform_charts(
+                max_y,
                 well_idx,
                 dm,
                 continuous_waveforms_df,
@@ -526,6 +537,7 @@ def _write_xlsx(
 
 
 def create_waveform_charts(
+    max_y,
     well_idx,
     dm,
     continuous_waveforms_df,
@@ -554,7 +566,7 @@ def create_waveform_charts(
     snapshot_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
 
     snapshot_chart.set_x_axis({"name": "Time (seconds)", "min": lower_x_bound, "max": upper_x_bound})
-    snapshot_chart.set_y_axis({"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0}})
+    snapshot_chart.set_y_axis({"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0}, "max": max_y})
     snapshot_chart.set_title({"name": f"Well {dm['well_name']}"})
 
     snapshot_chart.add_series(
@@ -582,7 +594,7 @@ def create_waveform_charts(
     full_plot_params = plotting_parameters(dm["end_time"] - dm["start_time"])
 
     full_chart.set_x_axis({"name": "Time (seconds)", "min": dm["start_time"], "max": dm["end_time"]})
-    full_chart.set_y_axis({"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0}})
+    full_chart.set_y_axis({"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0}, "max": max_y})
     full_chart.set_title({"name": f"Well {dm['well_name']}"})
 
     full_chart.add_series(

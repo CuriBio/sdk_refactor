@@ -179,6 +179,7 @@ Adding Arguments to write_xlsx()
 
 There are a few arguments you can add to the ``write_xlsx`` function to modify the ``.xlsx`` output file.
 They are:
+
 - ``max_y``
 - ``width_factors``
 - ``prominence_factors``
@@ -192,9 +193,7 @@ Their behavior is documented in detail below.
 ``max_y``
 ^^^^^^^^^
 
-Specifies the maximum active twitch force to be set in the output xlsx file.
-When specified, max_y sets all graphs in continuous-waveform-snapshot and full-continuous-waveform-plots to have a y-axis scale of 0 - max_y.
-If left out, then the scale will be set automatically based on input data.
+Specifies the max y-axis bound for all graphs in continuous-waveform-snapshot and full-continuous-waveform-plots. The min bound is always 0. By default, this parameter is set to the max tissue waveform value across all wells.
 A few examples of using this argument::
 
     # automatically set y-axis range.

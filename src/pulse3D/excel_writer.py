@@ -420,7 +420,7 @@ def write_xlsx(
         )
     #if the max y was not set by user then set it to be the max twitch force between all wells
     if max_y is None:
-        max_y = int(max_activeTwitchForce)
+        max_y = int(max_force_of_recording)
     # waveform table
     continuous_waveforms = {
         "Time (seconds)": pd.Series(interpolated_timepoints_secs[0:end_idx] / MICRO_TO_BASE_CONVERSION)

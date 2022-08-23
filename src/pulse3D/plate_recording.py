@@ -19,6 +19,7 @@ import numpy as np
 from openpyxl import load_workbook
 from openpyxl.worksheet.worksheet import Worksheet
 import pandas as pd
+from scipy import interpolate
 from semver import VersionInfo
 from xlsxwriter.utility import xl_cell_to_rowcol
 
@@ -429,6 +430,59 @@ class PlateRecording:
         time_force_df.to_csv(output_path, index=False)
 
         return time_force_df, output_path
+
+
+    def to_dataframe(self) -> pd.DataFrame:
+        """
+        Creates DataFrame from PlateRecording with all the data interpolated, normalized, and scaled.
+        The returned dataframe contains one column for time in ms and one column for each well.
+
+        The dataframe returned by this method can be used in calls to peak_detector by selecting the 
+        'time' column and the well column that peak detection should be run on after transposing the 
+        data, e.g.
+
+        >>> df = to_datafram()
+        >>> peak_detector(df[['time', 'A1']].transpose().values)
+
+        The dataframe needs to be transposed before converting to NDArray because peak_detector
+        wants an ndarray of shape (2,N) while dataframe[['time', 'A1']] is in shape (N,2)
+        """
+        data = {}
+
+        # get first valid well and set interpolation period
+        first_well = [pw for pw in self.wells if pw][0]
+        if self.is_optical_recording:
+            interp_period = first_well[INTERPOLATED_VALUE_UUID]
+        else:
+            interp_period = INTERPOLATED_DATA_PERIOD_US
+
+        max_time = max([w.force[0][-1] for w in self.wells if w])
+        time_steps = np.arange(interp_period, max_time, interp_period)
+
+        data['time'] = pd.Series(time_steps)
+
+        for i,w in enumerate(self.wells):
+            start_idx, end_idx = truncate(
+                source_series=time_steps,
+                lower_bound=w.force[0][0],
+                upper_bound=w.force[0][-1],
+            )
+
+            # interpolate, normalize, and scale data
+            interp_fn = interpolate.interp1d(w.force[0, :], w.force[1, :])
+            interp_force = interp_fn(time_steps[start_idx:end_idx])
+
+            min_value = min(interp_force)
+            interp_force -= min_value
+            interp_force *= MICRO_TO_BASE_CONVERSION
+
+            data[w.get(WELL_NAME_UUID, str(i))] = pd.Series(interp_force)
+
+        df = pd.DataFrame(data)
+        df = df.dropna()
+
+        return df
+
 
     def load_time_force_data(self, path: str):
         time_force_df = pd.read_parquet(path)

@@ -1,5 +1,9 @@
 Changelog for Pulse3D
 =====================
+0.24.9 (2022-08-23)
+-------------------
+- Added ``to_dataframe`` method to PlateRecording
+
 0.24.8 (2022-08-15)
 -------------------
 - Added write_xlsx handling of single number input for width and prominence factors

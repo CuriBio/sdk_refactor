@@ -1,5 +1,8 @@
 Changelog for Pulse3D
 =====================
+0.25.0
+- Added the option to set custom y-axis for output graphs
+-------------------
 0.24.9 (2022-08-23)
 -------------------
 - Added ``to_dataframe`` method to PlateRecording

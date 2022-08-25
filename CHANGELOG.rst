@@ -1,5 +1,9 @@
 Changelog for Pulse3D
 =====================
+0.25.1 (2022-08-25)
+-------------------
+- Add twitch_widths to ``TwitchVelocity`` and ``TwitchAUC``
+
 0.25.0 (2022-08-23)
 -------------------
 - Added the option to set custom y-axis for output graphs

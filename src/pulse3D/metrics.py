@@ -302,13 +302,18 @@ class TwitchWidth(BaseMetric):
 
         Args:
             twitch_indices: a HashableDataFrame in which index is an integer representing the time points
-                of all the peaks of interest and columns are UUIDs of prior/subsequent peaks and valleys and their index values.
+                of all the peaks of interest and columns are UUIDs of prior/subsequent peaks and valleys and
+                their index values.
             filtered_data: Tuple[Tuple] of time and value (magnetic, voltage, displacement, force)
                 data after it has gone through noise filtering
 
         Returns:
-            width_df: DataFrame, where each index is an integer representing the time points, and each column is a      percent-twitch width of all the peaks of interest
-            coordinate_df: MultiIndex DataFrame, where each index is an integer representing the time points, and each  column level corresponds to the time (X) / force(Y), contration (rising) / relaxation (falling), and percent-twitch width coordinates
+            width_df: DataFrame, where each index is an integer representing the time points, and each column
+            is a percent-twitch width of all the peaks of interest
+
+            coordinate_df: MultiIndex DataFrame, where each index is an integer representing the time points,
+            and each  column level corresponds to the time (X) / force(Y), contration (rising) / relaxation
+            (falling), and percent-twitch width coordinates
         """
         coordinate_dict: Dict[int, Dict[str, Dict[str, Any]]] = dict()
 

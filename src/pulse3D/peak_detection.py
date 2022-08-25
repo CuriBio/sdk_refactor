@@ -267,16 +267,25 @@ def data_metrics(
     # Kristian (10/26/21): dictionary of metric functions. this could probably be made cleaner at some point
     metric_mapper: Dict[UUID, BaseMetric] = {
         AMPLITUDE_UUID: TwitchAmplitude(rounded=rounded),
-        AUC_UUID: TwitchAUC(rounded=rounded),
+        AUC_UUID: TwitchAUC(
+            rounded=rounded,
+            twitch_width_percents=twitch_width_percents,
+        ),
         BASELINE_TO_PEAK_UUID: TwitchPeakTime(
             rounded=rounded,
             is_contraction=True,
             twitch_width_percents=[baseline_widths_to_use[0], 100 - baseline_widths_to_use[0]],
         ),
         CONTRACTION_TIME_UUID: TwitchPeakTime(
-            rounded=rounded, is_contraction=True, twitch_width_percents=twitch_width_percents
+            rounded=rounded,
+            is_contraction=True,
+            twitch_width_percents=twitch_width_percents,
         ),
-        CONTRACTION_VELOCITY_UUID: TwitchVelocity(rounded=rounded, is_contraction=True),
+        CONTRACTION_VELOCITY_UUID: TwitchVelocity(
+            rounded=rounded,
+            is_contraction=True,
+            twitch_width_percents=twitch_width_percents,
+        ),
         FRACTION_MAX_UUID: TwitchFractionAmplitude(),
         IRREGULARITY_INTERVAL_UUID: TwitchIrregularity(rounded=rounded),
         PEAK_TO_BASELINE_UUID: TwitchPeakTime(
@@ -285,15 +294,23 @@ def data_metrics(
             twitch_width_percents=[baseline_widths_to_use[1], 100 - baseline_widths_to_use[1]],
         ),
         RELAXATION_TIME_UUID: TwitchPeakTime(
-            rounded=rounded, is_contraction=False, twitch_width_percents=twitch_width_percents
+            rounded=rounded,
+            is_contraction=False,
+            twitch_width_percents=twitch_width_percents,
         ),
-        RELAXATION_VELOCITY_UUID: TwitchVelocity(rounded=rounded, is_contraction=False),
+        RELAXATION_VELOCITY_UUID: TwitchVelocity(
+            rounded=rounded,
+            is_contraction=False,
+        ),
         TWITCH_FREQUENCY_UUID: TwitchFrequency(rounded=rounded),
         TWITCH_PERIOD_UUID: TwitchPeriod(rounded=rounded),
-        WIDTH_UUID: TwitchWidth(rounded=rounded, twitch_width_percents=twitch_width_percents),
+        WIDTH_UUID: TwitchWidth(
+            rounded=rounded,
+            twitch_width_percents=twitch_width_percents,
+        ),
     }
 
-    # Kristian (12/27/21): add scalar metrics to corresponding DataFrames
+    #add scalar metrics to corresponding DataFrames
     for metric_type, metrics in CALCULATED_METRICS.items():
         per_twitch_df = dfs["per_twitch"][metric_type]
         aggregate_df = dfs["aggregate"][metric_type]

@@ -180,7 +180,6 @@ Adding Arguments to write_xlsx()
 There are a few arguments you can add to the ``write_xlsx`` function to modify the ``.xlsx`` output file.
 They are:
 
-- ``baseline_widths_to_use``
 - ``max_y``
 - ``width_factors``
 - ``prominence_factors``
@@ -190,18 +189,6 @@ They are:
 
 Any combination of these arguments can be given. Omitting them all is fine too.
 Their behavior is documented in detail below.
-
-``baseline_widths_to_use``
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Specifies the base line metrics for twitch widths. Must be specified as a tuple.
-The first index of the tuple is responsible for setting the baseline to peak metrics.
-The second index is used to set the relaxation metrics.
-By default this parameter is set to (10,90)
-A few examples of using this argument::
-
-    # set baseline to peak metrics 1 and set relaxation metrics to 9.
-    write_xlsx(r,baseline_widths_to_use=(1,9))
 
 
 ``max_y``

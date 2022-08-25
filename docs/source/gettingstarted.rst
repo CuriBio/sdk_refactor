@@ -190,7 +190,6 @@ They are:
 Any combination of these arguments can be given. Omitting them all is fine too.
 Their behavior is documented in detail below.
 
-
 ``max_y``
 ^^^^^^^^^
 

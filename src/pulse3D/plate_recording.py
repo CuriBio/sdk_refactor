@@ -456,7 +456,7 @@ class PlateRecording:
         wants an ndarray of shape (2,N) while dataframe[['time', 'A1']] is in shape (N,2)
         """
         data = {}
-        print("called")
+
         # get first valid well and set interpolation period
         first_well = [pw for pw in self.wells if pw][0]
 

@@ -48,6 +48,8 @@ def truncate(
         last_idx (int): index corresponding to upper bound of source time-series
     """
     first_idx, last_idx = 0, len(source_series) - 1
+
+    # right-truncation
     while upper_bound <= source_series[last_idx]:
         last_idx -= 1
 

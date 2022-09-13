@@ -186,7 +186,8 @@ def write_xlsx(
     baseline_widths_to_use: Tuple[int, ...] = (10, 90),
     prominence_factors: Tuple[Union[int, float], Union[int, float]] = (6, 6),
     width_factors: Tuple[Union[int, float], Union[int, float]] = (7, 7),
-    max_y: Union[int,float] = None
+    max_y: Union[int, float] = None,
+    peaks_valleys: Dict[str, List[List[int]]] = None,
 ):
     """Write plate recording waveform and computed metrics to Excel spredsheet.
 
@@ -197,6 +198,7 @@ def write_xlsx(
         twitch_widths: Requested widths to add to output file
         baseline_widths_to_use: Twitch widths to use as baseline metrics
         max_y (float or int): Sets the maximum bound for y-axis in the output graphs
+        peaks_valleys (dict): User-defined peaks and valleys to use instead of peak_detector
     Raises:
         NotImplementedError: if peak finding algorithm fails for unexpected reason
         ValueError: if start and end times are outside of expected bounds, or do not ?
@@ -315,11 +317,10 @@ def write_xlsx(
 
     log.info("Computing data metrics for each well.")
 
-    max_force_of_recording  = 0
+    max_force_of_recording = 0
     for well_file in plate_recording:
         # initialize some data structures
         error_msg = None
-        peaks_and_valleys = None
 
         # necessary for concatenating DFs together, in event that peak-finding fails and produces empty DF
         dfs = init_dfs(twitch_widths_range=twitch_width_percents)
@@ -362,20 +363,25 @@ def write_xlsx(
         min_value = min(interpolated_force)
         interpolated_force -= min_value
         interpolated_force *= MICRO_TO_BASE_CONVERSION
-        #find the biggest activation twitch force over all
+        # find the biggest activation twitch force over all
 
         max_force_of_well = max(interpolated_force)
         max_force_of_recording = max(max_force_of_recording, max_force_of_well)
         try:
             # compute peaks / valleys on interpolated well data
             log.info(f"Finding peaks and valleys for well {well_name}")
-            peaks_and_valleys = peak_detector(
-                interpolated_well_data,
-                prominence_factors=prominence_factors,
-                width_factors=width_factors,
-                start_time=start_time,
-                end_time=end_time,
-            )
+
+            if peaks_valleys is None:
+                log.info(f"No user defined peaks and valleys were found, so calculating with peak_detector")
+                peaks_and_valleys = peak_detector(
+                    interpolated_well_data,
+                    prominence_factors=prominence_factors,
+                    width_factors=width_factors,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+            else:
+                peaks_and_valleys = tuple(peaks_valleys.get(well_name))  # sent as list in dictionary of all wells
 
             log.info(f"Finding twitch indices for well {well_name}")
             # Tanner (2/8/22): the value returned from this function isn't used, assuming it is only being called to raise PeakDetectionErrors
@@ -418,7 +424,7 @@ def write_xlsx(
                 ),
             }
         )
-    #if the max y was not set by user then set it to be the max twitch force between all wells
+    # if the max y was not set by user then set it to be the max twitch force between all wells
     if max_y is None:
         max_y = int(max_force_of_recording)
     # waveform table
@@ -451,7 +457,7 @@ def _write_xlsx(
     metadata_df: pd.DataFrame,
     continuous_waveforms_df: pd.DataFrame,
     data: List[Dict[Any, Any]],
-    max_y: Union[float,int],
+    max_y: Union[float, int],
     is_optical_recording: bool = False,
     twitch_widths: Tuple[int, ...] = (50, 90),
     baseline_widths_to_use: Tuple[int, ...] = (10, 90),
@@ -566,7 +572,9 @@ def create_waveform_charts(
     snapshot_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
 
     snapshot_chart.set_x_axis({"name": "Time (seconds)", "min": lower_x_bound, "max": upper_x_bound})
-    snapshot_chart.set_y_axis({"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0}, "max": max_y})
+    snapshot_chart.set_y_axis(
+        {"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0}, "max": max_y}
+    )
     snapshot_chart.set_title({"name": f"Well {dm['well_name']}"})
 
     snapshot_chart.add_series(
@@ -594,7 +602,9 @@ def create_waveform_charts(
     full_plot_params = plotting_parameters(dm["end_time"] - dm["start_time"])
 
     full_chart.set_x_axis({"name": "Time (seconds)", "min": dm["start_time"], "max": dm["end_time"]})
-    full_chart.set_y_axis({"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0}, "max": max_y})
+    full_chart.set_y_axis(
+        {"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0}, "max": max_y}
+    )
     full_chart.set_title({"name": f"Well {dm['well_name']}"})
 
     full_chart.add_series(
@@ -619,7 +629,8 @@ def create_waveform_charts(
     )
 
     (peaks, valleys) = dm["peaks_and_valleys"]
-
+    log.info(f" P AND V: {peaks}, {valleys}")
+    log.info(f"TIME VALS: {dm['force'][0]}")
     log.info(f'Adding peak detection series for well {dm["well_name"]}')
 
     add_peak_detection_series(

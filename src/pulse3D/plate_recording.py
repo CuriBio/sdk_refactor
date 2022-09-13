@@ -5,8 +5,10 @@ import json
 import logging
 import math
 import os
+import copy
 import tempfile
 from time import time
+from tracemalloc import start
 from typing import Any
 from typing import Optional
 from typing import Union
@@ -413,34 +415,34 @@ class PlateRecording:
             well_file.force = calculate_force_from_displacement(well_file.displacement)
 
     def _load_dataframe(self, df: pd.DataFrame):
-        time = df["time"].values
+        time = df["Time (s)"].values
         for well in self.wells:
             well_name = well[WELL_NAME_UUID]
             well_data = np.vstack((time, df[f"{well_name}__raw"])).astype(np.float64)
             well.force = well_data
 
-    # def write_time_force_csv(self, output_dir: str):
-    #     # get recording name
-    #     recording_name = os.path.splitext(os.path.basename(self.path))[0]
-    #     output_path = os.path.join(output_dir, f"{recording_name}.csv")
+    def write_time_force_csv(self, output_dir: str):
+        # get recording name
+        recording_name = os.path.splitext(os.path.basename(self.path))[0]
+        output_path = os.path.join(output_dir, f"{recording_name}.csv")
 
-    #     # set indexes to time points
-    #     truncated_time_sec = [
-    #         truncate_float(ms / MICRO_TO_BASE_CONVERSION, 2) for ms in self.wells[0].force[0]
-    #     ]
+        # set indexes to time points
+        truncated_time_sec = [
+            truncate_float(ms / MICRO_TO_BASE_CONVERSION, 2) for ms in self.wells[0].force[0]
+        ]
 
-    #     force_data = dict({"Time (s)": pd.Series(truncated_time_sec)})
+        force_data = dict({"Time (s)": pd.Series(truncated_time_sec)})
 
-    #     for well in self.wells:
-    #         well_name = well.get(WELL_NAME_UUID, None)
-    #         force_data[well_name] = pd.Series(well.force[1])
+        for well in self.wells:
+            well_name = well.get(WELL_NAME_UUID, None)
+            force_data[well_name] = pd.Series(well.force[1])
 
-    #     time_force_df = pd.DataFrame(force_data)
-    #     time_force_df.to_csv(output_path, index=False)
+        time_force_df = pd.DataFrame(force_data)
+        time_force_df.to_csv(output_path, index=False)
 
-    #     return time_force_df, output_path
+        return time_force_df, output_path
 
-    def to_dataframe(self) -> pd.DataFrame:
+    def to_dataframe(self, from_dataframe: bool = False) -> pd.DataFrame:
         """
         Creates DataFrame from PlateRecording with all the data interpolated, normalized, and scaled.
         The returned dataframe contains one column for time in ms and one column for each well.
@@ -465,21 +467,28 @@ class PlateRecording:
         else:
             interp_period = INTERPOLATED_DATA_PERIOD_US
 
-        max_time = max([w.force[0][-1] for w in self.wells if w])
-        time_steps = np.arange(0, max_time, interp_period)
-        data["time"] = pd.Series(time_steps[1:])
+        if from_dataframe:
+            time_steps = copy.deepcopy(first_well.force[0])
+        else:
+            max_time = max([w.force[0][-1] for w in self.wells if w])
+            time_steps = np.arange(interp_period, max_time + interp_period, interp_period)
+
+        data["Time (s)"] = pd.Series(time_steps)
 
         for i, w in enumerate(self.wells):
 
-            start_idx, end_idx = truncate(
-                source_series=time_steps,
-                lower_bound=w.force[0][0],
-                upper_bound=w.force[0][-1],
-            )
+            if not from_dataframe:
+                start_idx, end_idx = truncate(
+                    source_series=time_steps,
+                    lower_bound=w.force[0][0],
+                    upper_bound=w.force[0][-1],
+                )
 
-            # interpolate, normalize, and scale data
-            interp_fn = interpolate.interp1d(w.force[0, :], w.force[1, :])
-            interp_force = interp_fn(time_steps[start_idx + 1 : end_idx + 1])
+                interp_fn = interpolate.interp1d(w.force[0, :], w.force[1, :])
+                interp_force = interp_fn(time_steps[start_idx : end_idx + 1])
+            else:
+                interp_force = copy.deepcopy(w.force[1, 1:])
+
             data[f"{w.get(WELL_NAME_UUID, str(i))}__raw"] = pd.Series(w.force[1, :])
 
             min_value = min(interp_force)
@@ -490,11 +499,13 @@ class PlateRecording:
 
         df = pd.DataFrame(data)
         df = df.dropna()
+        print(df)
         return df
 
     @staticmethod
     def from_dataframe(path, df: pd.DataFrame):
         # multi zip files
+        # only allowed for one recording at a time assuming a user would only ever pass a dataframe to one recording
         log.info(f"Loading recording from file {os.path.basename(path)}")
         yield PlateRecording(path, force_df=df)
 

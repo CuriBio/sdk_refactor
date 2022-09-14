@@ -39,7 +39,6 @@ tests/**/visual-regression-testing/*-diff.png
 
 dist/
 build/
-testing_python_file.py
 
 # test coverage
 tests/__coverage__

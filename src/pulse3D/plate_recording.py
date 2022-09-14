@@ -407,7 +407,7 @@ class PlateRecording:
             )
 
             well_file.displacement = np.array(
-                [adjusted_time_indices[start_idx:end_idx + 1], x[start_idx:end_idx + 1]]
+                [adjusted_time_indices[start_idx : end_idx + 1], x[start_idx : end_idx + 1]]
             )
 
             well_file.force = calculate_force_from_displacement(well_file.displacement)
@@ -516,8 +516,15 @@ class PlateRecording:
     def from_directory(path):
         # multi zip files
         for zf in glob.glob(os.path.join(path, "*.zip"), recursive=True):
+            zip_file = zipfile.ZipFile(zf)
+            # check if this is a zip of optical files
+            if ".xlsx" in zip_file.namelist()[0]:
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    zip_file.extractall(path=tmpdir)
+                    for optical_file in os.scandir(tmpdir):
+                        yield PlateRecording(optical_file.path, calc_time_force)
             log.info(f"Loading recording from file {zf}")
-            yield PlateRecording(zf)
+            yield PlateRecording(zf, calc_time_force)
 
         # multi optical files
         for of in glob.glob(os.path.join(path, "*.xlsx"), recursive=True):

@@ -431,14 +431,13 @@ class PlateRecording:
 
         return time_force_df, output_path
 
-
     def to_dataframe(self) -> pd.DataFrame:
         """
         Creates DataFrame from PlateRecording with all the data interpolated, normalized, and scaled.
         The returned dataframe contains one column for time in ms and one column for each well.
 
-        The dataframe returned by this method can be used in calls to peak_detector by selecting the 
-        'time' column and the well column that peak detection should be run on after transposing the 
+        The dataframe returned by this method can be used in calls to peak_detector by selecting the
+        'time' column and the well column that peak detection should be run on after transposing the
         data, e.g.
 
         >>> df = to_datafram()
@@ -459,9 +458,9 @@ class PlateRecording:
         max_time = max([w.force[0][-1] for w in self.wells if w])
         time_steps = np.arange(interp_period, max_time, interp_period)
 
-        data['time'] = pd.Series(time_steps)
+        data["time"] = pd.Series(time_steps)
 
-        for i,w in enumerate(self.wells):
+        for i, w in enumerate(self.wells):
             start_idx, end_idx = truncate(
                 source_series=time_steps,
                 lower_bound=w.force[0][0],
@@ -483,7 +482,6 @@ class PlateRecording:
 
         return df
 
-
     def load_time_force_data(self, path: str):
         time_force_df = pd.read_parquet(path)
         ms_converted_time = [s * MICRO_TO_BASE_CONVERSION for s in time_force_df["Time (s)"]]
@@ -497,6 +495,14 @@ class PlateRecording:
     def from_directory(path, calc_time_force=True):
         # multi zip files
         for zf in glob.glob(os.path.join(path, "*.zip"), recursive=True):
+            zip_file = zipfile.ZipFile(zf)
+            # check if this is a zip of optical files
+            if ".xlsx" in zip_file.namelist()[0]:
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    zip_file.extractall(path=tmpdir)
+                    for optical_file in os.scandir(tmpdir):
+                        yield PlateRecording(optical_file.path, calc_time_force)
+                return
             log.info(f"Loading recording from file {zf}")
             yield PlateRecording(zf, calc_time_force)
 

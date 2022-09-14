@@ -2,6 +2,7 @@
 import datetime
 import logging
 import os
+from tracemalloc import start
 from typing import Any
 from typing import List
 from typing import Tuple
@@ -18,6 +19,7 @@ from .peak_detection import data_metrics
 from .peak_detection import find_twitch_indices
 from .peak_detection import init_dfs
 from .peak_detection import peak_detector
+from .peak_detection import get_windowed_peaks_valleys
 from .plate_recording import PlateRecording
 from .plotting import plotting_parameters
 from .utils import truncate
@@ -339,7 +341,7 @@ def write_xlsx(
             source_series=interpolated_timepoints_secs,
             lower_bound=well_file.force[0][0],
             upper_bound=well_file.force[0][-1],
-        )
+        )   
 
         # find bounding indices of specified start/end windows
         window_start_idx, window_end_idx = truncate(
@@ -363,10 +365,11 @@ def write_xlsx(
         min_value = min(interpolated_force)
         interpolated_force -= min_value
         interpolated_force *= MICRO_TO_BASE_CONVERSION
+        
         # find the biggest activation twitch force over all
-
         max_force_of_well = max(interpolated_force)
         max_force_of_recording = max(max_force_of_recording, max_force_of_well)
+
         try:
             # compute peaks / valleys on interpolated well data
             log.info(f"Finding peaks and valleys for well {well_name}")
@@ -381,8 +384,12 @@ def write_xlsx(
                     end_time=end_time,
                 )
             else:
-                peaks_and_valleys = tuple(peaks_valleys.get(well_name))  # sent as list in dictionary of all wells
-
+                # convert peak and valley lists into a format compatible with find_twitch_indices
+                peaks, valleys = [np.array(i) for i in peaks_valleys.get(well_name)]
+                # get correct indices specific to windowed start and end
+                peaks_and_valleys = get_windowed_peaks_valleys(start_idx, end_idx, peaks, valleys)
+               
+            
             log.info(f"Finding twitch indices for well {well_name}")
             # Tanner (2/8/22): the value returned from this function isn't used, assuming it is only being called to raise PeakDetectionErrors
             find_twitch_indices(peaks_and_valleys)
@@ -429,7 +436,7 @@ def write_xlsx(
         max_y = int(max_force_of_recording)
     # waveform table
     continuous_waveforms = {
-        "Time (seconds)": pd.Series(interpolated_timepoints_secs[0:end_idx] / MICRO_TO_BASE_CONVERSION)
+        "Time (seconds)": pd.Series(interpolated_timepoints_secs[start_idx:end_idx] / MICRO_TO_BASE_CONVERSION)
     }
 
     for d in data:
@@ -629,8 +636,6 @@ def create_waveform_charts(
     )
 
     (peaks, valleys) = dm["peaks_and_valleys"]
-    log.info(f" P AND V: {peaks}, {valleys}")
-    log.info(f"TIME VALS: {dm['force'][0]}")
     log.info(f'Adding peak detection series for well {dm["well_name"]}')
 
     add_peak_detection_series(

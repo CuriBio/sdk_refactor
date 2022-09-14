@@ -11,6 +11,7 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 from uuid import UUID
+import numpy as np
 
 from nptyping import NDArray
 
@@ -50,14 +51,14 @@ def truncate(
     first_idx, last_idx = 0, len(source_series) - 1
 
     # right-truncation
-    while upper_bound <= source_series[last_idx]:
+    while upper_bound < source_series[last_idx]:
         last_idx -= 1
 
     # left-truncation
     while lower_bound > source_series[first_idx]:
         first_idx += 1
 
-    return first_idx, last_idx + 1
+    return first_idx, last_idx
 
 
 def serialize_main_dict(per_twitch_dict: Dict[int, Any], metrics_to_create: Iterable[UUID]) -> Dict[str, Any]:
@@ -300,3 +301,4 @@ def xl_col_to_name(col, col_abs=False):
         col_num = int((col_num - 1) / 26)
 
     return col_abs + col_str
+

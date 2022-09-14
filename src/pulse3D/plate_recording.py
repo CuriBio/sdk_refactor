@@ -502,7 +502,6 @@ class PlateRecording:
                     zip_file.extractall(path=tmpdir)
                     for optical_file in os.scandir(tmpdir):
                         yield PlateRecording(optical_file.path, calc_time_force)
-                return
             log.info(f"Loading recording from file {zf}")
             yield PlateRecording(zf, calc_time_force)
 

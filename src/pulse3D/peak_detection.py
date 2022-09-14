@@ -57,8 +57,7 @@ def peak_detector(
     max_time = time_signal[-1]
     start_time = np.max([0, start_time])
     end_time = np.min([end_time, max_time / MICRO_TO_BASE_CONVERSION])
-    # how should we handle this?
-
+    # TODO how should we handle this?
     # if provided end time is less than or equal to start time, reset
     if end_time <= start_time:
         end_time = np.inf
@@ -473,4 +472,4 @@ def get_windowed_peaks_valleys(
     filtered_peaks = np.where((sub_peaks < windowed_indices) & (sub_peaks >= 0))[0]
     filtered_valleys = np.where((sub_valleys < windowed_indices) & (sub_valleys >= 0))[0]
     # grab indices from original sub peaks and valleys
-    return (sub_peaks[filtered_peaks], sub_valleys[filtered_valleys])
+    return sub_peaks[filtered_peaks], sub_valleys[filtered_valleys]

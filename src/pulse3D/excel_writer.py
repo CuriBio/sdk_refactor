@@ -384,7 +384,7 @@ def write_xlsx(
                 )
             else:
                 # convert peak and valley lists into a format compatible with find_twitch_indices
-                peaks, valleys = [np.array(i) for i in peaks_valleys.get(well_name)]
+                peaks, valleys = [np.array(peaks_or_valleys) for peaks_or_valleys in peaks_valleys[well_name]]
                 # get correct indices specific to windowed start and end
                 peaks_and_valleys = get_windowed_peaks_valleys(start_idx, end_idx, peaks, valleys)
                

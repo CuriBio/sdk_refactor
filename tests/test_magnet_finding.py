@@ -282,7 +282,6 @@ def test_PlateRecording__passes_initial_params_to_magnet_finding_alg_correctly__
         expected_displacement *= -1
 
     for well_idx, wf in enumerate(pr):
-        print(wf.displacement[1], expected_displacement[:, well_idx])
         np.testing.assert_array_almost_equal(
             wf.displacement[1], expected_displacement[:, well_idx], err_msg=f"Well {well_idx}"
         )

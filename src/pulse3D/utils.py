@@ -11,7 +11,6 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 from uuid import UUID
-import numpy as np
 
 from nptyping import NDArray
 

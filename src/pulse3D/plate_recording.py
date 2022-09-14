@@ -5,6 +5,7 @@ import json
 import logging
 import math
 import os
+import copy
 import tempfile
 from typing import Any
 from typing import Optional
@@ -311,8 +312,8 @@ class PlateRecording:
     def __init__(
         self,
         path,
-        calc_time_force=True,
         use_mean_of_baseline=True,
+        force_df: pd.DataFrame = None,
         start_time: Union[float, int] = 0,
         end_time: Union[float, int] = np.inf,
     ):
@@ -338,12 +339,13 @@ class PlateRecording:
 
         if self.wells:  # might not be any well files in the path
             # currently file versions 1.0.0 and above must have all their data processed together
-            if (
-                not self.is_optical_recording
-                and self.wells[0].version >= VersionInfo.parse("1.0.0")
-                and calc_time_force
-            ):
-                self._process_plate_data(calibration_recordings, use_mean_of_baseline=use_mean_of_baseline)
+            if not self.is_optical_recording and self.wells[0].version >= VersionInfo.parse("1.0.0"):
+                if force_df is None:
+                    self._process_plate_data(
+                        calibration_recordings, use_mean_of_baseline=use_mean_of_baseline
+                    )
+                else:
+                    self._load_dataframe(force_df)
 
     def _process_plate_data(self, calibration_recordings, use_mean_of_baseline):
         if not all(isinstance(well_file, WellFile) for well_file in self.wells) or len(self.wells) != 24:
@@ -405,10 +407,22 @@ class PlateRecording:
             )
 
             well_file.displacement = np.array(
-                [adjusted_time_indices[start_idx : end_idx + 1], x[start_idx : end_idx + 1]]
+                [adjusted_time_indices[start_idx:end_idx + 1], x[start_idx:end_idx + 1]]
             )
 
             well_file.force = calculate_force_from_displacement(well_file.displacement)
+
+    def _load_dataframe(self, df: pd.DataFrame) -> None:
+        """Add time and force data to well files in PR.
+
+        Args:
+            df: pd.Dataframe existing time force data to be added
+        """
+        time = df["Time (s)"].values
+        for well in self.wells:
+            well_name = well[WELL_NAME_UUID]
+            well_data = np.vstack((time, df[f"{well_name}__raw"])).astype(np.float64)
+            well.force = well_data
 
     def write_time_force_csv(self, output_dir: str):
         # get recording name
@@ -431,14 +445,13 @@ class PlateRecording:
 
         return time_force_df, output_path
 
-
-    def to_dataframe(self) -> pd.DataFrame:
+    def to_dataframe(self, from_dataframe: bool = False) -> pd.DataFrame:
         """
         Creates DataFrame from PlateRecording with all the data interpolated, normalized, and scaled.
         The returned dataframe contains one column for time in ms and one column for each well.
 
-        The dataframe returned by this method can be used in calls to peak_detector by selecting the 
-        'time' column and the well column that peak detection should be run on after transposing the 
+        The dataframe returned by this method can be used in calls to peak_detector by selecting the
+        'time' column and the well column that peak detection should be run on after transposing the
         data, e.g.
 
         >>> df = to_datafram()
@@ -451,26 +464,35 @@ class PlateRecording:
 
         # get first valid well and set interpolation period
         first_well = [pw for pw in self.wells if pw][0]
+
         if self.is_optical_recording:
             interp_period = first_well[INTERPOLATED_VALUE_UUID]
         else:
             interp_period = INTERPOLATED_DATA_PERIOD_US
 
-        max_time = max([w.force[0][-1] for w in self.wells if w])
-        time_steps = np.arange(interp_period, max_time, interp_period)
+        if from_dataframe:
+            time_steps = copy.deepcopy(first_well.force[0])
+        else:
+            max_time = max([w.force[0][-1] for w in self.wells if w])
+            time_steps = np.arange(interp_period, max_time + interp_period, interp_period)
 
-        data['time'] = pd.Series(time_steps)
+        data["Time (s)"] = pd.Series(time_steps)
 
-        for i,w in enumerate(self.wells):
-            start_idx, end_idx = truncate(
-                source_series=time_steps,
-                lower_bound=w.force[0][0],
-                upper_bound=w.force[0][-1],
-            )
+        for i, w in enumerate(self.wells):
 
-            # interpolate, normalize, and scale data
-            interp_fn = interpolate.interp1d(w.force[0, :], w.force[1, :])
-            interp_force = interp_fn(time_steps[start_idx:end_idx])
+            if not from_dataframe:
+                start_idx, end_idx = truncate(
+                    source_series=time_steps,
+                    lower_bound=w.force[0][0],
+                    upper_bound=w.force[0][-1],
+                )
+
+                interp_fn = interpolate.interp1d(w.force[0, :], w.force[1, :])
+                interp_force = interp_fn(time_steps[start_idx : end_idx + 1])
+            else:
+                interp_force = copy.deepcopy(w.force[1, 1:])
+
+            data[f"{w.get(WELL_NAME_UUID, str(i))}__raw"] = pd.Series(w.force[1, :])
 
             min_value = min(interp_force)
             interp_force -= min_value
@@ -483,32 +505,29 @@ class PlateRecording:
 
         return df
 
-
-    def load_time_force_data(self, path: str):
-        time_force_df = pd.read_parquet(path)
-        ms_converted_time = [s * MICRO_TO_BASE_CONVERSION for s in time_force_df["Time (s)"]]
-
-        for well in self.wells:
-            column = str(well[WELL_NAME_UUID])
-            log.info(f"Loading time force data for well: {column}")
-            well.force = np.vstack((ms_converted_time, time_force_df[column].values)).astype(np.float64)
+    @staticmethod
+    def from_dataframe(path, df: pd.DataFrame):
+        # multi zip files
+        # only allowed for one recording at a time assuming a user would only ever pass a dataframe to one recording
+        log.info(f"Loading recording from file {os.path.basename(path)}")
+        yield PlateRecording(path, force_df=df)
 
     @staticmethod
-    def from_directory(path, calc_time_force=True):
+    def from_directory(path):
         # multi zip files
         for zf in glob.glob(os.path.join(path, "*.zip"), recursive=True):
             log.info(f"Loading recording from file {zf}")
-            yield PlateRecording(zf, calc_time_force)
+            yield PlateRecording(zf)
 
         # multi optical files
         for of in glob.glob(os.path.join(path, "*.xlsx"), recursive=True):
             log.info(f"Loading optical data from file {of}")
-            yield PlateRecording(of, calc_time_force)
+            yield PlateRecording(of)
 
         # directory of .h5 files
         for dir in glob.glob(os.path.join(path, "*"), recursive=True):
             if glob.glob(os.path.join(dir, "*.h5"), recursive=True):
-                yield PlateRecording(dir, calc_time_force)
+                yield PlateRecording(dir)
 
     def __iter__(self):
         self._iter = 0

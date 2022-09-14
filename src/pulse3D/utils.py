@@ -28,7 +28,7 @@ def truncate_float(value: float, digits: int) -> float:
     if digits < 1:
         raise ValueError("If truncating all decimals off of a float, just use builtin int() instead")
     # from https://stackoverflow.com/questions/8595973/truncate-to-three-decimals-in-python
-    stepper = 10.0 ** digits
+    stepper = 10.0**digits
     return math.trunc(stepper * value) / stepper
 
 
@@ -48,6 +48,8 @@ def truncate(
         last_idx (int): index corresponding to upper bound of source time-series
     """
     first_idx, last_idx = 0, len(source_series) - 1
+
+    # right-truncation
     while upper_bound < source_series[last_idx]:
         last_idx -= 1
 
@@ -298,3 +300,4 @@ def xl_col_to_name(col, col_abs=False):
         col_num = int((col_num - 1) / 26)
 
     return col_abs + col_str
+

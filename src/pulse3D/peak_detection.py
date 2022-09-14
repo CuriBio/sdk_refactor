@@ -57,8 +57,7 @@ def peak_detector(
     max_time = time_signal[-1]
     start_time = np.max([0, start_time])
     end_time = np.min([end_time, max_time / MICRO_TO_BASE_CONVERSION])
-
-    # how should we handle this?
+    # TODO how should we handle this?
     # if provided end time is less than or equal to start time, reset
     if end_time <= start_time:
         end_time = np.inf
@@ -73,7 +72,6 @@ def peak_detector(
             0,
         ),
     )
-
     # find required height of peaks
     max_height = np.max(magnetic_signal)
     min_height = np.min(magnetic_signal)
@@ -93,7 +91,6 @@ def peak_detector(
         distance=min_required_samples_between_twitches,
         prominence=max_prominence / prominence_factors[1],
     )
-
     left_ips = properties["left_ips"]
     right_ips = properties["right_ips"]
 
@@ -310,7 +307,7 @@ def data_metrics(
         ),
     }
 
-    #add scalar metrics to corresponding DataFrames
+    # add scalar metrics to corresponding DataFrames
     for metric_type, metrics in CALCULATED_METRICS.items():
         per_twitch_df = dfs["per_twitch"][metric_type]
         aggregate_df = dfs["aggregate"][metric_type]
@@ -450,3 +447,29 @@ def concat(dfs, axis=0, *args, **kwargs):
 
     dfs = [add_levels(df) for df in dfs]
     return pd.concat(dfs, axis=axis, *args, **kwargs)
+
+
+def get_windowed_peaks_valleys(
+    start_idx: int, end_idx: int, peaks: NDArray, valleys: NDArray
+) -> Tuple[NDArray, NDArray]:
+    """Convert peaks and valleys to fit window of analysis.
+
+    Args:
+        start_idx: int start index to window of analysis to substract from peak/valley indices
+        end_idx: int end index to window of analysis to contain only relevant peak/valley indices
+        peaks: NDArray contains new peak indices to fit window of analysis
+        valleys: NDArray contains new valley indices to fit window of analysis
+
+    Returns:
+        peaks: NDArray of peak indices
+        valleys: NDArray of valley indices
+    """
+    windowed_indices = end_idx - start_idx
+    # remove up to starting index to make start time index 0
+    sub_peaks = np.subtract(peaks, start_idx)
+    sub_valleys = np.subtract(valleys, start_idx)
+    # remove indices greater than max windowed index
+    filtered_peaks = np.where((sub_peaks < windowed_indices) & (sub_peaks >= 0))[0]
+    filtered_valleys = np.where((sub_valleys < windowed_indices) & (sub_valleys >= 0))[0]
+    # grab indices from original sub peaks and valleys
+    return sub_peaks[filtered_peaks], sub_valleys[filtered_valleys]

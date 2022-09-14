@@ -117,52 +117,21 @@ def test_PlateRecording__runs_mag_finding_algo_by_default(mocker):
     mocked_process_data.assert_called_once_with(pr, mocker.ANY, use_mean_of_baseline=True)
 
 
-@pytest.mark.slow
-def test_PlateRecording__does_not_run_mag_finding_algo_when_calc_time_force_is_false(mocker):
-    with tempfile.TemporaryDirectory() as tmpdir:
-        recording_path = os.path.join(
-            tmpdir, "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip"
-        )
-        parquet_path = os.path.join(tmpdir, "MA200440001__2020_02_09_190359.parquet")
-        shutil.copy(
-            os.path.join(
-                PATH_OF_CURRENT_FILE,
-                "magnet_finding",
-                "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
-            ),
-            recording_path,
-        )
-        # calc real force values to compare against
-        force_pr = PlateRecording(recording_path, end_time=5)
-
-        # write parquet file of time force raw data
-        time_force_df, _ = force_pr.write_time_force_csv(tmpdir)
-        time_force_df.to_parquet(parquet_path)
-
-        # PlateRecording without force data
-        no_force_pr = PlateRecording(recording_path, calc_time_force=False, end_time=5)
-        no_force_pr.load_time_force_data(parquet_path)
-
-        # assert all well force vals are the same
-        for well_idx, well in enumerate(force_pr.wells):
-            for idx, val in enumerate(well.force[1]):
-                assert val == no_force_pr.wells[well_idx].force[1][idx]
-
-
-def test_PlateRecording__well_data_loaded_from_load_time_force_data_will_equal_orig_well_data(mocker):
-    mocked_process_data = mocker.patch.object(PlateRecording, "_process_plate_data", autospec=True)
-
-    pr = PlateRecording(
-        os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "magnet_finding",
-            "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
-        ),
-        calc_time_force=False,
+def test_PlateRecording__well_data_loaded_from_dataframe_will_equal_orig_well_data(mocker):
+    rec_path = os.path.join(
+        PATH_OF_CURRENT_FILE,
+        "magnet_finding",
+        "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
     )
+    first_pr = PlateRecording(rec_path)
+    existing_df = first_pr.to_dataframe()
 
-    mocked_process_data.assert_not_called()
-    assert len(pr.wells) == 24
+    new_pr = PlateRecording.from_dataframe(rec_path, existing_df)
+    new_pr = next(new_pr)
+    # new_df = new_pr.to_dataframe()
+
+    for i, well in enumerate(first_pr):
+        np.array_equal(well.force, new_pr.wells[i].force)
 
 
 def test_PlateRecording__writes_time_force_csv_with_no_errors(mocker):
@@ -311,6 +280,7 @@ def test_PlateRecording__passes_initial_params_to_magnet_finding_alg_correctly__
     expected_displacement = create_displacement(mocked_get_positions.call_args[0][0])
     if flip_data:
         expected_displacement *= -1
+
     for well_idx, wf in enumerate(pr):
         np.testing.assert_array_almost_equal(
             wf.displacement[1], expected_displacement[:, well_idx], err_msg=f"Well {well_idx}"

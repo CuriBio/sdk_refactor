@@ -1,5 +1,12 @@
 Changelog for Pulse3D
 =====================
+0.25.2 (2022-09-14)
+-------------------
+- Add static method ``from_dataframe`` to PlateRecording 
+- Add ``_load_dataframe`` method to PlateRecording 
+- Add ``get_windowed_peaks_valleys`` to peak_detection
+- Changed ``continuous-waveforms`` excel sheet to begin at start of window of analysis if given, else 0
+
 0.25.1 (2022-08-25)
 -------------------
 - Add twitch_widths to ``TwitchVelocity`` and ``TwitchAUC``

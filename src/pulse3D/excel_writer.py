@@ -434,7 +434,9 @@ def write_xlsx(
         max_y = int(max_force_of_recording)
     # waveform table
     continuous_waveforms = {
-        "Time (seconds)": pd.Series(interpolated_timepoints_secs[:end_idx] / MICRO_TO_BASE_CONVERSION)
+        "Time (seconds)": pd.Series(
+            interpolated_timepoints_secs[window_start_idx:end_idx] / MICRO_TO_BASE_CONVERSION
+        )
     }
 
     for d in data:

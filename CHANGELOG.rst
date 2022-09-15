@@ -1,9 +1,13 @@
 Changelog for Pulse3D
 =====================
+0.25.3 (2022-09-15)
+-------------------
+- Added support for multiple optical files in a zip folder
+
 0.25.2 (2022-09-14)
 -------------------
-- Add static method ``from_dataframe`` to PlateRecording 
-- Add ``_load_dataframe`` method to PlateRecording 
+- Add static method ``from_dataframe`` to PlateRecording
+- Add ``_load_dataframe`` method to PlateRecording
 - Add ``get_windowed_peaks_valleys`` to peak_detection
 - Changed ``continuous-waveforms`` excel sheet to begin at start of window of analysis if given, else 0
 

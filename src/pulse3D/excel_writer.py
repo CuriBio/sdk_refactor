@@ -386,7 +386,7 @@ def write_xlsx(
                 # convert peak and valley lists into a format compatible with find_twitch_indices
                 peaks, valleys = [np.array(peaks_or_valleys) for peaks_or_valleys in peaks_valleys[well_name]]
                 # get correct indices specific to windowed start and end
-                peaks_and_valleys = get_windowed_peaks_valleys(start_idx, end_idx, peaks, valleys)
+                peaks_and_valleys = get_windowed_peaks_valleys(window_start_idx, end_idx, peaks, valleys)
 
             log.info(f"Finding twitch indices for well {well_name}")
             # Tanner (2/8/22): the value returned from this function isn't used, assuming it is only being called to raise PeakDetectionErrors

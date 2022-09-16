@@ -340,7 +340,7 @@ def write_xlsx(
             source_series=interpolated_timepoints_secs,
             lower_bound=well_file.force[0][0],
             upper_bound=well_file.force[0][-1],
-        )   
+        )
 
         # find bounding indices of specified start/end windows
         window_start_idx, window_end_idx = truncate(
@@ -364,7 +364,7 @@ def write_xlsx(
         min_value = min(interpolated_force)
         interpolated_force -= min_value
         interpolated_force *= MICRO_TO_BASE_CONVERSION
-        
+
         # find the biggest activation twitch force over all
         max_force_of_well = max(interpolated_force)
         max_force_of_recording = max(max_force_of_recording, max_force_of_well)
@@ -386,9 +386,8 @@ def write_xlsx(
                 # convert peak and valley lists into a format compatible with find_twitch_indices
                 peaks, valleys = [np.array(peaks_or_valleys) for peaks_or_valleys in peaks_valleys[well_name]]
                 # get correct indices specific to windowed start and end
-                peaks_and_valleys = get_windowed_peaks_valleys(start_idx, end_idx, peaks, valleys)
-               
-            
+                peaks_and_valleys = get_windowed_peaks_valleys(window_start_idx, end_idx, peaks, valleys)
+
             log.info(f"Finding twitch indices for well {well_name}")
             # Tanner (2/8/22): the value returned from this function isn't used, assuming it is only being called to raise PeakDetectionErrors
             find_twitch_indices(peaks_and_valleys)
@@ -435,7 +434,9 @@ def write_xlsx(
         max_y = int(max_force_of_recording)
     # waveform table
     continuous_waveforms = {
-        "Time (seconds)": pd.Series(interpolated_timepoints_secs[start_idx:end_idx] / MICRO_TO_BASE_CONVERSION)
+        "Time (seconds)": pd.Series(
+            interpolated_timepoints_secs[window_start_idx:end_idx] / MICRO_TO_BASE_CONVERSION
+        )
     }
 
     for d in data:

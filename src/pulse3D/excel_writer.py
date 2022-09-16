@@ -430,7 +430,7 @@ def write_xlsx(
                 ),
             }
         )
-    # if the max y was not set by user and disable_y_normilization was selected then set it to be the max twitch force between all wells
+    # if the max y was not set by user and disable_y_normilization was not selected then set it to be the max twitch force between all wells
     if max_y is None and not disable_y_normalization:
         max_y = int(max_force_of_recording)
     # waveform table

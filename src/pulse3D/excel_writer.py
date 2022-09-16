@@ -389,7 +389,6 @@ def write_xlsx(
                 # get correct indices specific to windowed start and end
                 peaks_and_valleys = get_windowed_peaks_valleys(window_start_idx, end_idx, peaks, valleys)
 
-
             log.info(f"Finding twitch indices for well {well_name}")
             # Tanner (2/8/22): the value returned from this function isn't used, assuming it is only being called to raise PeakDetectionErrors
             find_twitch_indices(peaks_and_valleys)
@@ -436,8 +435,8 @@ def write_xlsx(
         max_y = int(max_force_of_recording)
     # waveform table
     continuous_waveforms = {
-        "Time (seconds)": pd.Series(            interpolated_timepoints_secs[window_start_idx:end_idx] / MICRO_TO_BASE_CONVERSION
-
+        "Time (seconds)": pd.Series(
+            interpolated_timepoints_secs[window_start_idx:end_idx] / MICRO_TO_BASE_CONVERSION
         )
     }
 

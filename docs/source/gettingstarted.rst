@@ -198,7 +198,8 @@ Specifies whether normalization for the y axis will be disabled. By default, the
 A few examples of using this argument::
 
     # set analysis to use y normalization.
-    write_xlsx(r) or write_xlsx(r, disable_y_normalization=False)
+    write_xlsx(r)
+    write_xlsx(r, disable_y_normalization=False)
 
     # set analysis to disable y normalization.
     write_xlsx(r, disable_y_normalization=True)

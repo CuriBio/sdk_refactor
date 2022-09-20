@@ -1,5 +1,9 @@
 Changelog for Pulse3D
 =====================
+0.25.4 (2022-09-20)
+-------------------
+- Added new normalize_y_axis param to disable or enable y axis normalization
+
 0.25.3 (2022-09-15)
 -------------------
 - Added support for multiple optical files in a zip folder

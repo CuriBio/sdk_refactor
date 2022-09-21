@@ -191,6 +191,21 @@ They are:
 Any combination of these arguments can be given. Omitting them all is fine too.
 Their behavior is documented in detail below.
 
+``normalize_y_axis``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Specifies whether normalization for the y axis will be applied. By default, the y axis readings will be normalized, but if normalize_y_axis is set to false, then the y axis will not be normalized.
+A few examples of using this argument::
+
+    # set analysis to use y normalization.
+    write_xlsx(r)
+    # you can also use
+    write_xlsx(r, normalize_y_axis=True)
+
+    # set analysis to disable y normalization.
+    write_xlsx(r, normalize_y_axis=False)
+
+
 ``baseline_widths_to_use``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -202,7 +217,6 @@ A few examples of using this argument::
 
     # set baseline to peak metrics 1 and set relaxation metrics to 9.
     write_xlsx(r,baseline_widths_to_use=(1,9))
-
 
 
 ``max_y``

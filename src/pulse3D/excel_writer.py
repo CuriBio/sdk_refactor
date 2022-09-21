@@ -181,6 +181,7 @@ def create_frequency_vs_time_charts(
 
 def write_xlsx(
     plate_recording: PlateRecording,
+    normalize_y_axis: bool = True,
     start_time: Union[float, int] = 0,
     end_time: Union[float, int] = np.inf,
     twitch_widths: Tuple[int, ...] = (50, 90),
@@ -386,7 +387,9 @@ def write_xlsx(
                 # convert peak and valley lists into a format compatible with find_twitch_indices
                 peaks, valleys = [np.array(peaks_or_valleys) for peaks_or_valleys in peaks_valleys[well_name]]
                 # get correct indices specific to windowed start and end
-                peaks_and_valleys = get_windowed_peaks_valleys(window_start_idx, end_idx, peaks, valleys)
+                peaks_and_valleys = get_windowed_peaks_valleys(
+                    window_start_idx, window_end_idx, peaks, valleys
+                )
 
             log.info(f"Finding twitch indices for well {well_name}")
             # Tanner (2/8/22): the value returned from this function isn't used, assuming it is only being called to raise PeakDetectionErrors
@@ -429,13 +432,14 @@ def write_xlsx(
                 ),
             }
         )
-    # if the max y was not set by user then set it to be the max twitch force between all wells
-    if max_y is None:
+    # if the max y was not set by user and normalize_y_axis was not disabled by user, then set max_y to be the max twitch force between all wells
+    if max_y is None and normalize_y_axis:
         max_y = int(max_force_of_recording)
+
     # waveform table
     continuous_waveforms = {
         "Time (seconds)": pd.Series(
-            interpolated_timepoints_secs[window_start_idx:end_idx] / MICRO_TO_BASE_CONVERSION
+            interpolated_timepoints_secs[start_idx:end_idx] / MICRO_TO_BASE_CONVERSION
         )
     }
 

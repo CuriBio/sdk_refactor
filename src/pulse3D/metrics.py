@@ -352,10 +352,9 @@ class TwitchWidth(BaseMetric):
                 ):
                     rising_idx -= 1
                 # move to the right from the twitch peak until the falling threshold is reached
-                while abs(value_series[falling_idx] - subsequent_valley_value) > abs(
-                    falling_threshold - subsequent_valley_value
-                ):
+                while abs(value_series[falling_idx] - subsequent_valley_value) > abs(falling_threshold - subsequent_valley_value):
                     falling_idx += 1
+
                 interpolated_rising_timepoint = interpolate_x_for_y_between_two_points(
                     rising_threshold,
                     time_series[rising_idx],

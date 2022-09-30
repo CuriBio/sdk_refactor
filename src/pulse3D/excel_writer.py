@@ -17,7 +17,7 @@ from .peak_detection import concat
 from .peak_detection import data_metrics
 from .peak_detection import find_twitch_indices
 from .peak_detection import init_dfs
-from .peak_detection import peak_detector
+from .peak_detection import peak_detector_jrp, peak_detector
 from .peak_detection import get_windowed_peaks_valleys
 from .plate_recording import PlateRecording
 from .plotting import plotting_parameters
@@ -376,8 +376,9 @@ def write_xlsx(
 
             if peaks_valleys is None:
                 log.info(f"No user defined peaks and valleys were found, so calculating with peak_detector")
-                peaks_and_valleys = peak_detector(
+                peaks_and_valleys = peak_detector_jrp(
                     interpolated_well_data,
+                    interpolated_force,
                     prominence_factors=prominence_factors,
                     width_factors=width_factors,
                     start_time=start_time,

@@ -25,6 +25,169 @@ TWITCH_WIDTH_INDEX_OF_CONTRACTION_VELOCITY_END = np.where(TWITCH_WIDTH_PERCENTS 
 
 log = logging.getLogger(__name__)
 
+def peak_detector_jrp(
+    filtered_magnetic_signal: NDArray[(2, Any), int],
+    interpolated_force,
+    twitches_point_up: bool = True,
+    start_time: float = 0,
+    end_time: float = np.inf,
+    prominence_factors: Tuple[Union[int, float], Union[int, float]] = (6, 6),
+    width_factors: Tuple[Union[int, float], Union[int, float]] = (7, 7),
+    window_factor: int = 25,
+) -> Tuple[List[int], List[int]]:
+    """Locates peaks and valleys and returns the indices.
+
+    Args:
+        filtered_magnetic_signal: a 2D array of the magnetic signal vs time data after it has gone through
+        noise cancellation. It is assumed that the time values are in microseconds
+        twitches_point_up: whether in the incoming data stream the biological twitches are pointing up (in the positive direction) or down
+        start_time (float): start time of windowed analysis, in seconds. Default value = 0 seconds.
+        end_time (float): end time of windowed analysis, in seconds.  Default value = Inf seconds.
+        prominence_factors: (int/float, int/float) scaling factors for peak/valley prominences.  Larger values make peak-finding more flexible by reducing minimum-required prominence
+        width_factors: (int/float, int/float) scaling factors for peak/valley widths.  Larger values make peak-finding more flexible by reducing minimum-required width
+
+    Returns:
+        A tuple containing a list of the indices of the peaks and a list of the indices of valleys
+    """
+    # make sure width and prominece factors are a tuple of two ints
+    width_factors = _format_factors(width_factors)
+    prominence_factors = _format_factors(prominence_factors)
+
+    time_signal: NDArray[float] = filtered_magnetic_signal[0, :]
+    magnetic_signal: NDArray[float] = filtered_magnetic_signal[1, :]
+
+    max_time = time_signal[-1]
+    start_time = np.max([0, start_time])
+    end_time = np.min([end_time, max_time / MICRO_TO_BASE_CONVERSION])
+    # TODO how should we handle this?
+    # if provided end time is less than or equal to start time, reset
+    if end_time <= start_time:
+        end_time = np.inf
+
+    peak_invertor_factor, valley_invertor_factor = (1, -1) if twitches_point_up else (-1, 1)
+    sampling_period_us = filtered_magnetic_signal[0, 1] - filtered_magnetic_signal[0, 0]
+
+    max_possible_twitch_freq = 7
+    min_required_samples_between_twitches = int(
+        round((1 / max_possible_twitch_freq) * MICRO_TO_BASE_CONVERSION / sampling_period_us, 0,),
+    )
+    # find required height of peaks
+    max_height = np.max(interpolated_force)
+    min_height = np.min(interpolated_force)
+    max_prominence = abs(max_height - min_height)
+
+    peak_indices = signal.argrelextrema(interpolated_force, np.greater, order=80)[0]
+
+    #filter peaks below a threshold
+    cutoff = np.quantile(interpolated_force, 0.94)
+    peak_indices = peak_indices[interpolated_force[peak_indices] > cutoff]
+
+    valley_indices, properties = signal.find_peaks(
+        interpolated_force * -1, #flip data to find valleys
+        width=min_required_samples_between_twitches / width_factors[1],
+        distance=min_required_samples_between_twitches,
+        prominence=max_prominence / prominence_factors[1],
+    )
+    left_ips = properties["left_ips"]
+    right_ips = properties["right_ips"]
+
+    # Patches error in B6 file for when two valleys are found in a single valley. If this is true left_bases,
+    # right_bases, prominences, and raw magnetic sensor data will also be equivalent to their previous value.
+    # This if statement indicates that the valley should be disregarded if the interpolated values on left
+    # and right intersection points of a horizontal line at the an evaluation height are equivalent.
+    # This would mean that the left and right sides of the peak and its neighbor peak align, indicating that
+    # it just one peak rather than two.
+    # https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.peak_widths.html#scipy.signal.peak_widths
+
+    # Tanner (10/28/21): be careful modifying any of this while loop, it is currently not unit tested
+    i = 1
+    while i < len(valley_indices):
+        if left_ips[i] == left_ips[i - 1] and right_ips[i] == right_ips[i - 1]:  # pragma: no cover
+            valley_idx = valley_indices[i]
+            valley_idx_last = valley_indices[i - 1]
+
+            if magnetic_signal[valley_idx_last] >= magnetic_signal[valley_idx]:
+                valley_indices = np.delete(valley_indices, i)
+                left_ips = np.delete(left_ips, i)
+                right_ips = np.delete(right_ips, i)
+            else:  # pragma: no cover # (Anna 3/31/21): we don't have a case as of yet in which the first
+                   # peak is higher than the second however know that it is possible and therefore aren't worried about code coverage in this case.
+                valley_indices = np.delete(valley_indices, i - 1)
+                left_ips = np.delete(left_ips, i - 1)
+                right_ips = np.delete(right_ips, i - 1)
+        else:
+            i += 1
+
+    start_idx= 0
+    new_valley_indices = []
+
+    # find valley before first peak
+    if peak_indices[0] > window_factor:
+        valley_idx = find_valley_window(0, peak_indices[0], magnetic_signal, valley_indices, peak_indices, window_factor)
+        if valley_idx:
+            new_valley_indices.append(valley_idx)
+
+    # find valleys after first peak
+    for i in range(0, len(peak_indices) - 1):
+        valley_idx = find_valley_window(peak_indices[i], peak_indices[i+1], magnetic_signal, valley_indices, peak_indices, window_factor)
+        if valley_idx:
+            new_valley_indices.append(valley_idx)
+
+    start_idx = peak_indices[-1]
+    if valley_indices[-1] > peak_indices[-1]:
+        valley_window = valley_indices[valley_indices > start_idx]
+        if len(valley_window) >= 1:
+            if valley_window[-1] - valley_window[0] > window_factor:
+                valley_window = valley_window[valley_window >= valley_window[-1] - window_factor]
+
+            valley_avg = np.average(magnetic_signal[valley_window])
+            valley_idx = valley_window[np.abs(magnetic_signal[valley_window] - valley_avg).argmin()]
+            try:
+                idx = valley_idx
+                new_valley_indices.append(idx)
+            except Exception as e:
+                pass
+
+    if len(new_valley_indices) > 0:
+        valley_indices = np.array(new_valley_indices, dtype=int)
+
+    # don't perform windowing of twitches unless requested
+    if start_time > 0 or end_time < max_time:
+        peak_times = time_signal[peak_indices] / MICRO_TO_BASE_CONVERSION
+        # identify peaks within time window
+        filtered_peaks = np.where((peak_times >= start_time) & (peak_times <= end_time))[0]
+        peak_indices = peak_indices[filtered_peaks]
+
+        valley_times = time_signal[valley_indices] / MICRO_TO_BASE_CONVERSION
+        # identify valleys within time window
+        filtered_valleys = np.where((valley_times >= start_time) & (valley_times <= end_time))[0]
+        valley_indices = valley_indices[filtered_valleys]
+
+    return peak_indices, valley_indices
+
+def find_valley_window(p0, p1, signal, valleys, peaks, window_factor):
+    valley_window = valleys[(valleys > p0) & (valleys < p1)]
+    if len(valley_window) > 0:
+        valley_window = np.arange(max(valley_window[-1]-window_factor, 0), valley_window[-1])
+    else:
+        valley_window = valleys[(valleys > p0) & (valleys < p1)]
+
+    if len(valley_window) < 1:
+        return None
+
+    if len(valley_window) == 1:
+        return valley_window[0]
+
+    start = valley_window[0]
+    end = valley_window[-1]
+    print(f'start: {start}, end: {end}')
+
+    if start == end:
+        breakpoint()
+
+    valley_median = np.median(signal[start:end])
+    valley_idx = valley_window[0] + np.abs(signal[start:end] - valley_median).argmin()
+    return valley_idx
 
 def peak_detector(
     filtered_magnetic_signal: NDArray[(2, Any), int],

@@ -218,20 +218,24 @@ BESSEL_LOWPASS_10_UUID = uuid.UUID("7d64cac3-b841-4912-b734-c0cf20a81e7a")
 BESSEL_LOWPASS_30_UUID = uuid.UUID("eee66c75-4dc4-4eb4-8d48-6c608bf28d91")
 BUTTERWORTH_LOWPASS_30_UUID = uuid.UUID("de8d8cef-65bf-4119-ada7-bdecbbaa897a")
 
-# General mangetic field to force conversion factor. Obtained 03/09/2021 by Kevin Gray, Valid as of 11/19/21
+# General magnetic field to force conversion factor. Obtained 03/09/2021 by Kevin Gray
+# Valid as of 11/19/21
 MILLIMETERS_PER_MILLITESLA = 23.25
+# Valid as of 09/30/22
 NEWTONS_PER_MILLIMETER = 0.000159
+ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR = immutabledict({"A": 12, "B": 9, "C": 6, "D": 3})
+
 
 # Beta 1 GMR to magnetic field conversion values. Valid as of 11/19/21
 MILLIVOLTS_PER_MILLITESLA = 1073.6  # Obtained 03/09/2021 by Kevin Gray
 MIDSCALE_CODE = 0x800000
-RAW_TO_SIGNED_CONVERSION_VALUE = 2 ** 23  # subtract this value from raw hardware data
+RAW_TO_SIGNED_CONVERSION_VALUE = 2**23  # subtract this value from raw hardware data
 REFERENCE_VOLTAGE = 2.5
 ADC_GAIN = 2
 
 # Beta 2 Memsic to magnetic field conversion factors. Valid as of 11/19/21
-MEMSIC_CENTER_OFFSET = 2 ** 15
-MEMSIC_MSB = 2 ** 16
+MEMSIC_CENTER_OFFSET = 2**15
+MEMSIC_MSB = 2**16
 MEMSIC_FULL_SCALE = 16
 GAUSS_PER_MILLITESLA = 10
 

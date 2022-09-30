@@ -10,7 +10,7 @@ from nptyping import NDArray
 import numpy as np
 from scipy import signal
 
-from .constants import ADC_GAIN
+from .constants import ADC_GAIN, TWENTY_FOUR_WELL_PLATE, ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR
 from .constants import BESSEL_BANDPASS_UUID
 from .constants import BESSEL_LOWPASS_10_UUID
 from .constants import BESSEL_LOWPASS_30_UUID
@@ -247,3 +247,23 @@ def calculate_force_from_displacement(
     sample_in_newtons = displacement * NEWTONS_PER_MILLIMETER
 
     return np.vstack((time, sample_in_newtons)).astype(np.float64)
+
+
+# TODO add unit tests for this
+def get_stiffness_factor(barcode_experiment_id: int, well_idx: int) -> int:
+    if not (0 <= barcode_experiment_id <= 999):
+        raise ValueError(f"Experiment ID must be in the range 000-999, not {barcode_experiment_id}")
+
+    # TODO make constants for all these numbers
+    if barcode_experiment_id < 100:
+        # Cardiac
+        return 1
+    if barcode_experiment_id < 200:
+        # SkM
+        return 12
+    if barcode_experiment_id < 300:
+        # Variable
+        well_row_label = TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_idx)[0]
+        return ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR[well_row_label]
+    # if experiment ID does not have a stiffness factor defined (currently 300-999) then just use the value for Cardiac
+    return 1

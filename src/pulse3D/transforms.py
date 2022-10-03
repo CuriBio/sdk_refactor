@@ -233,7 +233,9 @@ def calculate_displacement_from_voltage(
 
 
 def calculate_force_from_displacement(
-    displacement_data: NDArray[(2, Any), np.float64], in_mm: bool = True
+    displacement_data: NDArray[(2, Any), np.float64],
+    stiffness_factor: int = CARDIAC_STIFFNESS_FACTOR,
+    in_mm: bool = True,
 ) -> NDArray[(2, Any), np.float64]:
     """Convert displacement to force.
 
@@ -246,13 +248,13 @@ def calculate_force_from_displacement(
     Returns:
         A 2D array of time vs Force (Newtons)
     """
-    displacement = displacement_data[1, :]
-    if not in_mm:
-        displacement *= MILLI_TO_BASE_CONVERSION
     time = displacement_data[0, :]
+    displacement = displacement_data[1, :]
+
+    unit_conversion = 1 if in_mm else MILLI_TO_BASE_CONVERSION
 
     # calculate force
-    sample_in_newtons = displacement * NEWTONS_PER_MILLIMETER
+    sample_in_newtons = displacement * unit_conversion * NEWTONS_PER_MILLIMETER * stiffness_factor
 
     return np.vstack((time, sample_in_newtons)).astype(np.float64)
 

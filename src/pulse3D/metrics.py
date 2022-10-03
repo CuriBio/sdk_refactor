@@ -500,7 +500,7 @@ class TwitchVelocity(BaseMetric):
 
         # change in force / change in time
         velocity = abs((Y_end - Y_start) / (X_end - X_start))
-        velocity *= MICRO_TO_BASE_CONVERSION ** 2
+        velocity *= MICRO_TO_BASE_CONVERSION**2
 
         return velocity
 

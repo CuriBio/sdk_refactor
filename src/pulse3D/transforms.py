@@ -10,7 +10,7 @@ from nptyping import NDArray
 import numpy as np
 from scipy import signal
 
-from .constants import ADC_GAIN, TWENTY_FOUR_WELL_PLATE, ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR
+from .constants import ADC_GAIN
 from .constants import BESSEL_BANDPASS_UUID
 from .constants import BESSEL_LOWPASS_10_UUID
 from .constants import BESSEL_LOWPASS_30_UUID
@@ -22,6 +22,8 @@ from .constants import MILLIVOLTS_PER_MILLITESLA
 from .constants import NEWTONS_PER_MILLIMETER
 from .constants import RAW_TO_SIGNED_CONVERSION_VALUE
 from .constants import REFERENCE_VOLTAGE
+from .constants import ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR
+from .constants import TWENTY_FOUR_WELL_PLATE
 from .exceptions import FilterCreationNotImplementedError
 from .exceptions import UnrecognizedFilterUuidError
 

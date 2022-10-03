@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
+import copy
 import datetime
 import glob
 import json
 import logging
 import math
 import os
-import copy
 import tempfile
 from typing import Any
 from typing import Optional
@@ -446,15 +446,15 @@ class PlateRecording:
         return time_force_df, output_path
 
     def to_dataframe(self, from_dataframe: bool = False) -> pd.DataFrame:
-        """
-        Creates DataFrame from PlateRecording with all the data interpolated, normalized, and scaled.
-        The returned dataframe contains one column for time in ms and one column for each well.
+        """Creates DataFrame from PlateRecording with all the data
+        interpolated, normalized, and scaled. The returned dataframe contains
+        one column for time in ms and one column for each well.
 
         The dataframe returned by this method can be used in calls to peak_detector by selecting the
         'time' column and the well column that peak detection should be run on after transposing the
         data, e.g.
 
-        >>> df = to_datafram()
+        >>> df = to_dataframe()
         >>> peak_detector(df[['time', 'A1']].transpose().values)
 
         The dataframe needs to be transposed before converting to NDArray because peak_detector
@@ -466,7 +466,7 @@ class PlateRecording:
         first_well = [pw for pw in self.wells if pw][0]
 
         if self.is_optical_recording:
-            interp_period = first_well[INTERPOLATED_VALUE_UUID]
+            interp_period = first_well[INTERPOLATION_VALUE_UUID]
         else:
             interp_period = INTERPOLATED_DATA_PERIOD_US
 

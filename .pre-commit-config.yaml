@@ -30,7 +30,7 @@ repos:
       - id: fix-encoding-pragma
 
   - repo: https://github.com/psf/black
-    rev: 20.8b1 # pick a git hash / tag to point to
+    rev: 22.8.0 # pick a git hash / tag to point to
     hooks:
       - id: black
         args: [--line-length=110]
@@ -44,7 +44,7 @@ repos:
 
   # Safety/Security Issues
   - repo: https://github.com/Lucas-C/pre-commit-hooks-safety
-    rev: v1.2.3
+    rev: v1.3.0
     hooks:
       - id: python-safety-dependencies-check
 
@@ -120,13 +120,7 @@ repos:
     hooks:
       - id: pydocstyle
         args:
-          # ignore warnings about missing docstrings. pylint takes care of that
-          # ignore D203 because it's a bug https://github.com/PyCQA/pydocstyle/issues/141
-          # ignore D407,D408,D409 because they appear to be in conflict with Google style (they relate to underlining?) https://rsmith.home.xs4all.nl/programming/improving-my-python-coding.html
-          # ignore D406 because it appears to be in conflict with Gogle style (complains about 'Raises:')
-          # ignore D413 about final blank line because docformatter gets rid of it
-          # ignore D213 because mutually exclusive with D212 https://stackoverflow.com/questions/45990301/pep257-d212-and-d213-conflicts
-          - --ignore=D100,D101,D102,D103,D104,D105,D106,D107,D203,D407,D408,D409,D406,D413,D213,D400,D415,D205
+          - --ignore=D100,D101,D102,D103,D104,D105,D106,D107,D203,D407,D408,D409,D406,D413,D213,D400,D401,D415,D205
         exclude: prerelease.py
 
   - repo: https://github.com/NanoSurface-Biomedical/pre-commit-pylint

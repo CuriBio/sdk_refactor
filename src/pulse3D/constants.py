@@ -12,9 +12,6 @@ except ImportError:  # pragma: no cover
     import importlib_metadata as metadata  # type: ignore
 PACKAGE_VERSION = metadata.version("pulse3D")
 
-CURI_BIO_ACCOUNT_UUID = uuid.UUID("73f52be0-368c-42d8-a1fd-660d49ba5604")
-CURI_BIO_USER_ACCOUNT_ID = uuid.UUID("455b93eb-c78f-4494-9f73-d3291130f126")
-
 TWENTY_FOUR_WELL_PLATE = LabwareDefinition(row_count=4, column_count=6)
 
 MIN_SUPPORTED_FILE_VERSION = "0.1.1"
@@ -26,7 +23,6 @@ FILE_MIGRATION_PATHS = immutabledict({"0.3.1": "0.4.1", "0.4.1": "0.4.2"})
 NOT_APPLICABLE_H5_METADATA = uuid.UUID(
     "59d92e00-99d5-4460-9a28-5a1a0fe9aecf"
 )  # Eli (1/19/21): H5 files can't store the concept of `None` in their metadata, so using this value to denote that a particular piece of metadata is not available (i.e. after migrating to a newer file format version)
-
 
 HARDWARE_TEST_RECORDING_UUID = uuid.UUID("a2e76058-08cd-475d-a55d-31d401c3cb34")
 UTC_BEGINNING_DATA_ACQUISTION_UUID = uuid.UUID("98c67f22-013b-421a-831b-0ea55df4651e")
@@ -223,6 +219,8 @@ BUTTERWORTH_LOWPASS_30_UUID = uuid.UUID("de8d8cef-65bf-4119-ada7-bdecbbaa897a")
 MILLIMETERS_PER_MILLITESLA = 23.25
 # Valid as of 09/30/22
 NEWTONS_PER_MILLIMETER = 0.000159
+CARDIAC_STIFFNESS_FACTOR = 1
+SKM_STIFFNESS_FACTOR = 12
 ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR = immutabledict({"A": 12, "B": 9, "C": 6, "D": 3})
 
 
@@ -247,6 +245,13 @@ MIN_NUMBER_VALLEYS = 3
 """
 pulse3D constants
 """
+MIN_EXPERIMENT_ID = 0
+MAX_CARDIAC_EXPERIMENT_ID = 99
+MAX_SKM_EXPERIMENT_ID = 199
+MAX_VARIABLE_EXPERIMENT_ID = 299
+MAX_EXPERIMENT_ID = 999
+
+
 METADATA_EXCEL_SHEET_NAME = "metadata"
 METADATA_RECORDING_ROW_START = 0
 METADATA_INSTRUMENT_ROW_START = METADATA_RECORDING_ROW_START + 4

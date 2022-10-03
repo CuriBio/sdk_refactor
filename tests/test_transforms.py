@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 from random import randint
 
+from pulse3D.constants import CARDIAC_STIFFNESS_FACTOR
+from pulse3D.constants import ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR
+from pulse3D.constants import SKM_STIFFNESS_FACTOR
 from pulse3D.transforms import get_stiffness_factor
 import pytest
 
@@ -17,17 +20,17 @@ def random_well_idx_in_row(row):
 @pytest.mark.parametrize(
     "test_experiment_id,test_well_idx,expected_stiffness_factor",
     [
-        (0, random_well_idx(), 1),
-        (99, random_well_idx(), 1),
-        (100, random_well_idx(), 12),
-        (199, random_well_idx(), 12),
-        (200, random_well_idx_in_row("A"), 12),
-        (299, random_well_idx_in_row("A"), 12),
-        (randint(200, 299), random_well_idx_in_row("B"), 9),
-        (randint(200, 299), random_well_idx_in_row("C"), 6),
-        (randint(200, 299), random_well_idx_in_row("D"), 3),
-        (300, random_well_idx(), 1),
-        (999, random_well_idx(), 1),
+        (0, random_well_idx(), CARDIAC_STIFFNESS_FACTOR),
+        (99, random_well_idx(), CARDIAC_STIFFNESS_FACTOR),
+        (100, random_well_idx(), SKM_STIFFNESS_FACTOR),
+        (199, random_well_idx(), SKM_STIFFNESS_FACTOR),
+        (200, random_well_idx_in_row("A"), ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR["A"]),
+        (299, random_well_idx_in_row("A"), ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR["A"]),
+        (randint(200, 299), random_well_idx_in_row("B"), ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR["B"]),
+        (randint(200, 299), random_well_idx_in_row("C"), ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR["C"]),
+        (randint(200, 299), random_well_idx_in_row("D"), ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR["D"]),
+        (300, random_well_idx(), CARDIAC_STIFFNESS_FACTOR),
+        (999, random_well_idx(), CARDIAC_STIFFNESS_FACTOR),
     ],
 )
 def test_get_stiffness_factor__returns_correct_value(

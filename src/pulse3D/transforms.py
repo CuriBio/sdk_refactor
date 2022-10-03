@@ -15,14 +15,21 @@ from .constants import BESSEL_BANDPASS_UUID
 from .constants import BESSEL_LOWPASS_10_UUID
 from .constants import BESSEL_LOWPASS_30_UUID
 from .constants import BUTTERWORTH_LOWPASS_30_UUID
+from .constants import CARDIAC_STIFFNESS_FACTOR
+from .constants import MAX_CARDIAC_EXPERIMENT_ID
+from .constants import MAX_EXPERIMENT_ID
+from .constants import MAX_SKM_EXPERIMENT_ID
+from .constants import MAX_VARIABLE_EXPERIMENT_ID
 from .constants import MICRO_TO_BASE_CONVERSION
 from .constants import MILLI_TO_BASE_CONVERSION
 from .constants import MILLIMETERS_PER_MILLITESLA
 from .constants import MILLIVOLTS_PER_MILLITESLA
+from .constants import MIN_EXPERIMENT_ID
 from .constants import NEWTONS_PER_MILLIMETER
 from .constants import RAW_TO_SIGNED_CONVERSION_VALUE
 from .constants import REFERENCE_VOLTAGE
 from .constants import ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR
+from .constants import SKM_STIFFNESS_FACTOR
 from .constants import TWENTY_FOUR_WELL_PLATE
 from .exceptions import FilterCreationNotImplementedError
 from .exceptions import UnrecognizedFilterUuidError
@@ -226,8 +233,7 @@ def calculate_displacement_from_voltage(
 
 
 def calculate_force_from_displacement(
-    displacement_data: NDArray[(2, Any), np.float64],
-    in_mm: bool = True,
+    displacement_data: NDArray[(2, Any), np.float64], in_mm: bool = True
 ) -> NDArray[(2, Any), np.float64]:
     """Convert displacement to force.
 
@@ -251,21 +257,16 @@ def calculate_force_from_displacement(
     return np.vstack((time, sample_in_newtons)).astype(np.float64)
 
 
-# TODO add unit tests for this
 def get_stiffness_factor(barcode_experiment_id: int, well_idx: int) -> int:
-    if not (0 <= barcode_experiment_id <= 999):
+    if not (MIN_EXPERIMENT_ID <= barcode_experiment_id <= MAX_EXPERIMENT_ID):
         raise ValueError(f"Experiment ID must be in the range 000-999, not {barcode_experiment_id}")
 
-    # TODO make constants for all these numbers
-    if barcode_experiment_id < 100:
-        # Cardiac
-        return 1
-    if barcode_experiment_id < 200:
-        # SkM
-        return 12
-    if barcode_experiment_id < 300:
-        # Variable
+    if barcode_experiment_id <= MAX_CARDIAC_EXPERIMENT_ID:
+        return CARDIAC_STIFFNESS_FACTOR
+    if barcode_experiment_id <= MAX_SKM_EXPERIMENT_ID:
+        return SKM_STIFFNESS_FACTOR
+    if barcode_experiment_id <= MAX_VARIABLE_EXPERIMENT_ID:
         well_row_label = TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_idx)[0]
         return ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR[well_row_label]
     # if experiment ID does not have a stiffness factor defined (currently 300-999) then just use the value for Cardiac
-    return 1
+    return CARDIAC_STIFFNESS_FACTOR

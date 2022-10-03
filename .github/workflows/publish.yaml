@@ -74,17 +74,6 @@ jobs:
         if: github.event.inputs.dry_run != '1' && matrix.IS_FASTEST_JOB == true
         run: if [$(git ls-remote --tags origin | grep v${{ steps.extract_version.outputs.package-version }}) = '']; then echo Tag does not exist on remote; else echo Tag already exists on remote && exit 1; fi
 
-      # - name: Cache Pre-commit hooks
-      #   uses: actions/cache@v2.1.5
-      #   env:
-      #     cache-name: cache-pre-commit-hooks
-      #   if: matrix.IS_FASTEST_JOB == true
-      #   with:
-      #     path: ./.precommit_cache
-      #     key: ${{ matrix.os }}-${{ matrix.python-version }}-build-${{ env.cache-name }}-${{ hashFiles('**/.pre-commit-config.yaml') }}
-      #     restore-keys: |
-      #       ${{ matrix.os }}-${{ matrix.python-version }}-build-${{ env.cache-name }}-
-
       - name: Extract branch name # Adapted from: https://stackoverflow.com/questions/58033366/how-to-get-current-branch-within-github-actions
         if: runner.os == 'Linux'
         shell: bash
@@ -141,12 +130,6 @@ jobs:
         run: pip install -e .
       - name: Log full installed packages
         run: pip freeze
-
-      # - name: Run pre-commit hooks
-      #   if: matrix.IS_FASTEST_JOB == true
-      #   run: |
-      #     pre-commit install
-      #     pre-commit run -a
 
       - name: Install Doc dependencies
         # only check Sphinx docs build on the fastest job

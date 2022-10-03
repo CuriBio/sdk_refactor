@@ -98,14 +98,14 @@ jobs:
       - name: Log full installed packages
         run: pip freeze
 
-      # - name: Run pre-commit hooks
-      #   if: matrix.IS_FASTEST_JOB == true
-      #   env:
-      #     PRE_COMMIT_HOME: ./.precommit_cache
-      #   # only enable pre-commit on the fastest job
-      #   run: |
-      #     pre-commit install
-      #     pre-commit run -a
+      - name: Run pre-commit hooks
+        if: matrix.IS_FASTEST_JOB == true
+        env:
+          PRE_COMMIT_HOME: ./.precommit_cache
+        # only enable pre-commit on the fastest job
+        run: |
+          pre-commit install
+          pre-commit run -a
 
       - name: Run Tests with randomly generated seed
         if: github.event.inputs.randomlyseed == ''

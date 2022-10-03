@@ -116,7 +116,8 @@ def test_PlateRecording__runs_mag_finding_algo_by_default(mocker):
     mocked_process_data.assert_called_once_with(pr, mocker.ANY, use_mean_of_baseline=True)
 
 
-def test_PlateRecording__well_data_loaded_from_dataframe_will_equal_orig_well_data(mocker):
+@pytest.mark.slow
+def test_PlateRecording__well_data_loaded_from_dataframe_will_equal_original_well_data(mocker):
     rec_path = os.path.join(
         PATH_OF_CURRENT_FILE,
         "magnet_finding",
@@ -217,7 +218,9 @@ def test_PlateRecording__passes_data_to_magnet_finding_alg_correctly__using_mean
         zf = zipfile.ZipFile(test_zip_file_path)
         zf.extractall(path=tmpdir)
         tissue_data_memsic, baseline_data_memsic = load_h5_folder_as_array(
-            os.path.join(tmpdir, "MA200440001__2020_02_09_190359")
+            os.path.join(
+                tmpdir, "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder"
+            )
         )
     tissue_data_mt = calculate_magnetic_flux_density_from_memsic(tissue_data_memsic)
     baseline_data_mt = calculate_magnetic_flux_density_from_memsic(baseline_data_memsic)

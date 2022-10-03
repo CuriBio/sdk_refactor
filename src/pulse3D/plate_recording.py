@@ -79,6 +79,9 @@ class WellFile:
                 self.attrs = {attr: h5_file.attrs[attr] for attr in list(h5_file.attrs)}
                 self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
 
+                experiment_id = get_experiment_id(self[PLATE_BARCODE_UUID])
+                self.stiffness_factor = get_stiffness_factor(experiment_id, self[WELL_INDEX_UUID])
+
                 # extract datetime
                 self[UTC_BEGINNING_RECORDING_UUID] = self._extract_datetime(UTC_BEGINNING_RECORDING_UUID)
                 self[UTC_BEGINNING_DATA_ACQUISTION_UUID] = self._extract_datetime(
@@ -156,12 +159,11 @@ class WellFile:
                 else None
             )
 
+            self.stiffness_factor = CARDIAC_STIFFNESS_FACTOR  # TODO make this the default override value
+
             self._load_magnetic_data()
 
     def _load_magnetic_data(self):
-        experiment_id = get_experiment_id(self[PLATE_BARCODE_UUID])
-        stiffness_factor = get_stiffness_factor(experiment_id, self[WELL_INDEX_UUID])
-
         adj_raw_tissue_reading = self[TISSUE_SENSOR_READINGS].copy()
         f = MICROSECONDS_PER_CENTIMILLISECOND if self.is_magnetic_data else MICRO_TO_BASE_CONVERSION
         adj_raw_tissue_reading[0] *= f
@@ -205,18 +207,16 @@ class WellFile:
         self.compressed_displacement: NDArray[(2, Any), np.float32] = calculate_displacement_from_voltage(
             self.compressed_voltage
         )
-
         self.compressed_force: NDArray[(2, Any), np.float32] = calculate_force_from_displacement(
-            self.compressed_displacement, stiffness_factor=stiffness_factor, in_mm=False
+            self.compressed_displacement, stiffness_factor=self.stiffness_factor, in_mm=False
         )
 
         self.voltage: NDArray[(2, Any), np.float32] = calculate_voltage_from_gmr(
             self.noise_filtered_magnetic_data
         )
-
         self.displacement: NDArray[(2, Any), np.float64] = calculate_displacement_from_voltage(self.voltage)
         self.force: NDArray[(2, Any), np.float64] = calculate_force_from_displacement(
-            self.displacement, stiffness_factor=stiffness_factor, in_mm=False
+            self.displacement, stiffness_factor=self.stiffness_factor, in_mm=False
         )
 
     def get(self, key, default):
@@ -344,7 +344,7 @@ class PlateRecording:
         else:  # .h5 files
             self.wells, calibration_recordings = load_files(self.path)
 
-        if self.wells:
+        if not self.wells:
             # might not be any well files in the path
             # TODO should probably raise an error here
             return
@@ -400,8 +400,6 @@ class PlateRecording:
 
         flip_data = self.wells[0].version >= VersionInfo.parse("1.1.0")
 
-        experiment_id = get_experiment_id(self.wells[0][PLATE_BARCODE_UUID])
-
         # create displacement and force arrays for each WellFile
         log.info("Create diplacement and force data for each well")
         for well_idx in range(24):
@@ -417,10 +415,8 @@ class PlateRecording:
             )
 
             well_file.displacement = np.array([adjusted_time_indices, x])[:, start_idx : end_idx + 1]
-
-            stiffness_factor = get_stiffness_factor(experiment_id, well_idx)
             well_file.force = calculate_force_from_displacement(
-                well_file.displacement, stiffness_factor=stiffness_factor
+                well_file.displacement, stiffness_factor=well_file.stiffness_factor
             )
 
     def _load_dataframe(self, df: pd.DataFrame) -> None:

@@ -36,7 +36,9 @@ from .transforms import calculate_displacement_from_voltage
 from .transforms import calculate_force_from_displacement
 from .transforms import calculate_voltage_from_gmr
 from .transforms import create_filter
+from .transforms import get_stiffness_factor
 from .transforms import noise_cancellation
+from .utils import get_experiment_id
 from .utils import truncate
 from .utils import truncate_float
 
@@ -127,15 +129,18 @@ class WellFile:
                     )
                     self._load_magnetic_data()
                 else:
-                    self[TIME_INDICES] = h5_file[TIME_INDICES][:]
-                    self[TIME_OFFSETS] = h5_file[TIME_OFFSETS][:]
-                    self[TISSUE_SENSOR_READINGS] = h5_file[TISSUE_SENSOR_READINGS][:]
-                    self[REFERENCE_SENSOR_READINGS] = h5_file[REFERENCE_SENSOR_READINGS][:]
+                    for dataset in (
+                        TIME_INDICES,
+                        TIME_OFFSETS,
+                        TISSUE_SENSOR_READINGS,
+                        REFERENCE_SENSOR_READINGS,
+                    ):
+                        self[dataset] = h5_file[dataset][:]
 
         elif file_path.endswith(".xlsx"):
             self._excel_sheet = _get_single_sheet(file_path)
             self.file_name = os.path.basename(file_path)
-            self.attrs = {k: v for (k, v) in _load_optical_file_attrs(self._excel_sheet).items()}
+            self.attrs = {k: v for k, v in _load_optical_file_attrs(self._excel_sheet).items()}
             self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
             self.is_magnetic_data = False
             self.is_force_data = (
@@ -154,6 +159,9 @@ class WellFile:
             self._load_magnetic_data()
 
     def _load_magnetic_data(self):
+        experiment_id = get_experiment_id(self[PLATE_BARCODE_UUID])
+        stiffness_factor = get_stiffness_factor(experiment_id, self[WELL_INDEX_UUID])
+
         adj_raw_tissue_reading = self[TISSUE_SENSOR_READINGS].copy()
         f = MICROSECONDS_PER_CENTIMILLISECOND if self.is_magnetic_data else MICRO_TO_BASE_CONVERSION
         adj_raw_tissue_reading[0] *= f
@@ -174,8 +182,7 @@ class WellFile:
         )
 
         self.noise_cancelled_magnetic_data: NDArray[(2, Any), int] = noise_cancellation(
-            self.sensitivity_calibrated_tissue_gmr,
-            self.sensitivity_calibrated_reference_gmr,
+            self.sensitivity_calibrated_tissue_gmr, self.sensitivity_calibrated_reference_gmr
         )
 
         self.fully_calibrated_magnetic_data: NDArray[(2, Any), int] = apply_empty_plate_calibration(
@@ -186,8 +193,7 @@ class WellFile:
             self.noise_filtered_magnetic_data: NDArray[(2, Any), int] = self.fully_calibrated_magnetic_data
         else:
             self.noise_filtered_magnetic_data: NDArray[(2, Any), int] = apply_noise_filtering(
-                self.fully_calibrated_magnetic_data,
-                self.filter_coefficients,
+                self.fully_calibrated_magnetic_data, self.filter_coefficients
             )
 
         self.compressed_magnetic_data: NDArray[(2, Any), int] = compress_filtered_magnetic_data(
@@ -199,8 +205,9 @@ class WellFile:
         self.compressed_displacement: NDArray[(2, Any), np.float32] = calculate_displacement_from_voltage(
             self.compressed_voltage
         )
+
         self.compressed_force: NDArray[(2, Any), np.float32] = calculate_force_from_displacement(
-            self.compressed_displacement, in_mm=False
+            self.compressed_displacement, stiffness_factor=stiffness_factor, in_mm=False
         )
 
         self.voltage: NDArray[(2, Any), np.float32] = calculate_voltage_from_gmr(
@@ -209,7 +216,7 @@ class WellFile:
 
         self.displacement: NDArray[(2, Any), np.float64] = calculate_displacement_from_voltage(self.voltage)
         self.force: NDArray[(2, Any), np.float64] = calculate_force_from_displacement(
-            self.displacement, in_mm=False
+            self.displacement, stiffness_factor=stiffness_factor, in_mm=False
         )
 
     def get(self, key, default):
@@ -337,15 +344,17 @@ class PlateRecording:
         else:  # .h5 files
             self.wells, calibration_recordings = load_files(self.path)
 
-        if self.wells:  # might not be any well files in the path
-            # currently file versions 1.0.0 and above must have all their data processed together
-            if not self.is_optical_recording and self.wells[0].version >= VersionInfo.parse("1.0.0"):
-                if force_df is None:
-                    self._process_plate_data(
-                        calibration_recordings, use_mean_of_baseline=use_mean_of_baseline
-                    )
-                else:
-                    self._load_dataframe(force_df)
+        if self.wells:
+            # might not be any well files in the path
+            # TODO should probably raise an error here
+            return
+
+        # currently file versions 1.0.0 and above must have all their data processed together
+        if not self.is_optical_recording and self.wells[0].version >= VersionInfo.parse("1.0.0"):
+            if force_df is None:
+                self._process_plate_data(calibration_recordings, use_mean_of_baseline=use_mean_of_baseline)
+            else:
+                self._load_dataframe(force_df)
 
     def _process_plate_data(self, calibration_recordings, use_mean_of_baseline):
         if not all(isinstance(well_file, WellFile) for well_file in self.wells) or len(self.wells) != 24:
@@ -391,6 +400,8 @@ class PlateRecording:
 
         flip_data = self.wells[0].version >= VersionInfo.parse("1.1.0")
 
+        experiment_id = get_experiment_id(self.wells[0][PLATE_BARCODE_UUID])
+
         # create displacement and force arrays for each WellFile
         log.info("Create diplacement and force data for each well")
         for well_idx in range(24):
@@ -398,19 +409,19 @@ class PlateRecording:
             x = estimated_magnet_positions["X"][:, well_idx]
             if flip_data:
                 x *= -1
+
             # have time indices start at 0
             adjusted_time_indices = well_file[TIME_INDICES] - well_file[TIME_INDICES][0]
             start_idx, end_idx = truncate(
-                source_series=adjusted_time_indices,
-                lower_bound=self.start_time,
-                upper_bound=self.end_time,
+                source_series=adjusted_time_indices, lower_bound=self.start_time, upper_bound=self.end_time
             )
 
-            well_file.displacement = np.array(
-                [adjusted_time_indices[start_idx : end_idx + 1], x[start_idx : end_idx + 1]]
-            )
+            well_file.displacement = np.array([adjusted_time_indices, x])[:, start_idx : end_idx + 1]
 
-            well_file.force = calculate_force_from_displacement(well_file.displacement)
+            stiffness_factor = get_stiffness_factor(experiment_id, well_idx)
+            well_file.force = calculate_force_from_displacement(
+                well_file.displacement, stiffness_factor=stiffness_factor
+            )
 
     def _load_dataframe(self, df: pd.DataFrame) -> None:
         """Add time and force data to well files in PR.

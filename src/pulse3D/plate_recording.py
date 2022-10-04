@@ -66,7 +66,13 @@ class MantarrayH5FileCreator(h5py.File):
 
 
 class WellFile:
-    def __init__(self, file_path: str, sampling_period=None):
+    def __init__(
+        self,
+        file_path: str,
+        sampling_period: Optional[Union[int, float]] = None,
+        # TODO unit test the stiffness factor, auto and override
+        stiffness_factor: Optional[int] = None,
+    ):
         self.displacement: NDArray[(2, Any), np.float64]
         self.force: NDArray[(2, Any), np.float64]
 
@@ -79,8 +85,11 @@ class WellFile:
                 self.attrs = {attr: h5_file.attrs[attr] for attr in list(h5_file.attrs)}
                 self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
 
-                experiment_id = get_experiment_id(self[PLATE_BARCODE_UUID])
-                self.stiffness_factor = get_stiffness_factor(experiment_id, self[WELL_INDEX_UUID])
+                if stiffness_factor:
+                    self.stiffness_factor = stiffness_factor
+                else:
+                    experiment_id = get_experiment_id(self[PLATE_BARCODE_UUID])
+                    self.stiffness_factor = get_stiffness_factor(experiment_id, self[WELL_INDEX_UUID])
 
                 # extract datetime
                 self[UTC_BEGINNING_RECORDING_UUID] = self._extract_datetime(UTC_BEGINNING_RECORDING_UUID)
@@ -90,17 +99,17 @@ class WellFile:
                 self[UTC_FIRST_TISSUE_DATA_POINT_UUID] = self._extract_datetime(
                     UTC_FIRST_TISSUE_DATA_POINT_UUID
                 )
-                if self.version < VersionInfo.parse("1.0.0"):  # Ref data not yet added to these files
+
+                self.tissue_sampling_period = (
+                    sampling_period if sampling_period else self[TISSUE_SAMPLING_PERIOD_UUID]
+                )
+
+                if self.version < VersionInfo.parse("1.0.0"):
+                    # Ref data not yet added to Beta 2 files
                     self[UTC_FIRST_REF_DATA_POINT_UUID] = self._extract_datetime(
                         UTC_FIRST_REF_DATA_POINT_UUID
                     )
-
-                # setup noise filter
-                if self.version < VersionInfo.parse("1.0.0"):
-                    # should probably add beta 2 file support here and remove this condition
-                    self.tissue_sampling_period = (
-                        sampling_period if sampling_period else self[TISSUE_SAMPLING_PERIOD_UUID]
-                    )
+                    # setup noise filter, should probably add beta 2 file support for this
                     self.noise_filter_uuid = (
                         TSP_TO_DEFAULT_FILTER_UUID[self.tissue_sampling_period]
                         if self.is_magnetic_data
@@ -111,19 +120,11 @@ class WellFile:
                         if self.noise_filter_uuid
                         else None
                     )
-                else:
-                    self.noise_filter_uuid = None
-                    self.filter_coefficients = None
-                    self.tissue_sampling_period = (
-                        sampling_period if sampling_period else self[TISSUE_SAMPLING_PERIOD_UUID]
-                    )
-                    self.is_magnetic_data = False
 
-                is_untrimmed = self.get(IS_FILE_ORIGINAL_UNTRIMMED_UUID, True)
-                time_trimmed = None if is_untrimmed else self.attrs[TRIMMED_TIME_FROM_ORIGINAL_START_UUID]
+                    is_untrimmed = self.get(IS_FILE_ORIGINAL_UNTRIMMED_UUID, True)
+                    time_trimmed = None if is_untrimmed else self.attrs[TRIMMED_TIME_FROM_ORIGINAL_START_UUID]
 
-                # load sensor data. This is only possible to do for Beta 1 data files
-                if self.version < VersionInfo.parse("1.0.0"):
+                    # load sensor data. This is only possible to do here for Beta 1 data files
                     self[TISSUE_SENSOR_READINGS] = self._load_reading(
                         h5_file, TISSUE_SENSOR_READINGS, time_trimmed
                     )
@@ -132,6 +133,10 @@ class WellFile:
                     )
                     self._load_magnetic_data()
                 else:
+                    self.noise_filter_uuid = None
+                    self.filter_coefficients = None
+                    self.is_magnetic_data = False
+
                     for dataset in (
                         TIME_INDICES,
                         TIME_OFFSETS,
@@ -159,7 +164,7 @@ class WellFile:
                 else None
             )
 
-            self.stiffness_factor = CARDIAC_STIFFNESS_FACTOR  # TODO make this the default override value
+            self.stiffness_factor = stiffness_factor if stiffness_factor else CARDIAC_STIFFNESS_FACTOR
 
             self._load_magnetic_data()
 
@@ -323,6 +328,8 @@ class PlateRecording:
         force_df: pd.DataFrame = None,
         start_time: Union[float, int] = 0,
         end_time: Union[float, int] = np.inf,
+        # TODO unit test the stiffness factor, auto and override
+        stiffness_factor: Optional[int] = None,
     ):
         self.path = path
         self.wells = []
@@ -335,14 +342,14 @@ class PlateRecording:
             with tempfile.TemporaryDirectory() as tmpdir:
                 zf = zipfile.ZipFile(path)
                 zf.extractall(path=tmpdir)
-                self.wells, calibration_recordings = load_files(tmpdir)
+                self.wells, calibration_recordings = load_files(tmpdir, stiffness_factor)
         elif self.path.endswith(".xlsx"):  # optical file
             self.is_optical_recording = True
-            well_file = WellFile(self.path)
+            well_file = WellFile(self.path, stiffness_factor=stiffness_factor)
             self.wells = [None] * (well_file[WELL_INDEX_UUID] + 1)
             self.wells[well_file[WELL_INDEX_UUID]] = well_file
         else:  # .h5 files
-            self.wells, calibration_recordings = load_files(self.path)
+            self.wells, calibration_recordings = load_files(self.path, stiffness_factor)
 
         if not self.wells:
             # might not be any well files in the path
@@ -560,7 +567,7 @@ class PlateRecording:
 
 
 # helpers
-def load_files(path):
+def load_files(path: str, stiffness_factor: Optional[int]):
     h5_files = glob.glob(os.path.join(path, "**", "*.h5"), recursive=True)
 
     recording_files = [f for f in h5_files if "Calibration" not in f]
@@ -571,13 +578,13 @@ def load_files(path):
 
     for f in recording_files:
         log.info(f"Loading data from {os.path.basename(f)}")
-        well_file = WellFile(f)
-        tissue_well_files[well_file[WELL_INDEX_UUID]] = well_file
+        well_file = WellFile(f, stiffness_factor=stiffness_factor)
+        tissue_well_files[well_file[WELL_INDEX_UUID]] = well_file  # type: ignore
 
     for f in calibration_files:
         log.info(f"Loading calibration data from {os.path.basename(f)}")
-        well_file = WellFile(f)
-        baseline_well_files[well_file[WELL_INDEX_UUID]] = well_file
+        well_file = WellFile(f, stiffness_factor=stiffness_factor)
+        baseline_well_files[well_file[WELL_INDEX_UUID]] = well_file  # type: ignore
 
     return tissue_well_files, baseline_well_files
 

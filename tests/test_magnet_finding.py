@@ -9,6 +9,7 @@ import numpy as np
 from pulse3D import magnet_finding
 from pulse3D import plate_recording
 from pulse3D.constants import BASELINE_MEAN_NUM_DATA_POINTS
+from pulse3D.constants import CARDIAC_STIFFNESS_FACTOR
 from pulse3D.magnet_finding import fix_dropped_samples
 from pulse3D.magnet_finding import format_well_file_data
 from pulse3D.plate_recording import load_files
@@ -29,7 +30,7 @@ def test_load_files__loads_zipped_folder_with_calibration_recordings_correctly()
     with tempfile.TemporaryDirectory() as tmpdir:
         zf = zipfile.ZipFile(path)
         zf.extractall(path=tmpdir)
-        tissue_recordings, baseline_recordings = load_files(tmpdir)
+        tissue_recordings, baseline_recordings = load_files(tmpdir, CARDIAC_STIFFNESS_FACTOR)
 
     assert len(tissue_recordings) == 24
     assert len(baseline_recordings) == 24
@@ -45,7 +46,7 @@ def test_load_files__loads_zipped_files_with_calibration_recordings_correctly():
     with tempfile.TemporaryDirectory() as tmpdir:
         zf = zipfile.ZipFile(path)
         zf.extractall(path=tmpdir)
-        tissue_recordings, baseline_recordings = load_files(tmpdir)
+        tissue_recordings, baseline_recordings = load_files(tmpdir, CARDIAC_STIFFNESS_FACTOR)
 
     assert len(tissue_recordings) == 24
     assert len(baseline_recordings) == 24

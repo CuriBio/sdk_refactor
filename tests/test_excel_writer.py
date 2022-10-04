@@ -34,11 +34,12 @@ def test_write_xlsx__runs_without_error():
 
         df = pd.read_excel(output_filepath, sheet_name="per-twitch-metrics", usecols=[0])
 
-        # by default, should contain three contraction to peak metrics and two peak to relaxation metrics
+        # by default, should contain widths 10, 50, and 90 for contraction to peak metrics and peak to relaxation metrics
         for metric in (
             "Time From Contraction 10 to Peak (seconds)",
             "Time From Contraction 50 to Peak (seconds)",
             "Time From Contraction 90 to Peak (seconds)",
+            "Time From Peak to Relaxation 10 (seconds)",
             "Time From Peak to Relaxation 50 (seconds)",
             "Time From Peak to Relaxation 90 (seconds)",
         ):

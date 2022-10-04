@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """Constants for the Mantarray File Manager."""
-from typing import Dict
 import uuid
 
 from immutabledict import immutabledict
@@ -20,9 +19,8 @@ CURRENT_BETA2_HDF5_FILE_FORMAT_VERSION = "1.0.0"
 FILE_FORMAT_VERSION_METADATA_KEY = "File Format Version"
 FILE_MIGRATION_PATHS = immutabledict({"0.3.1": "0.4.1", "0.4.1": "0.4.2"})
 
-NOT_APPLICABLE_H5_METADATA = uuid.UUID(
-    "59d92e00-99d5-4460-9a28-5a1a0fe9aecf"
-)  # Eli (1/19/21): H5 files can't store the concept of `None` in their metadata, so using this value to denote that a particular piece of metadata is not available (i.e. after migrating to a newer file format version)
+# Eli (1/19/21): H5 files can't store the concept of `None` in their metadata, so using this value to denote that a particular piece of metadata is not available (i.e. after migrating to a newer file format version)
+NOT_APPLICABLE_H5_METADATA = uuid.UUID("59d92e00-99d5-4460-9a28-5a1a0fe9aecf")
 
 HARDWARE_TEST_RECORDING_UUID = uuid.UUID("a2e76058-08cd-475d-a55d-31d401c3cb34")
 UTC_BEGINNING_DATA_ACQUISTION_UUID = uuid.UUID("98c67f22-013b-421a-831b-0ea55df4651e")
@@ -62,6 +60,8 @@ TRIMMED_TIME_FROM_ORIGINAL_END_UUID = uuid.UUID("55f6770d-c369-42ce-a437-5ed89c3
 ORIGINAL_FILE_VERSION_UUID = uuid.UUID("cd1b4063-4a87-4a57-bc12-923ff4890844")
 UTC_TIMESTAMP_OF_FILE_VERSION_MIGRATION_UUID = uuid.UUID("399b2148-09d4-418b-a132-e37df2721938")
 FILE_VERSION_PRIOR_TO_MIGRATION_UUID = uuid.UUID("11b4945b-3cf3-4f67-8bee-7abc3c449756")
+TWITCHES_POINT_UP_UUID = uuid.UUID("97f69f56-f1c6-4c50-8590-7332570ed3c5")
+INTERPOLATION_VALUE_UUID = uuid.UUID("466d0131-06b7-4f0f-ba1e-062a771cb280")
 BOOTUP_COUNTER_UUID = uuid.UUID("b9ccc724-a39d-429a-be6d-3fd29be5037d")
 TOTAL_WORKING_HOURS_UUID = uuid.UUID("f8108718-2fa0-40ce-a51a-8478e5edd4b8")
 TAMPER_FLAG_UUID = uuid.UUID("68d0147f-9a84-4423-9c50-228da16ba895")
@@ -127,6 +127,9 @@ METADATA_UUID_DESCRIPTIONS = immutabledict(
         CHANNEL_FIRMWARE_VERSION_UUID: "Firmware Version (Channel Controller)",
         BOOT_FLAGS_UUID: "Hardware/firmware flags present on device bootup",
         INITIAL_MAGNET_FINDING_PARAMS_UUID: "JSON string of the initial magnet finding params that should be used in Pulse3D",
+        # Optical file values
+        TWITCHES_POINT_UP_UUID: "Flag indicating whether or not the twitches in the data point up or not",
+        INTERPOLATION_VALUE_UUID: "Desired value for optical well data interpolation",
     }
 )
 
@@ -319,38 +322,6 @@ CALCULATED_METRICS = immutabledict(
         ),
     }
 )
-
-COORDS = (10, 25, 50, 75, 90)
-TWITCH_WIDTH_METRIC_DISPLAY_NAMES: Dict[int, str] = immutabledict(
-    (coord, f"Twitch Width {coord} (seconds)") for coord in reversed(COORDS)
-)
-CONTRACTION_COORDINATES_DISPLAY_NAMES: Dict[int, str] = immutabledict(
-    (coord, f"Contraction Coordinates {coord}") for coord in reversed(COORDS)
-)
-RELAXATION_COORDINATES_DISPLAY_NAMES: Dict[int, str] = immutabledict(
-    (coord, f"Relaxation Coordinates {coord}") for coord in COORDS
-)
-CONTRACTION_TIME_DIFFERENCE_DISPLAY_NAMES: Dict[int, str] = immutabledict(
-    (coord, f"Time From Contraction {coord} to Peak (seconds)") for coord in reversed(COORDS)
-)
-RELAXATION_TIME_DIFFERENCE_DISPLAY_NAMES: Dict[int, str] = immutabledict(
-    (coord, f"Time From Peak to Relaxation {coord} (seconds)") for coord in COORDS
-)
-
-ALL_FORMATS = immutabledict({"CoV": {"num_format": "0.00%"}})
-
-TWITCHES_POINT_UP_UUID = uuid.UUID("97f69f56-f1c6-4c50-8590-7332570ed3c5")
-INTERPOLATION_VALUE_UUID = uuid.UUID("466d0131-06b7-4f0f-ba1e-062a771cb280")
-mutable_metadata_uuid_descriptions = dict(
-    METADATA_UUID_DESCRIPTIONS
-)  # create a mutable version to add in the new values specific to the SDK (.update is an in-place operation that doesn't return the dictionary, so chaining is difficult)
-mutable_metadata_uuid_descriptions.update(
-    {
-        TWITCHES_POINT_UP_UUID: "Flag indicating whether or not the twitches in the data point up or not",
-        INTERPOLATION_VALUE_UUID: "Desired value for optical well data interpolation",
-    }
-)
-METADATA_UUID_DESCRIPTIONS = immutabledict(mutable_metadata_uuid_descriptions)
 
 EXCEL_OPTICAL_METADATA_CELLS = immutabledict(
     {

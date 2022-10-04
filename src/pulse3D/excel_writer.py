@@ -187,10 +187,10 @@ def write_xlsx(
     max_y: Union[int, float] = None,
     start_time: Union[float, int] = 0,
     end_time: Union[float, int] = np.inf,
-    twitch_widths: Tuple[int, ...] = (50, 90),
-    baseline_widths_to_use: Tuple[int, ...] = (10, 90),
-    prominence_factors: Tuple[Union[int, float], Union[int, float]] = (6, 6),
-    width_factors: Tuple[Union[int, float], Union[int, float]] = (7, 7),
+    twitch_widths: Tuple[int, ...] = DEFAULT_TWITCH_WIDTHS,
+    baseline_widths_to_use: Tuple[int, ...] = DEFAULT_BASELINE_WIDTHS,
+    prominence_factors: Tuple[Union[int, float], Union[int, float]] = DEFAULT_PROMINENCE_FACTORS,
+    width_factors: Tuple[Union[int, float], Union[int, float]] = DEFAULT_WIDTH_FACTORS,
     peaks_valleys: Dict[str, List[List[int]]] = None,
 ):
     """Write plate recording waveform and computed metrics to Excel spredsheet.
@@ -317,7 +317,7 @@ def write_xlsx(
             (
                 list(twitch_widths),
                 [(100 - width) for width in twitch_widths],
-                np.arange(10, 95, 5),
+                np.array(DEFAULT_TWITCH_WIDTH_PERCENTS),
             )
         )
     )
@@ -475,8 +475,8 @@ def _write_xlsx(
     data: List[Dict[Any, Any]],
     max_y: Optional[Union[float, int]],
     is_optical_recording: bool = False,
-    twitch_widths: Tuple[int, ...] = (50, 90),
-    baseline_widths_to_use: Tuple[int, ...] = (10, 90),
+    twitch_widths: Tuple[int, ...] = DEFAULT_TWITCH_WIDTHS,
+    baseline_widths_to_use: Tuple[int, ...] = DEFAULT_BASELINE_WIDTHS,
 ):
     with pd.ExcelWriter(output_file_name) as writer:
         log.info("Writing H5 file metadata")
@@ -644,7 +644,7 @@ def create_waveform_charts(
         }
     )
 
-    (peaks, valleys) = dm["peaks_and_valleys"]
+    peaks, valleys = dm["peaks_and_valleys"]
     log.info(f'Adding peak detection series for well {dm["well_name"]}')
 
     add_peak_detection_series(
@@ -675,7 +675,7 @@ def create_waveform_charts(
         minimum_value=dm["min_value"],
     )
 
-    (well_row, well_col) = TWENTY_FOUR_WELL_PLATE.get_row_and_column_from_well_index(df_column - 1)
+    well_row, well_col = TWENTY_FOUR_WELL_PLATE.get_row_and_column_from_well_index(df_column - 1)
     snapshot_sheet.insert_chart(
         well_row * (CHART_HEIGHT_CELLS + 1),
         well_col * (CHART_FIXED_WIDTH_CELLS + 1),
@@ -686,34 +686,28 @@ def create_waveform_charts(
 
 def aggregate_metrics_df(
     data: List[Dict[Any, Any]],
-    widths: Tuple[int, ...] = (50, 90),
-    baseline_widths_to_use: Tuple[int, ...] = (10, 90),
+    widths: Tuple[int, ...] = DEFAULT_TWITCH_WIDTHS,
+    baseline_widths_to_use: Tuple[int, ...] = DEFAULT_BASELINE_WIDTHS,
 ):
     """Combine aggregate metrics for each well into single DataFrame.
 
     Args:
         data (list): list of data metrics and metadata associated with each well
-        widths (tuple of ints, optional): twitch-widths to return data for. Defaults to (50, 90).
+        widths (tuple of ints, optional): twitch-widths to return data for.
         baseline_widths_to_use: twitch widths to use as baseline metrics
     Returns:
         df (DataFrame): aggregate data frame of all metric aggregate measures
     """
     df = pd.DataFrame()
+    df = df.append(pd.Series(["", "", *[d["well_name"] for d in data]]), ignore_index=True)
+    df = df.append(pd.Series(["", "Treatment Description"]), ignore_index=True)
     df = df.append(
         pd.Series(
             [
                 "",
-                "",
+                "n (twitches)",
+                *[(len(d["metrics"][0]) if not d["error_msg"] else d["error_msg"]) for d in data],
             ]
-            + [d["well_name"] for d in data]
-        ),
-        ignore_index=True,
-    )
-    df = df.append(pd.Series(["", "Treatment Description"]), ignore_index=True)
-    df = df.append(
-        pd.Series(
-            ["", "n (twitches)"]
-            + [len(d["metrics"][0]) if not d["error_msg"] else d["error_msg"] for d in data]
         ),
         ignore_index=True,
     )
@@ -771,14 +765,14 @@ def _append_aggregate_measures_df(main_df: pd.DataFrame, metrics: pd.DataFrame, 
 
 def per_twitch_df(
     data: List[Dict[Any, Any]],
-    widths: Tuple[int, ...] = (50, 90),
-    baseline_widths_to_use: Tuple[int, ...] = (10, 90),
+    widths: Tuple[int, ...] = DEFAULT_TWITCH_WIDTHS,
+    baseline_widths_to_use: Tuple[int, ...] = DEFAULT_BASELINE_WIDTHS,
 ):
     """Combine per-twitch metrics for each well into single DataFrame.
 
     Args:
         data (list): list of data metrics and metadata associated with each well
-        widths (tuple of ints, optional): twitch-widths to return data for. Defaults to (50, 90).
+        widths (tuple of ints, optional): twitch-widths to return data for.
         baseline_widths_to_use: twitch widths to use as baseline metrics
     Returns:
         df (DataFrame): per-twitch data frame of all metrics
@@ -811,6 +805,7 @@ def per_twitch_df(
                     if metric_id == BASELINE_TO_PEAK_UUID
                     else baseline_widths_to_use[1]
                 )
+                # print("###", metric_id, baseline_width)
                 # prevents duplicate entries in file if entered baseline(s) is/are the same as the entered twitch widths
                 if baseline_width not in widths:
                     values = [CALCULATED_METRIC_DISPLAY_NAMES[metric_id].format(baseline_width)]

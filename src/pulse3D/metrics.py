@@ -26,13 +26,10 @@ from pandas import DataFrame
 from pandas import Series
 from pandas.util import hash_pandas_object
 
+from .constants import DEFAULT_TWITCH_WIDTH_PERCENTS
 from .constants import MICRO_TO_BASE_CONVERSION
 from .constants import PRIOR_VALLEY_INDEX_UUID
 from .constants import SUBSEQUENT_VALLEY_INDEX_UUID
-
-TWITCH_WIDTH_PERCENTS = np.arange(10, 95, 5)
-TWITCH_WIDTH_INDEX_OF_CONTRACTION_VELOCITY_START = np.where(TWITCH_WIDTH_PERCENTS == 10)[0]
-TWITCH_WIDTH_INDEX_OF_CONTRACTION_VELOCITY_END = np.where(TWITCH_WIDTH_PERCENTS == 90)[0]
 
 
 class BaseMetric:
@@ -72,10 +69,7 @@ class BaseMetric:
         main_df[metric_id] = metrics
 
     def add_aggregate_metrics(
-        self,
-        aggregate_df: DataFrame,
-        metric_id: UUID,
-        metrics: Union[NDArray[int], NDArray[float]],
+        self, aggregate_df: DataFrame, metric_id: UUID, metrics: Union[NDArray[int], NDArray[float]]
     ) -> None:
         """Add estimated metrics to aggregate DataFrame.
 
@@ -209,13 +203,10 @@ class TwitchWidthCoordinates(BaseMetric):
     def __init__(
         self,
         rounded: bool = False,
-        twitch_width_percents: Optional[List[int]] = None,
+        twitch_width_percents: Tuple[int, ...] = DEFAULT_TWITCH_WIDTH_PERCENTS,
         **kwargs: Dict[str, Any],
     ):
         super().__init__(rounded=rounded, **kwargs)
-
-        if twitch_width_percents is None:
-            twitch_width_percents = TWITCH_WIDTH_PERCENTS
 
         self.twitch_width_percents = twitch_width_percents
 
@@ -227,7 +218,7 @@ class TwitchWidthCoordinates(BaseMetric):
         **kwargs: Dict[str, Any],
     ) -> DataFrame:
         twitch_indices_hashable = HashableDataFrame(DataFrame.from_dict(twitch_indices).T)
-        filtered_data_hashable = tuple(tuple(i) for i in filtered_data)
+        filtered_data_hashable = tuple(tuple(d) for d in filtered_data)
 
         _, coordinates = TwitchWidth.calculate_twitch_widths(
             twitch_indices=twitch_indices_hashable,
@@ -245,13 +236,10 @@ class TwitchWidth(BaseMetric):
     def __init__(
         self,
         rounded: bool = False,
-        twitch_width_percents: Optional[List[int]] = None,
+        twitch_width_percents: Tuple[int, ...] = DEFAULT_TWITCH_WIDTH_PERCENTS,
         **kwargs: Dict[str, Any],
     ):
         super().__init__(rounded=rounded, **kwargs)
-
-        if twitch_width_percents is None:
-            twitch_width_percents = TWITCH_WIDTH_PERCENTS
 
         self.twitch_width_percents = twitch_width_percents
 
@@ -262,9 +250,8 @@ class TwitchWidth(BaseMetric):
         twitch_indices: Dict[int, Dict[UUID, Optional[int]]],
         **kwargs: Dict[str, Any],
     ) -> DataFrame:
-
         twitch_indices_hashable = HashableDataFrame(DataFrame.from_dict(twitch_indices).T)
-        filtered_data_hashable = tuple(tuple(i) for i in filtered_data)
+        filtered_data_hashable = tuple(tuple(d) for d in filtered_data)
 
         widths, _ = self.calculate_twitch_widths(
             twitch_indices=twitch_indices_hashable,
@@ -275,13 +262,7 @@ class TwitchWidth(BaseMetric):
 
         return widths
 
-    def add_aggregate_metrics(
-        self,
-        aggregate_df: DataFrame,
-        metric_id: UUID,
-        metrics: DataFrame,
-    ) -> None:
-
+    def add_aggregate_metrics(self, aggregate_df: DataFrame, metric_id: UUID, metrics: DataFrame) -> None:
         for iter_percent in self.twitch_width_percents:
             estimates = metrics[iter_percent]
             aggregate_estimates = self.create_statistics_df(estimates, rounded=self.rounded)
@@ -293,7 +274,7 @@ class TwitchWidth(BaseMetric):
         twitch_indices: DataFrame,
         filtered_data: Tuple[Tuple[float], Tuple[float]],
         rounded: bool = False,
-        twitch_width_percents: Tuple[int, ...] = tuple(range(10, 95, 5)),
+        twitch_width_percents: Tuple[int, ...] = DEFAULT_TWITCH_WIDTH_PERCENTS,
     ) -> Tuple[DataFrame, DataFrame]:
         """Determine twitch width between 10-90% down to the nearby valleys.
 
@@ -423,20 +404,18 @@ class TwitchVelocity(BaseMetric):
         self,
         rounded: bool = False,
         is_contraction: bool = True,
-        twitch_width_percents: Optional[List[int]] = None,
+        twitch_width_percents: Tuple[int, ...] = DEFAULT_TWITCH_WIDTH_PERCENTS,
         **kwargs: Dict[str, Any],
     ):
         super().__init__(rounded=rounded, **kwargs)
 
-        if twitch_width_percents is None:
-            twitch_width_percents = TWITCH_WIDTH_PERCENTS
-
-        velocity_start = min(twitch_width_percents)
-        velocity_end = max(twitch_width_percents)
-
         self.twitch_width_percents = twitch_width_percents
-        self.velocity_index_start = list(twitch_width_percents).index(velocity_start)
-        self.velocity_index_end = list(twitch_width_percents).index(velocity_end)
+
+        velocity_start = min(self.twitch_width_percents)
+        velocity_end = max(self.twitch_width_percents)
+        self.velocity_index_start = self.twitch_width_percents.index(velocity_start)
+        self.velocity_index_end = self.twitch_width_percents.index(velocity_end)
+
         self.is_contraction = is_contraction
 
     def fit(
@@ -447,7 +426,7 @@ class TwitchVelocity(BaseMetric):
         **kwargs: Dict[str, Any],
     ) -> Series:
         twitch_indices_hashable = HashableDataFrame(DataFrame.from_dict(twitch_indices).T)
-        filtered_data_hashable = tuple(tuple(i) for i in filtered_data)
+        filtered_data_hashable = tuple(tuple(d) for d in filtered_data)
 
         _, coordinates = TwitchWidth.calculate_twitch_widths(
             twitch_indices=twitch_indices_hashable,
@@ -526,13 +505,7 @@ class TwitchIrregularity(BaseMetric):
         return irregularity / MICRO_TO_BASE_CONVERSION
 
     def add_aggregate_metrics(
-        self,
-        aggregate_dict: Dict[
-            UUID,
-            Any,
-        ],
-        metric_id: UUID,
-        metrics: Union[NDArray[int], NDArray[float]],
+        self, aggregate_dict: Dict[UUID, Any], metric_id: UUID, metrics: Union[NDArray[int], NDArray[float]]
     ) -> None:
         statistics_dict = self.create_statistics_df(metric=metrics[1:-1], rounded=self.rounded)
         statistics_dict["n"] += 2
@@ -541,8 +514,7 @@ class TwitchIrregularity(BaseMetric):
 
     @staticmethod
     def calculate_interval_irregularity(
-        twitch_indices: Dict[int, Dict[UUID, Optional[int]]],
-        time_series: NDArray[(1, Any), int],
+        twitch_indices: Dict[int, Dict[UUID, Optional[int]]], time_series: NDArray[(1, Any), int]
     ) -> Series:
         """Find the interval irregularity for each twitch.
 
@@ -581,13 +553,13 @@ class TwitchAUC(BaseMetric):
     """Calculate area under each twitch."""
 
     def __init__(
-        self, rounded: bool = False, twitch_width_percents: List[int] = None, **kwargs: Dict[str, Any]
+        self,
+        rounded: bool = False,
+        twitch_width_percents: Tuple[int, ...] = DEFAULT_TWITCH_WIDTH_PERCENTS,
+        **kwargs: Dict[str, Any],
     ):
 
         super().__init__(rounded=rounded, **kwargs)
-
-        if twitch_width_percents is None:
-            twitch_width_percents = TWITCH_WIDTH_PERCENTS
 
         self.twitch_width_percents = twitch_width_percents
 
@@ -599,7 +571,7 @@ class TwitchAUC(BaseMetric):
         **kwargs: Dict[str, Any],
     ) -> Series:
         twitch_indices_hashable = HashableDataFrame(DataFrame.from_dict(twitch_indices).T)
-        filtered_data_hashable = tuple(tuple(i) for i in filtered_data)
+        filtered_data_hashable = tuple(tuple(d) for d in filtered_data)
 
         _, coordinates = TwitchWidth.calculate_twitch_widths(
             twitch_indices=twitch_indices_hashable,
@@ -613,7 +585,7 @@ class TwitchAUC(BaseMetric):
         )
         return auc
 
-    def calculate_area_under_curve(  # pylint:disable=too-many-locals # Eli (9/1/20): may be able to refactor before pull request
+    def calculate_area_under_curve(
         self,
         twitch_indices: Dict[int, Dict[UUID, Optional[int]]],
         filtered_data: NDArray[(2, Any), int],
@@ -704,12 +676,7 @@ class TwitchAUC(BaseMetric):
                 right_y = value_series[falling_idx + 1]
 
                 auc_total += self.calculate_trapezoid_area(
-                    left_x,
-                    right_x,
-                    left_y,
-                    right_y,
-                    rising_coords,
-                    falling_coords,
+                    left_x, right_x, left_y, right_y, rising_coords, falling_coords
                 )
                 falling_idx += 1
 
@@ -720,12 +687,7 @@ class TwitchAUC(BaseMetric):
             right_y = falling_y
 
             auc_total += self.calculate_trapezoid_area(
-                left_x,
-                right_x,
-                left_y,
-                right_y,
-                rising_coords,
-                falling_coords,
+                left_x, right_x, left_y, right_y, rising_coords, falling_coords
             )
             if self.rounded:
                 auc_total = int(round(auc_total, 0))
@@ -752,11 +714,7 @@ class TwitchAUC(BaseMetric):
         falling_x, falling_y = falling_coords
 
         interp_y_for_lower_bound = partial(
-            interpolate_y_for_x_between_two_points,
-            x_1=rising_x,
-            y_1=rising_y,
-            x_2=falling_x,
-            y_2=falling_y,
+            interpolate_y_for_x_between_two_points, x_1=rising_x, y_1=rising_y, x_2=falling_x, y_2=falling_y
         )
 
         trapezoid_h = right_x - left_x
@@ -853,13 +811,10 @@ class TwitchPeakTime(BaseMetric):
         self,
         rounded: bool = False,
         is_contraction: bool = True,
-        twitch_width_percents: List[int] = None,
+        twitch_width_percents: Tuple[int, ...] = DEFAULT_TWITCH_WIDTH_PERCENTS,
         **kwargs: Dict[str, Any],
     ):
         super().__init__(rounded=rounded, **kwargs)
-
-        if twitch_width_percents is None:
-            twitch_width_percents = TWITCH_WIDTH_PERCENTS
 
         self.twitch_width_percents = twitch_width_percents
         self.is_contraction = is_contraction
@@ -872,7 +827,7 @@ class TwitchPeakTime(BaseMetric):
         **kwargs: Dict[str, Any],
     ) -> DataFrame:
         twitch_indices_hashable = HashableDataFrame(DataFrame.from_dict(twitch_indices).T)
-        filtered_data_hashable = tuple(tuple(i) for i in filtered_data)
+        filtered_data_hashable = tuple(tuple(d) for d in filtered_data)
 
         _, coordinates = TwitchWidth.calculate_twitch_widths(
             twitch_indices=twitch_indices_hashable,
@@ -882,10 +837,7 @@ class TwitchPeakTime(BaseMetric):
         )
 
         time_difference = self.calculate_twitch_time_diff(
-            twitch_indices,
-            filtered_data,
-            coordinate_df=coordinates,
-            is_contraction=self.is_contraction,
+            twitch_indices, filtered_data, coordinate_df=coordinates, is_contraction=self.is_contraction
         )
 
         return time_difference
@@ -1005,7 +957,7 @@ class TwitchPeakToBaseline(BaseMetric):
         return estimates
 
 
-def interpolate_x_for_y_between_two_points(  # pylint:disable=invalid-name # (Eli 9/1/20: I can't think of a shorter name to describe this concept fully)
+def interpolate_x_for_y_between_two_points(
     desired_y: Union[int, float],
     x_1: Union[int, float],
     y_1: Union[int, float],
@@ -1024,7 +976,7 @@ def interpolate_x_for_y_between_two_points(  # pylint:disable=invalid-name # (El
     return (desired_y - y_1) / slope + x_1
 
 
-def interpolate_y_for_x_between_two_points(  # pylint:disable=invalid-name # (Eli 9/1/20: I can't think of a shorter name to describe this concept fully)
+def interpolate_y_for_x_between_two_points(
     desired_x: Union[int, float],
     x_1: Union[int, float],
     y_1: Union[int, float],

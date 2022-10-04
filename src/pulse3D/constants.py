@@ -144,9 +144,6 @@ TIME_INDICES = "time_indices"
 TIME_OFFSETS = "time_offsets"
 
 
-"""
-constants from mantarray_waveform_analysis library
-"""
 MILLI_TO_BASE_CONVERSION = 1000
 
 TWITCH_PERIOD_UUID = uuid.UUID("6e0cd81c-7861-4c49-ba14-87b2739d65fb")
@@ -191,7 +188,7 @@ CONTRACTION_TIME_UUID = uuid.UUID("33b5b0a8-f197-46ef-a451-a254e530757b")
 BASELINE_TO_PEAK_UUID = uuid.UUID("03ce2d30-3580-4129-9913-2fc2e35eddb7")
 PEAK_TO_BASELINE_UUID = uuid.UUID("1ac2589d-4713-41c0-8dd0-1e6c98600e37")
 
-ALL_METRICS = [
+ALL_METRICS = (
     TWITCH_PERIOD_UUID,
     FRACTION_MAX_UUID,
     AMPLITUDE_UUID,
@@ -205,7 +202,14 @@ ALL_METRICS = [
     PEAK_TO_BASELINE_UUID,
     BASELINE_TO_PEAK_UUID,
     CONTRACTION_TIME_UUID,
-]
+)
+
+
+DEFAULT_TWITCH_WIDTHS = (10, 50, 90)
+DEFAULT_BASELINE_WIDTHS = (10, 90)
+DEFAULT_TWITCH_WIDTH_PERCENTS = tuple(range(10, 95, 5))
+DEFAULT_PROMINENCE_FACTORS = (6, 6)
+DEFAULT_WIDTH_FACTORS = (7, 7)
 
 PRIOR_PEAK_INDEX_UUID = uuid.UUID("80df90dc-21f8-4cad-a164-89436909b30a")
 PRIOR_VALLEY_INDEX_UUID = uuid.UUID("72ba9466-c203-41b6-ac30-337b4a17a124")
@@ -245,9 +249,6 @@ MIN_NUMBER_PEAKS = 3
 MIN_NUMBER_VALLEYS = 3
 
 
-"""
-pulse3D constants
-"""
 MIN_EXPERIMENT_ID = 0
 MAX_CARDIAC_EXPERIMENT_ID = 99
 MAX_SKM_EXPERIMENT_ID = 199
@@ -299,9 +300,9 @@ CALCULATED_METRIC_DISPLAY_NAMES = {
     IRREGULARITY_INTERVAL_UUID: "Twitch Interval Irregularity (seconds)",
     TIME_DIFFERENCE_UUID: "Time Difference (seconds)",
     WIDTH_UUID: "Twitch Width {} (seconds)",
-    RELAXATION_TIME_UUID: "Time From Peak to Relaxation {} (seconds)",
     CONTRACTION_TIME_UUID: "Time From Contraction {} to Peak (seconds)",
     BASELINE_TO_PEAK_UUID: "Time From Contraction {} to Peak (seconds)",
+    RELAXATION_TIME_UUID: "Time From Peak to Relaxation {} (seconds)",
     PEAK_TO_BASELINE_UUID: "Time From Peak to Relaxation {} (seconds)",
 }
 
@@ -335,10 +336,6 @@ EXCEL_OPTICAL_METADATA_CELLS = immutabledict(
     }
 )
 
-
-"""
-Magnet Finding
-"""
 
 # 10 seconds at sampling rate of 100Hz
 BASELINE_MEAN_NUM_DATA_POINTS = 10 * 100

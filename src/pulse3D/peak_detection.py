@@ -19,10 +19,6 @@ from .exceptions import TwoPeaksInARowError
 from .exceptions import TwoValleysInARowError
 from .metrics import *
 
-TWITCH_WIDTH_PERCENTS = np.arange(10, 95, 5)
-TWITCH_WIDTH_INDEX_OF_CONTRACTION_VELOCITY_START = np.where(TWITCH_WIDTH_PERCENTS == 10)[0]
-TWITCH_WIDTH_INDEX_OF_CONTRACTION_VELOCITY_END = np.where(TWITCH_WIDTH_PERCENTS == 90)[0]
-
 log = logging.getLogger(__name__)
 
 
@@ -31,8 +27,8 @@ def peak_detector(
     twitches_point_up: bool = True,
     start_time: float = 0,
     end_time: float = np.inf,
-    prominence_factors: Tuple[Union[int, float], Union[int, float]] = (6, 6),
-    width_factors: Tuple[Union[int, float], Union[int, float]] = (7, 7),
+    prominence_factors: Tuple[Union[int, float], Union[int, float]] = DEFAULT_PROMINENCE_FACTORS,
+    width_factors: Tuple[Union[int, float], Union[int, float]] = DEFAULT_WIDTH_FACTORS,
 ) -> Tuple[List[int], List[int]]:
     """Locates peaks and valleys and returns the indices.
 
@@ -67,10 +63,7 @@ def peak_detector(
 
     max_possible_twitch_freq = 7
     min_required_samples_between_twitches = int(
-        round(
-            (1 / max_possible_twitch_freq) * MICRO_TO_BASE_CONVERSION / sampling_period_us,
-            0,
-        ),
+        round((1 / max_possible_twitch_freq) * MICRO_TO_BASE_CONVERSION / sampling_period_us, 0),
     )
     # find required height of peaks
     max_height = np.max(magnetic_signal)
@@ -233,8 +226,8 @@ def data_metrics(
     filtered_data: NDArray[(2, Any), int],
     rounded: bool = False,
     metrics_to_create: Iterable[UUID] = ALL_METRICS,
-    twitch_width_percents: NDArray = np.arange(10, 95, 5),
-    baseline_widths_to_use: Tuple[int, ...] = (10, 90),
+    twitch_width_percents: NDArray = DEFAULT_TWITCH_WIDTH_PERCENTS,
+    baseline_widths_to_use: Tuple[int, ...] = DEFAULT_BASELINE_WIDTHS,
 ) -> Tuple[DataFrame, DataFrame]:
     # pylint:disable=too-many-locals # Eli (9/8/20): there are a lot of metrics to calculate that need local variables
     """Find all data metrics for individual twitches and averages.
@@ -264,47 +257,32 @@ def data_metrics(
     # Kristian (10/26/21): dictionary of metric functions. this could probably be made cleaner at some point
     metric_mapper: Dict[UUID, BaseMetric] = {
         AMPLITUDE_UUID: TwitchAmplitude(rounded=rounded),
-        AUC_UUID: TwitchAUC(
-            rounded=rounded,
-            twitch_width_percents=twitch_width_percents,
-        ),
+        AUC_UUID: TwitchAUC(rounded=rounded, twitch_width_percents=twitch_width_percents),
         BASELINE_TO_PEAK_UUID: TwitchPeakTime(
             rounded=rounded,
             is_contraction=True,
-            twitch_width_percents=[baseline_widths_to_use[0], 100 - baseline_widths_to_use[0]],
+            twitch_width_percents=(baseline_widths_to_use[0], 100 - baseline_widths_to_use[0]),
         ),
         CONTRACTION_TIME_UUID: TwitchPeakTime(
-            rounded=rounded,
-            is_contraction=True,
-            twitch_width_percents=twitch_width_percents,
+            rounded=rounded, is_contraction=True, twitch_width_percents=twitch_width_percents
         ),
         CONTRACTION_VELOCITY_UUID: TwitchVelocity(
-            rounded=rounded,
-            is_contraction=True,
-            twitch_width_percents=twitch_width_percents,
+            rounded=rounded, is_contraction=True, twitch_width_percents=twitch_width_percents
         ),
         FRACTION_MAX_UUID: TwitchFractionAmplitude(),
         IRREGULARITY_INTERVAL_UUID: TwitchIrregularity(rounded=rounded),
         PEAK_TO_BASELINE_UUID: TwitchPeakTime(
             rounded=rounded,
             is_contraction=False,
-            twitch_width_percents=[baseline_widths_to_use[1], 100 - baseline_widths_to_use[1]],
+            twitch_width_percents=(baseline_widths_to_use[1], 100 - baseline_widths_to_use[1]),
         ),
         RELAXATION_TIME_UUID: TwitchPeakTime(
-            rounded=rounded,
-            is_contraction=False,
-            twitch_width_percents=twitch_width_percents,
+            rounded=rounded, is_contraction=False, twitch_width_percents=twitch_width_percents
         ),
-        RELAXATION_VELOCITY_UUID: TwitchVelocity(
-            rounded=rounded,
-            is_contraction=False,
-        ),
+        RELAXATION_VELOCITY_UUID: TwitchVelocity(rounded=rounded, is_contraction=False),
         TWITCH_FREQUENCY_UUID: TwitchFrequency(rounded=rounded),
         TWITCH_PERIOD_UUID: TwitchPeriod(rounded=rounded),
-        WIDTH_UUID: TwitchWidth(
-            rounded=rounded,
-            twitch_width_percents=twitch_width_percents,
-        ),
+        WIDTH_UUID: TwitchWidth(rounded=rounded, twitch_width_percents=twitch_width_percents),
     }
 
     # add scalar metrics to corresponding DataFrames
@@ -348,7 +326,7 @@ def _find_start_indices(starts_with_peak: bool) -> Tuple[int, int]:
     return peak_idx, valley_idx
 
 
-def init_dfs(indices: Iterable[int] = [], twitch_widths_range: Tuple[int, ...] = (50, 90)):
+def init_dfs(indices: Iterable[int] = [], twitch_widths_range: Tuple[int, ...] = DEFAULT_TWITCH_WIDTHS):
     """Initialize empty dataframes for metrics computations.
 
     Note: scalar metrics are those representing a single value per twitch (e.g. AUC, AMPLITUDE, etc.)

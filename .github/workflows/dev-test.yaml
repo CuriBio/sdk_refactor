@@ -22,17 +22,15 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - "ubuntu-18.04"
-          - "ubuntu-20.04"
-          - "windows-2019"
-          - "macos-10.15"
+          - "ubuntu-22.04"
+          - "windows-2022"
           - "macos-11.0"
         python-version:
           - 3.8
           - 3.9
         include:
           # only enable coverage on the fastest job
-          - os: "ubuntu-20.04"
+          - os: "ubuntu-22.04"
             python-version: "3.9"
             IS_FASTEST_JOB: true
 
@@ -98,14 +96,14 @@ jobs:
       - name: Log full installed packages
         run: pip freeze
 
-      # - name: Run pre-commit hooks
-      #   if: matrix.IS_FASTEST_JOB == true
-      #   env:
-      #     PRE_COMMIT_HOME: ./.precommit_cache
-      #   # only enable pre-commit on the fastest job
-      #   run: |
-      #     pre-commit install
-      #     pre-commit run -a
+      - name: Run pre-commit hooks
+        if: matrix.IS_FASTEST_JOB == true
+        env:
+          PRE_COMMIT_HOME: ./.precommit_cache
+        # only enable pre-commit on the fastest job
+        run: |
+          pre-commit install
+          pre-commit run -a
 
       - name: Run Tests with randomly generated seed
         if: github.event.inputs.randomlyseed == ''

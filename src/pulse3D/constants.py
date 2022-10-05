@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """Constants for the Mantarray File Manager."""
-from typing import Dict
 import uuid
 
 from immutabledict import immutabledict
@@ -12,9 +11,6 @@ except ImportError:  # pragma: no cover
     import importlib_metadata as metadata  # type: ignore
 PACKAGE_VERSION = metadata.version("pulse3D")
 
-CURI_BIO_ACCOUNT_UUID = uuid.UUID("73f52be0-368c-42d8-a1fd-660d49ba5604")
-CURI_BIO_USER_ACCOUNT_ID = uuid.UUID("455b93eb-c78f-4494-9f73-d3291130f126")
-
 TWENTY_FOUR_WELL_PLATE = LabwareDefinition(row_count=4, column_count=6)
 
 MIN_SUPPORTED_FILE_VERSION = "0.1.1"
@@ -23,10 +19,8 @@ CURRENT_BETA2_HDF5_FILE_FORMAT_VERSION = "1.0.0"
 FILE_FORMAT_VERSION_METADATA_KEY = "File Format Version"
 FILE_MIGRATION_PATHS = immutabledict({"0.3.1": "0.4.1", "0.4.1": "0.4.2"})
 
-NOT_APPLICABLE_H5_METADATA = uuid.UUID(
-    "59d92e00-99d5-4460-9a28-5a1a0fe9aecf"
-)  # Eli (1/19/21): H5 files can't store the concept of `None` in their metadata, so using this value to denote that a particular piece of metadata is not available (i.e. after migrating to a newer file format version)
-
+# Eli (1/19/21): H5 files can't store the concept of `None` in their metadata, so using this value to denote that a particular piece of metadata is not available (i.e. after migrating to a newer file format version)
+NOT_APPLICABLE_H5_METADATA = uuid.UUID("59d92e00-99d5-4460-9a28-5a1a0fe9aecf")
 
 HARDWARE_TEST_RECORDING_UUID = uuid.UUID("a2e76058-08cd-475d-a55d-31d401c3cb34")
 UTC_BEGINNING_DATA_ACQUISTION_UUID = uuid.UUID("98c67f22-013b-421a-831b-0ea55df4651e")
@@ -66,6 +60,8 @@ TRIMMED_TIME_FROM_ORIGINAL_END_UUID = uuid.UUID("55f6770d-c369-42ce-a437-5ed89c3
 ORIGINAL_FILE_VERSION_UUID = uuid.UUID("cd1b4063-4a87-4a57-bc12-923ff4890844")
 UTC_TIMESTAMP_OF_FILE_VERSION_MIGRATION_UUID = uuid.UUID("399b2148-09d4-418b-a132-e37df2721938")
 FILE_VERSION_PRIOR_TO_MIGRATION_UUID = uuid.UUID("11b4945b-3cf3-4f67-8bee-7abc3c449756")
+TWITCHES_POINT_UP_UUID = uuid.UUID("97f69f56-f1c6-4c50-8590-7332570ed3c5")
+INTERPOLATION_VALUE_UUID = uuid.UUID("466d0131-06b7-4f0f-ba1e-062a771cb280")
 BOOTUP_COUNTER_UUID = uuid.UUID("b9ccc724-a39d-429a-be6d-3fd29be5037d")
 TOTAL_WORKING_HOURS_UUID = uuid.UUID("f8108718-2fa0-40ce-a51a-8478e5edd4b8")
 TAMPER_FLAG_UUID = uuid.UUID("68d0147f-9a84-4423-9c50-228da16ba895")
@@ -131,6 +127,9 @@ METADATA_UUID_DESCRIPTIONS = immutabledict(
         CHANNEL_FIRMWARE_VERSION_UUID: "Firmware Version (Channel Controller)",
         BOOT_FLAGS_UUID: "Hardware/firmware flags present on device bootup",
         INITIAL_MAGNET_FINDING_PARAMS_UUID: "JSON string of the initial magnet finding params that should be used in Pulse3D",
+        # Optical file values
+        TWITCHES_POINT_UP_UUID: "Flag indicating whether or not the twitches in the data point up or not",
+        INTERPOLATION_VALUE_UUID: "Desired value for optical well data interpolation",
     }
 )
 
@@ -145,9 +144,6 @@ TIME_INDICES = "time_indices"
 TIME_OFFSETS = "time_offsets"
 
 
-"""
-constants from mantarray_waveform_analysis library
-"""
 MILLI_TO_BASE_CONVERSION = 1000
 
 TWITCH_PERIOD_UUID = uuid.UUID("6e0cd81c-7861-4c49-ba14-87b2739d65fb")
@@ -192,7 +188,7 @@ CONTRACTION_TIME_UUID = uuid.UUID("33b5b0a8-f197-46ef-a451-a254e530757b")
 BASELINE_TO_PEAK_UUID = uuid.UUID("03ce2d30-3580-4129-9913-2fc2e35eddb7")
 PEAK_TO_BASELINE_UUID = uuid.UUID("1ac2589d-4713-41c0-8dd0-1e6c98600e37")
 
-ALL_METRICS = [
+ALL_METRICS = (
     TWITCH_PERIOD_UUID,
     FRACTION_MAX_UUID,
     AMPLITUDE_UUID,
@@ -206,7 +202,14 @@ ALL_METRICS = [
     PEAK_TO_BASELINE_UUID,
     BASELINE_TO_PEAK_UUID,
     CONTRACTION_TIME_UUID,
-]
+)
+
+
+DEFAULT_TWITCH_WIDTHS = (10, 50, 90)
+DEFAULT_BASELINE_WIDTHS = (10, 90)
+DEFAULT_TWITCH_WIDTH_PERCENTS = tuple(range(10, 95, 5))
+DEFAULT_PROMINENCE_FACTORS = (6, 6)
+DEFAULT_WIDTH_FACTORS = (7, 7)
 
 PRIOR_PEAK_INDEX_UUID = uuid.UUID("80df90dc-21f8-4cad-a164-89436909b30a")
 PRIOR_VALLEY_INDEX_UUID = uuid.UUID("72ba9466-c203-41b6-ac30-337b4a17a124")
@@ -218,20 +221,26 @@ BESSEL_LOWPASS_10_UUID = uuid.UUID("7d64cac3-b841-4912-b734-c0cf20a81e7a")
 BESSEL_LOWPASS_30_UUID = uuid.UUID("eee66c75-4dc4-4eb4-8d48-6c608bf28d91")
 BUTTERWORTH_LOWPASS_30_UUID = uuid.UUID("de8d8cef-65bf-4119-ada7-bdecbbaa897a")
 
-# General mangetic field to force conversion factor. Obtained 03/09/2021 by Kevin Gray, Valid as of 11/19/21
+# General magnetic field to force conversion factor. Obtained 03/09/2021 by Kevin Gray
+# Valid as of 11/19/21
 MILLIMETERS_PER_MILLITESLA = 23.25
+# Valid as of 09/30/22
 NEWTONS_PER_MILLIMETER = 0.000159
+CARDIAC_STIFFNESS_FACTOR = 1
+SKM_STIFFNESS_FACTOR = 12
+ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR = immutabledict({"A": 12, "B": 9, "C": 6, "D": 3})
+
 
 # Beta 1 GMR to magnetic field conversion values. Valid as of 11/19/21
 MILLIVOLTS_PER_MILLITESLA = 1073.6  # Obtained 03/09/2021 by Kevin Gray
 MIDSCALE_CODE = 0x800000
-RAW_TO_SIGNED_CONVERSION_VALUE = 2 ** 23  # subtract this value from raw hardware data
+RAW_TO_SIGNED_CONVERSION_VALUE = 2**23  # subtract this value from raw hardware data
 REFERENCE_VOLTAGE = 2.5
 ADC_GAIN = 2
 
 # Beta 2 Memsic to magnetic field conversion factors. Valid as of 11/19/21
-MEMSIC_CENTER_OFFSET = 2 ** 15
-MEMSIC_MSB = 2 ** 16
+MEMSIC_CENTER_OFFSET = 2**15
+MEMSIC_MSB = 2**16
 MEMSIC_FULL_SCALE = 16
 GAUSS_PER_MILLITESLA = 10
 
@@ -240,9 +249,13 @@ MIN_NUMBER_PEAKS = 3
 MIN_NUMBER_VALLEYS = 3
 
 
-"""
-pulse3D constants
-"""
+MIN_EXPERIMENT_ID = 0
+MAX_CARDIAC_EXPERIMENT_ID = 99
+MAX_SKM_EXPERIMENT_ID = 199
+MAX_VARIABLE_EXPERIMENT_ID = 299
+MAX_EXPERIMENT_ID = 999
+
+
 METADATA_EXCEL_SHEET_NAME = "metadata"
 METADATA_RECORDING_ROW_START = 0
 METADATA_INSTRUMENT_ROW_START = METADATA_RECORDING_ROW_START + 4
@@ -258,11 +271,9 @@ TWITCH_FREQUENCIES_CHART_SHEET_NAME = "twitch-frequencies-plots"
 FORCE_FREQUENCY_RELATIONSHIP_SHEET = "force-frequency-relationship"
 
 INTERPOLATED_DATA_PERIOD_SECONDS = 1 / 100
-INTERPOLATED_DATA_PERIOD_US = INTERPOLATED_DATA_PERIOD_SECONDS * MICRO_TO_BASE_CONVERSION
-TSP_TO_DEFAULT_FILTER_UUID = {  # Tissue Sampling Period (µs) to default Pipeline Filter UUID
-    9600: BESSEL_LOWPASS_10_UUID,
-    1600: BUTTERWORTH_LOWPASS_30_UUID,
-}
+INTERPOLATED_DATA_PERIOD_US = int(INTERPOLATED_DATA_PERIOD_SECONDS * MICRO_TO_BASE_CONVERSION)
+# Tissue Sampling Period (µs) to default Pipeline Filter UUID
+TSP_TO_DEFAULT_FILTER_UUID = {9600: BESSEL_LOWPASS_10_UUID, 1600: BUTTERWORTH_LOWPASS_30_UUID}
 
 DEFAULT_CELL_WIDTH = 64
 CHART_ALPHA = 60  # for full/snapshots -- num pixels between left figure edge and plot area
@@ -287,9 +298,9 @@ CALCULATED_METRIC_DISPLAY_NAMES = {
     IRREGULARITY_INTERVAL_UUID: "Twitch Interval Irregularity (seconds)",
     TIME_DIFFERENCE_UUID: "Time Difference (seconds)",
     WIDTH_UUID: "Twitch Width {} (seconds)",
-    RELAXATION_TIME_UUID: "Time From Peak to Relaxation {} (seconds)",
     CONTRACTION_TIME_UUID: "Time From Contraction {} to Peak (seconds)",
     BASELINE_TO_PEAK_UUID: "Time From Contraction {} to Peak (seconds)",
+    RELAXATION_TIME_UUID: "Time From Peak to Relaxation {} (seconds)",
     PEAK_TO_BASELINE_UUID: "Time From Peak to Relaxation {} (seconds)",
 }
 
@@ -311,38 +322,6 @@ CALCULATED_METRICS = immutabledict(
     }
 )
 
-COORDS = (10, 25, 50, 75, 90)
-TWITCH_WIDTH_METRIC_DISPLAY_NAMES: Dict[int, str] = immutabledict(
-    (coord, f"Twitch Width {coord} (seconds)") for coord in reversed(COORDS)
-)
-CONTRACTION_COORDINATES_DISPLAY_NAMES: Dict[int, str] = immutabledict(
-    (coord, f"Contraction Coordinates {coord}") for coord in reversed(COORDS)
-)
-RELAXATION_COORDINATES_DISPLAY_NAMES: Dict[int, str] = immutabledict(
-    (coord, f"Relaxation Coordinates {coord}") for coord in COORDS
-)
-CONTRACTION_TIME_DIFFERENCE_DISPLAY_NAMES: Dict[int, str] = immutabledict(
-    (coord, f"Time From Contraction {coord} to Peak (seconds)") for coord in reversed(COORDS)
-)
-RELAXATION_TIME_DIFFERENCE_DISPLAY_NAMES: Dict[int, str] = immutabledict(
-    (coord, f"Time From Peak to Relaxation {coord} (seconds)") for coord in COORDS
-)
-
-ALL_FORMATS = immutabledict({"CoV": {"num_format": "0.00%"}})
-
-TWITCHES_POINT_UP_UUID = uuid.UUID("97f69f56-f1c6-4c50-8590-7332570ed3c5")
-INTERPOLATION_VALUE_UUID = uuid.UUID("466d0131-06b7-4f0f-ba1e-062a771cb280")
-mutable_metadata_uuid_descriptions = dict(
-    METADATA_UUID_DESCRIPTIONS
-)  # create a mutable version to add in the new values specific to the SDK (.update is an in-place operation that doesn't return the dictionary, so chaining is difficult)
-mutable_metadata_uuid_descriptions.update(
-    {
-        TWITCHES_POINT_UP_UUID: "Flag indicating whether or not the twitches in the data point up or not",
-        INTERPOLATION_VALUE_UUID: "Desired value for optical well data interpolation",
-    }
-)
-METADATA_UUID_DESCRIPTIONS = immutabledict(mutable_metadata_uuid_descriptions)
-
 EXCEL_OPTICAL_METADATA_CELLS = immutabledict(
     {
         WELL_NAME_UUID: "E2",
@@ -355,10 +334,6 @@ EXCEL_OPTICAL_METADATA_CELLS = immutabledict(
     }
 )
 
-
-"""
-Magnet Finding
-"""
 
 # 10 seconds at sampling rate of 100Hz
 BASELINE_MEAN_NUM_DATA_POINTS = 10 * 100

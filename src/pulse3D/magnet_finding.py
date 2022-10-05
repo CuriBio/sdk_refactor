@@ -24,7 +24,7 @@ def find_magnet_positions(
     initial_magnet_finding_params: Dict[str, Union[int, float]],
     filter_outputs: bool = True,
 ) -> Dict[str, NDArray[(1, Any), float]]:
-    output_dict = get_positions(fields - baseline, **initial_magnet_finding_params)
+    output_dict = get_positions(fields - baseline, **initial_magnet_finding_params)  # type: ignore  # mypy complaining about **
     if filter_outputs:
         for param, output_arr in output_dict.items():
             output_dict[param] = filter_magnet_positions(output_arr)

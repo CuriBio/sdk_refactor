@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
+import copy
 import datetime
 import glob
 import json
 import logging
 import math
 import os
-import copy
 import tempfile
 from typing import Any
 from typing import Optional
@@ -36,7 +36,9 @@ from .transforms import calculate_displacement_from_voltage
 from .transforms import calculate_force_from_displacement
 from .transforms import calculate_voltage_from_gmr
 from .transforms import create_filter
+from .transforms import get_stiffness_factor
 from .transforms import noise_cancellation
+from .utils import get_experiment_id
 from .utils import truncate
 from .utils import truncate_float
 
@@ -64,7 +66,13 @@ class MantarrayH5FileCreator(h5py.File):
 
 
 class WellFile:
-    def __init__(self, file_path: str, sampling_period=None):
+    def __init__(
+        self,
+        file_path: str,
+        sampling_period: Optional[Union[int, float]] = None,
+        # TODO unit test the stiffness factor, auto and override
+        stiffness_factor: Optional[int] = None,
+    ):
         self.displacement: NDArray[(2, Any), np.float64]
         self.force: NDArray[(2, Any), np.float64]
 
@@ -77,6 +85,12 @@ class WellFile:
                 self.attrs = {attr: h5_file.attrs[attr] for attr in list(h5_file.attrs)}
                 self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
 
+                if stiffness_factor:
+                    self.stiffness_factor = stiffness_factor
+                else:
+                    experiment_id = get_experiment_id(self[PLATE_BARCODE_UUID])
+                    self.stiffness_factor = get_stiffness_factor(experiment_id, self[WELL_INDEX_UUID])
+
                 # extract datetime
                 self[UTC_BEGINNING_RECORDING_UUID] = self._extract_datetime(UTC_BEGINNING_RECORDING_UUID)
                 self[UTC_BEGINNING_DATA_ACQUISTION_UUID] = self._extract_datetime(
@@ -85,17 +99,17 @@ class WellFile:
                 self[UTC_FIRST_TISSUE_DATA_POINT_UUID] = self._extract_datetime(
                     UTC_FIRST_TISSUE_DATA_POINT_UUID
                 )
-                if self.version < VersionInfo.parse("1.0.0"):  # Ref data not yet added to these files
+
+                self.tissue_sampling_period = (
+                    sampling_period if sampling_period else self[TISSUE_SAMPLING_PERIOD_UUID]
+                )
+
+                if self.version < VersionInfo.parse("1.0.0"):
+                    # Ref data not yet added to Beta 2 files
                     self[UTC_FIRST_REF_DATA_POINT_UUID] = self._extract_datetime(
                         UTC_FIRST_REF_DATA_POINT_UUID
                     )
-
-                # setup noise filter
-                if self.version < VersionInfo.parse("1.0.0"):
-                    # should probably add beta 2 file support here and remove this condition
-                    self.tissue_sampling_period = (
-                        sampling_period if sampling_period else self[TISSUE_SAMPLING_PERIOD_UUID]
-                    )
+                    # setup noise filter, should probably add beta 2 file support for this
                     self.noise_filter_uuid = (
                         TSP_TO_DEFAULT_FILTER_UUID[self.tissue_sampling_period]
                         if self.is_magnetic_data
@@ -106,19 +120,11 @@ class WellFile:
                         if self.noise_filter_uuid
                         else None
                     )
-                else:
-                    self.noise_filter_uuid = None
-                    self.filter_coefficients = None
-                    self.tissue_sampling_period = (
-                        sampling_period if sampling_period else self[TISSUE_SAMPLING_PERIOD_UUID]
-                    )
-                    self.is_magnetic_data = False
 
-                is_untrimmed = self.get(IS_FILE_ORIGINAL_UNTRIMMED_UUID, True)
-                time_trimmed = None if is_untrimmed else self.attrs[TRIMMED_TIME_FROM_ORIGINAL_START_UUID]
+                    is_untrimmed = self.get(IS_FILE_ORIGINAL_UNTRIMMED_UUID, True)
+                    time_trimmed = None if is_untrimmed else self.attrs[TRIMMED_TIME_FROM_ORIGINAL_START_UUID]
 
-                # load sensor data. This is only possible to do for Beta 1 data files
-                if self.version < VersionInfo.parse("1.0.0"):
+                    # load sensor data. This is only possible to do here for Beta 1 data files
                     self[TISSUE_SENSOR_READINGS] = self._load_reading(
                         h5_file, TISSUE_SENSOR_READINGS, time_trimmed
                     )
@@ -127,15 +133,22 @@ class WellFile:
                     )
                     self._load_magnetic_data()
                 else:
-                    self[TIME_INDICES] = h5_file[TIME_INDICES][:]
-                    self[TIME_OFFSETS] = h5_file[TIME_OFFSETS][:]
-                    self[TISSUE_SENSOR_READINGS] = h5_file[TISSUE_SENSOR_READINGS][:]
-                    self[REFERENCE_SENSOR_READINGS] = h5_file[REFERENCE_SENSOR_READINGS][:]
+                    self.noise_filter_uuid = None
+                    self.filter_coefficients = None
+                    self.is_magnetic_data = False
+
+                    for dataset in (
+                        TIME_INDICES,
+                        TIME_OFFSETS,
+                        TISSUE_SENSOR_READINGS,
+                        REFERENCE_SENSOR_READINGS,
+                    ):
+                        self[dataset] = h5_file[dataset][:]
 
         elif file_path.endswith(".xlsx"):
             self._excel_sheet = _get_single_sheet(file_path)
             self.file_name = os.path.basename(file_path)
-            self.attrs = {k: v for (k, v) in _load_optical_file_attrs(self._excel_sheet).items()}
+            self.attrs = {k: v for k, v in _load_optical_file_attrs(self._excel_sheet).items()}
             self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
             self.is_magnetic_data = False
             self.is_force_data = (
@@ -150,6 +163,8 @@ class WellFile:
                 if self.noise_filter_uuid
                 else None
             )
+
+            self.stiffness_factor = stiffness_factor if stiffness_factor else CARDIAC_STIFFNESS_FACTOR
 
             self._load_magnetic_data()
 
@@ -174,8 +189,7 @@ class WellFile:
         )
 
         self.noise_cancelled_magnetic_data: NDArray[(2, Any), int] = noise_cancellation(
-            self.sensitivity_calibrated_tissue_gmr,
-            self.sensitivity_calibrated_reference_gmr,
+            self.sensitivity_calibrated_tissue_gmr, self.sensitivity_calibrated_reference_gmr
         )
 
         self.fully_calibrated_magnetic_data: NDArray[(2, Any), int] = apply_empty_plate_calibration(
@@ -186,8 +200,7 @@ class WellFile:
             self.noise_filtered_magnetic_data: NDArray[(2, Any), int] = self.fully_calibrated_magnetic_data
         else:
             self.noise_filtered_magnetic_data: NDArray[(2, Any), int] = apply_noise_filtering(
-                self.fully_calibrated_magnetic_data,
-                self.filter_coefficients,
+                self.fully_calibrated_magnetic_data, self.filter_coefficients
             )
 
         self.compressed_magnetic_data: NDArray[(2, Any), int] = compress_filtered_magnetic_data(
@@ -200,16 +213,15 @@ class WellFile:
             self.compressed_voltage
         )
         self.compressed_force: NDArray[(2, Any), np.float32] = calculate_force_from_displacement(
-            self.compressed_displacement, in_mm=False
+            self.compressed_displacement, stiffness_factor=self.stiffness_factor, in_mm=False
         )
 
         self.voltage: NDArray[(2, Any), np.float32] = calculate_voltage_from_gmr(
             self.noise_filtered_magnetic_data
         )
-
         self.displacement: NDArray[(2, Any), np.float64] = calculate_displacement_from_voltage(self.voltage)
         self.force: NDArray[(2, Any), np.float64] = calculate_force_from_displacement(
-            self.displacement, in_mm=False
+            self.displacement, stiffness_factor=self.stiffness_factor, in_mm=False
         )
 
     def get(self, key, default):
@@ -316,6 +328,8 @@ class PlateRecording:
         force_df: pd.DataFrame = None,
         start_time: Union[float, int] = 0,
         end_time: Union[float, int] = np.inf,
+        # TODO unit test the stiffness factor, auto and override
+        stiffness_factor: Optional[int] = None,
     ):
         self.path = path
         self.wells = []
@@ -328,24 +342,26 @@ class PlateRecording:
             with tempfile.TemporaryDirectory() as tmpdir:
                 zf = zipfile.ZipFile(path)
                 zf.extractall(path=tmpdir)
-                self.wells, calibration_recordings = load_files(tmpdir)
+                self.wells, calibration_recordings = load_files(tmpdir, stiffness_factor)
         elif self.path.endswith(".xlsx"):  # optical file
             self.is_optical_recording = True
-            well_file = WellFile(self.path)
+            well_file = WellFile(self.path, stiffness_factor=stiffness_factor)
             self.wells = [None] * (well_file[WELL_INDEX_UUID] + 1)
             self.wells[well_file[WELL_INDEX_UUID]] = well_file
         else:  # .h5 files
-            self.wells, calibration_recordings = load_files(self.path)
+            self.wells, calibration_recordings = load_files(self.path, stiffness_factor)
 
-        if self.wells:  # might not be any well files in the path
-            # currently file versions 1.0.0 and above must have all their data processed together
-            if not self.is_optical_recording and self.wells[0].version >= VersionInfo.parse("1.0.0"):
-                if force_df is None:
-                    self._process_plate_data(
-                        calibration_recordings, use_mean_of_baseline=use_mean_of_baseline
-                    )
-                else:
-                    self._load_dataframe(force_df)
+        if not self.wells:
+            # might not be any well files in the path
+            # TODO should probably raise an error here
+            return
+
+        # currently file versions 1.0.0 and above must have all their data processed together
+        if not self.is_optical_recording and self.wells[0].version >= VersionInfo.parse("1.0.0"):
+            if force_df is None:
+                self._process_plate_data(calibration_recordings, use_mean_of_baseline=use_mean_of_baseline)
+            else:
+                self._load_dataframe(force_df)
 
     def _process_plate_data(self, calibration_recordings, use_mean_of_baseline):
         if not all(isinstance(well_file, WellFile) for well_file in self.wells) or len(self.wells) != 24:
@@ -398,19 +414,17 @@ class PlateRecording:
             x = estimated_magnet_positions["X"][:, well_idx]
             if flip_data:
                 x *= -1
+
             # have time indices start at 0
             adjusted_time_indices = well_file[TIME_INDICES] - well_file[TIME_INDICES][0]
             start_idx, end_idx = truncate(
-                source_series=adjusted_time_indices,
-                lower_bound=self.start_time,
-                upper_bound=self.end_time,
+                source_series=adjusted_time_indices, lower_bound=self.start_time, upper_bound=self.end_time
             )
 
-            well_file.displacement = np.array(
-                [adjusted_time_indices[start_idx : end_idx + 1], x[start_idx : end_idx + 1]]
+            well_file.displacement = np.array([adjusted_time_indices, x])[:, start_idx : end_idx + 1]
+            well_file.force = calculate_force_from_displacement(
+                well_file.displacement, stiffness_factor=well_file.stiffness_factor
             )
-
-            well_file.force = calculate_force_from_displacement(well_file.displacement)
 
     def _load_dataframe(self, df: pd.DataFrame) -> None:
         """Add time and force data to well files in PR.
@@ -446,15 +460,15 @@ class PlateRecording:
         return time_force_df, output_path
 
     def to_dataframe(self, from_dataframe: bool = False) -> pd.DataFrame:
-        """
-        Creates DataFrame from PlateRecording with all the data interpolated, normalized, and scaled.
-        The returned dataframe contains one column for time in ms and one column for each well.
+        """Creates DataFrame from PlateRecording with all the data
+        interpolated, normalized, and scaled. The returned dataframe contains
+        one column for time in ms and one column for each well.
 
         The dataframe returned by this method can be used in calls to peak_detector by selecting the
         'time' column and the well column that peak detection should be run on after transposing the
         data, e.g.
 
-        >>> df = to_datafram()
+        >>> df = to_dataframe()
         >>> peak_detector(df[['time', 'A1']].transpose().values)
 
         The dataframe needs to be transposed before converting to NDArray because peak_detector
@@ -466,7 +480,7 @@ class PlateRecording:
         first_well = [pw for pw in self.wells if pw][0]
 
         if self.is_optical_recording:
-            interp_period = first_well[INTERPOLATED_VALUE_UUID]
+            interp_period = first_well[INTERPOLATION_VALUE_UUID]
         else:
             interp_period = INTERPOLATED_DATA_PERIOD_US
 
@@ -553,7 +567,7 @@ class PlateRecording:
 
 
 # helpers
-def load_files(path):
+def load_files(path: str, stiffness_factor: Optional[int]):
     h5_files = glob.glob(os.path.join(path, "**", "*.h5"), recursive=True)
 
     recording_files = [f for f in h5_files if "Calibration" not in f]
@@ -564,13 +578,13 @@ def load_files(path):
 
     for f in recording_files:
         log.info(f"Loading data from {os.path.basename(f)}")
-        well_file = WellFile(f)
-        tissue_well_files[well_file[WELL_INDEX_UUID]] = well_file
+        well_file = WellFile(f, stiffness_factor=stiffness_factor)
+        tissue_well_files[well_file[WELL_INDEX_UUID]] = well_file  # type: ignore
 
     for f in calibration_files:
         log.info(f"Loading calibration data from {os.path.basename(f)}")
-        well_file = WellFile(f)
-        baseline_well_files[well_file[WELL_INDEX_UUID]] = well_file
+        well_file = WellFile(f, stiffness_factor=stiffness_factor)
+        baseline_well_files[well_file[WELL_INDEX_UUID]] = well_file  # type: ignore
 
     return tissue_well_files, baseline_well_files
 

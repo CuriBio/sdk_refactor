@@ -15,13 +15,22 @@ from .constants import BESSEL_BANDPASS_UUID
 from .constants import BESSEL_LOWPASS_10_UUID
 from .constants import BESSEL_LOWPASS_30_UUID
 from .constants import BUTTERWORTH_LOWPASS_30_UUID
+from .constants import CARDIAC_STIFFNESS_FACTOR
+from .constants import MAX_CARDIAC_EXPERIMENT_ID
+from .constants import MAX_EXPERIMENT_ID
+from .constants import MAX_SKM_EXPERIMENT_ID
+from .constants import MAX_VARIABLE_EXPERIMENT_ID
 from .constants import MICRO_TO_BASE_CONVERSION
 from .constants import MILLI_TO_BASE_CONVERSION
 from .constants import MILLIMETERS_PER_MILLITESLA
 from .constants import MILLIVOLTS_PER_MILLITESLA
+from .constants import MIN_EXPERIMENT_ID
 from .constants import NEWTONS_PER_MILLIMETER
 from .constants import RAW_TO_SIGNED_CONVERSION_VALUE
 from .constants import REFERENCE_VOLTAGE
+from .constants import ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR
+from .constants import SKM_STIFFNESS_FACTOR
+from .constants import TWENTY_FOUR_WELL_PLATE
 from .exceptions import FilterCreationNotImplementedError
 from .exceptions import UnrecognizedFilterUuidError
 
@@ -225,6 +234,7 @@ def calculate_displacement_from_voltage(
 
 def calculate_force_from_displacement(
     displacement_data: NDArray[(2, Any), np.float64],
+    stiffness_factor: int = CARDIAC_STIFFNESS_FACTOR,
     in_mm: bool = True,
 ) -> NDArray[(2, Any), np.float64]:
     """Convert displacement to force.
@@ -238,12 +248,27 @@ def calculate_force_from_displacement(
     Returns:
         A 2D array of time vs Force (Newtons)
     """
-    displacement = displacement_data[1, :]
-    if not in_mm:
-        displacement *= MILLI_TO_BASE_CONVERSION
     time = displacement_data[0, :]
+    displacement = displacement_data[1, :]
+
+    unit_conversion = 1 if in_mm else MILLI_TO_BASE_CONVERSION
 
     # calculate force
-    sample_in_newtons = displacement * NEWTONS_PER_MILLIMETER
+    sample_in_newtons = displacement * unit_conversion * NEWTONS_PER_MILLIMETER * stiffness_factor
 
     return np.vstack((time, sample_in_newtons)).astype(np.float64)
+
+
+def get_stiffness_factor(barcode_experiment_id: int, well_idx: int) -> int:
+    if not (MIN_EXPERIMENT_ID <= barcode_experiment_id <= MAX_EXPERIMENT_ID):
+        raise ValueError(f"Experiment ID must be in the range 000-999, not {barcode_experiment_id}")
+
+    if barcode_experiment_id <= MAX_CARDIAC_EXPERIMENT_ID:
+        return CARDIAC_STIFFNESS_FACTOR
+    if barcode_experiment_id <= MAX_SKM_EXPERIMENT_ID:
+        return SKM_STIFFNESS_FACTOR
+    if barcode_experiment_id <= MAX_VARIABLE_EXPERIMENT_ID:
+        well_row_label = TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_idx)[0]
+        return ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR[well_row_label]
+    # if experiment ID does not have a stiffness factor defined (currently 300-999) then just use the value for Cardiac
+    return CARDIAC_STIFFNESS_FACTOR

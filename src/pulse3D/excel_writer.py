@@ -3,7 +3,9 @@ import datetime
 import logging
 import os
 from typing import Any
+from typing import Dict
 from typing import List
+from typing import Optional
 from typing import Tuple
 from typing import Union
 
@@ -16,9 +18,9 @@ from .exceptions import *
 from .peak_detection import concat
 from .peak_detection import data_metrics
 from .peak_detection import find_twitch_indices
+from .peak_detection import get_windowed_peaks_valleys
 from .peak_detection import init_dfs
 from .peak_detection import peak_detector
-from .peak_detection import get_windowed_peaks_valleys
 from .plate_recording import PlateRecording
 from .plotting import plotting_parameters
 from .utils import truncate
@@ -182,25 +184,28 @@ def create_frequency_vs_time_charts(
 def write_xlsx(
     plate_recording: PlateRecording,
     normalize_y_axis: bool = True,
+    max_y: Union[int, float] = None,
     start_time: Union[float, int] = 0,
     end_time: Union[float, int] = np.inf,
-    twitch_widths: Tuple[int, ...] = (50, 90),
-    baseline_widths_to_use: Tuple[int, ...] = (10, 90),
-    prominence_factors: Tuple[Union[int, float], Union[int, float]] = (6, 6),
-    width_factors: Tuple[Union[int, float], Union[int, float]] = (7, 7),
-    max_y: Union[int, float] = None,
+    twitch_widths: Tuple[int, ...] = DEFAULT_TWITCH_WIDTHS,
+    baseline_widths_to_use: Tuple[int, ...] = DEFAULT_BASELINE_WIDTHS,
+    prominence_factors: Tuple[Union[int, float], Union[int, float]] = DEFAULT_PROMINENCE_FACTORS,
+    width_factors: Tuple[Union[int, float], Union[int, float]] = DEFAULT_WIDTH_FACTORS,
     peaks_valleys: Dict[str, List[List[int]]] = None,
 ):
     """Write plate recording waveform and computed metrics to Excel spredsheet.
 
     Args:
-        plate_recording (PlateRecording): loaded PlateRecording object
-        start_time (float): Start time of windowed analysis. Defaults to 0.
-        end_time (float): End time of windowed analysis. Defaults to infinity.
+        plate_recording: loaded PlateRecording object
+        normalize_y_axis: whether or not to set the max bound of the y-axis of all waveform graphs to the same value
+        max_y: Sets the maximum bound for y-axis in the output graphs. Ignored if normalize_y_axis is False
+        start_time: Start time of windowed analysis. Defaults to 0.
+        end_time: End time of windowed analysis. Defaults to infinity.
         twitch_widths: Requested widths to add to output file
         baseline_widths_to_use: Twitch widths to use as baseline metrics
-        max_y (float or int): Sets the maximum bound for y-axis in the output graphs
-        peaks_valleys (dict): User-defined peaks and valleys to use instead of peak_detector
+        prominence_factors: factors used to determine the prominence peaks/valleys must have
+        width_factors: factors used to determine the width peaks/valleys must have
+        peaks_valleys: User-defined peaks and valleys to use instead of peak_detector
     Raises:
         NotImplementedError: if peak finding algorithm fails for unexpected reason
         ValueError: if start and end times are outside of expected bounds, or do not ?
@@ -307,14 +312,8 @@ def write_xlsx(
 
     data = []
 
-    twitch_width_percents = np.unique(
-        np.concatenate(
-            (
-                list(twitch_widths),
-                [(100 - width) for width in twitch_widths],
-                np.arange(10, 95, 5),
-            )
-        )
+    twitch_width_percents = tuple(
+        set([*twitch_widths, *(100 - np.array(twitch_widths, dtype=int)), *DEFAULT_TWITCH_WIDTH_PERCENTS])
     )
 
     log.info("Computing data metrics for each well.")
@@ -375,7 +374,7 @@ def write_xlsx(
             log.info(f"Finding peaks and valleys for well {well_name}")
 
             if peaks_valleys is None:
-                log.info(f"No user defined peaks and valleys were found, so calculating with peak_detector")
+                log.info("No user defined peaks and valleys were found, so calculating with peak_detector")
                 peaks_and_valleys = peak_detector(
                     interpolated_well_data,
                     prominence_factors=prominence_factors,
@@ -468,10 +467,10 @@ def _write_xlsx(
     metadata_df: pd.DataFrame,
     continuous_waveforms_df: pd.DataFrame,
     data: List[Dict[Any, Any]],
-    max_y: Union[float, int],
+    max_y: Optional[Union[float, int]],
     is_optical_recording: bool = False,
-    twitch_widths: Tuple[int, ...] = (50, 90),
-    baseline_widths_to_use: Tuple[int, ...] = (10, 90),
+    twitch_widths: Tuple[int, ...] = DEFAULT_TWITCH_WIDTHS,
+    baseline_widths_to_use: Tuple[int, ...] = DEFAULT_BASELINE_WIDTHS,
 ):
     with pd.ExcelWriter(output_file_name) as writer:
         log.info("Writing H5 file metadata")
@@ -639,7 +638,7 @@ def create_waveform_charts(
         }
     )
 
-    (peaks, valleys) = dm["peaks_and_valleys"]
+    peaks, valleys = dm["peaks_and_valleys"]
     log.info(f'Adding peak detection series for well {dm["well_name"]}')
 
     add_peak_detection_series(
@@ -670,7 +669,7 @@ def create_waveform_charts(
         minimum_value=dm["min_value"],
     )
 
-    (well_row, well_col) = TWENTY_FOUR_WELL_PLATE.get_row_and_column_from_well_index(df_column - 1)
+    well_row, well_col = TWENTY_FOUR_WELL_PLATE.get_row_and_column_from_well_index(df_column - 1)
     snapshot_sheet.insert_chart(
         well_row * (CHART_HEIGHT_CELLS + 1),
         well_col * (CHART_FIXED_WIDTH_CELLS + 1),
@@ -681,34 +680,28 @@ def create_waveform_charts(
 
 def aggregate_metrics_df(
     data: List[Dict[Any, Any]],
-    widths: Tuple[int, ...] = (50, 90),
-    baseline_widths_to_use: Tuple[int, ...] = (10, 90),
+    widths: Tuple[int, ...] = DEFAULT_TWITCH_WIDTHS,
+    baseline_widths_to_use: Tuple[int, ...] = DEFAULT_BASELINE_WIDTHS,
 ):
     """Combine aggregate metrics for each well into single DataFrame.
 
     Args:
         data (list): list of data metrics and metadata associated with each well
-        widths (tuple of ints, optional): twitch-widths to return data for. Defaults to (50, 90).
+        widths (tuple of ints, optional): twitch-widths to return data for.
         baseline_widths_to_use: twitch widths to use as baseline metrics
     Returns:
         df (DataFrame): aggregate data frame of all metric aggregate measures
     """
     df = pd.DataFrame()
+    df = df.append(pd.Series(["", "", *[d["well_name"] for d in data]]), ignore_index=True)
+    df = df.append(pd.Series(["", "Treatment Description"]), ignore_index=True)
     df = df.append(
         pd.Series(
             [
                 "",
-                "",
+                "n (twitches)",
+                *[(len(d["metrics"][0]) if not d["error_msg"] else d["error_msg"]) for d in data],
             ]
-            + [d["well_name"] for d in data]
-        ),
-        ignore_index=True,
-    )
-    df = df.append(pd.Series(["", "Treatment Description"]), ignore_index=True)
-    df = df.append(
-        pd.Series(
-            ["", "n (twitches)"]
-            + [len(d["metrics"][0]) if not d["error_msg"] else d["error_msg"] for d in data]
         ),
         ignore_index=True,
     )
@@ -766,14 +759,14 @@ def _append_aggregate_measures_df(main_df: pd.DataFrame, metrics: pd.DataFrame, 
 
 def per_twitch_df(
     data: List[Dict[Any, Any]],
-    widths: Tuple[int, ...] = (50, 90),
-    baseline_widths_to_use: Tuple[int, ...] = (10, 90),
+    widths: Tuple[int, ...] = DEFAULT_TWITCH_WIDTHS,
+    baseline_widths_to_use: Tuple[int, ...] = DEFAULT_BASELINE_WIDTHS,
 ):
     """Combine per-twitch metrics for each well into single DataFrame.
 
     Args:
         data (list): list of data metrics and metadata associated with each well
-        widths (tuple of ints, optional): twitch-widths to return data for. Defaults to (50, 90).
+        widths (tuple of ints, optional): twitch-widths to return data for.
         baseline_widths_to_use: twitch widths to use as baseline metrics
     Returns:
         df (DataFrame): per-twitch data frame of all metrics

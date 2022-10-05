@@ -22,9 +22,8 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - "ubuntu-18.04"
-          - "ubuntu-20.04"
-          - "windows-2019"
+          - "ubuntu-22.04"
+          - "windows-2022"
           - "macos-10.15"
           # - "macos-11.0"
         python-version:
@@ -32,7 +31,7 @@ jobs:
             - 3.9
         include:
           # only enable coverage on the fastest job
-          - os: "ubuntu-20.04"
+          - os: "ubuntu-22.04"
             python-version: "3.9"
             IS_FASTEST_JOB: true
 
@@ -73,17 +72,6 @@ jobs:
       - name: Confirming tag not already present on remote (if publishing)
         if: github.event.inputs.dry_run != '1' && matrix.IS_FASTEST_JOB == true
         run: if [$(git ls-remote --tags origin | grep v${{ steps.extract_version.outputs.package-version }}) = '']; then echo Tag does not exist on remote; else echo Tag already exists on remote && exit 1; fi
-
-      # - name: Cache Pre-commit hooks
-      #   uses: actions/cache@v2.1.5
-      #   env:
-      #     cache-name: cache-pre-commit-hooks
-      #   if: matrix.IS_FASTEST_JOB == true
-      #   with:
-      #     path: ./.precommit_cache
-      #     key: ${{ matrix.os }}-${{ matrix.python-version }}-build-${{ env.cache-name }}-${{ hashFiles('**/.pre-commit-config.yaml') }}
-      #     restore-keys: |
-      #       ${{ matrix.os }}-${{ matrix.python-version }}-build-${{ env.cache-name }}-
 
       - name: Extract branch name # Adapted from: https://stackoverflow.com/questions/58033366/how-to-get-current-branch-within-github-actions
         if: runner.os == 'Linux'
@@ -142,12 +130,6 @@ jobs:
       - name: Log full installed packages
         run: pip freeze
 
-      # - name: Run pre-commit hooks
-      #   if: matrix.IS_FASTEST_JOB == true
-      #   run: |
-      #     pre-commit install
-      #     pre-commit run -a
-
       - name: Install Doc dependencies
         # only check Sphinx docs build on the fastest job
         if: matrix.IS_FASTEST_JOB == true
@@ -163,12 +145,6 @@ jobs:
 
       - name: Build wheel for release
         run: python setup.py bdist_wheel
-
-      - name: Rename wheel for Linux (Python 3.7)
-        if: runner.os == 'Linux' && matrix.python-version == 3.7
-        run: |
-          cp ./dist/Pulse3D-${{ steps.extract_version.outputs.package-version }}-cp37-cp37m-linux_x86_64.whl ./dist/Pulse3D-${{ steps.extract_version.outputs.package-version }}-cp37-cp37m-manylinux1_x86_64.whl
-          rm ./dist/Pulse3D-${{ steps.extract_version.outputs.package-version }}-cp37-cp37m-linux_x86_64.whl
 
       - name: Rename wheel for Linux (Python 3.8)
         if: runner.os == 'Linux' && matrix.python-version == 3.8
@@ -205,7 +181,7 @@ jobs:
       fail-fast: false
       matrix: # if publishing pure python code, then disable all except one os and python version combination. But if publishing code that uses Cython then likely all combinations will be needed
         os:
-          - "ubuntu-20.04"
+          - "ubuntu-22.04"
         python-version:
             - 3.9
     name: Publish to Test PyPI for Python ${{ matrix.python-version }} on ${{ matrix.os }}
@@ -270,8 +246,8 @@ jobs:
   #     matrix:
   #       os:
   #         - "ubuntu-18.04"
-  #         - "ubuntu-20.04"
-  #         - "windows-2019"
+  #         - "ubuntu-22.04"
+  #         - "windows-2022"
   #         - "macos-10.15"
   #         # - "macos-11.0"
   #       python-version:
@@ -351,8 +327,8 @@ jobs:
       fail-fast: false
       matrix: # if publishing pure python code, then disable all except one os and python version combination. But if publishing code that uses Cython then likely all combinations will be needed
         os:
-          - "ubuntu-20.04"
-          - "windows-2019"
+          - "ubuntu-22.04"
+          - "windows-2022"
           - "macos-10.15"
         python-version:
             - 3.8
@@ -420,8 +396,8 @@ jobs:
   #     matrix:
   #       os:
   #         - "ubuntu-18.04"
-  #         - "ubuntu-20.04"
-  #         - "windows-2019"
+  #         - "ubuntu-22.04"
+  #         - "windows-2022"
   #         - "macos-10.15"
   #         # - "macos-11.0"
   #       python-version:
@@ -501,7 +477,7 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - "ubuntu-20.04"
+          - "ubuntu-22.04"
     name: Creating tag on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:

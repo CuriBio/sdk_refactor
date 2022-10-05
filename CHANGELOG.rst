@@ -3,6 +3,7 @@ Changelog for Pulse3D
 0.26.0 (2022-10-04)
 -------------------
 - Added stiffness factor loading from barcode, and option to override the stiffness factor of the barcode
+- Added ``Time From Peak to Relaxation 10 (seconds)`` to default output
 
 0.25.4 (2022-09-20)
 -------------------

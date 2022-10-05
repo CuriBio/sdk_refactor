@@ -27,9 +27,7 @@ def truncate_float(value: float, digits: int) -> float:
 
 
 def truncate(
-    source_series: NDArray[(1, Any), float],
-    lower_bound: Union[int, float],
-    upper_bound: Union[int, float],
+    source_series: NDArray[(1, Any), float], lower_bound: Union[int, float], upper_bound: Union[int, float]
 ) -> Tuple[int, int]:
     """Match bounding indices of source time-series with reference time-series.
 
@@ -44,11 +42,11 @@ def truncate(
     first_idx, last_idx = 0, len(source_series) - 1
 
     # right-truncation
-    while upper_bound < source_series[last_idx]:
+    while source_series[last_idx] > upper_bound:
         last_idx -= 1
 
     # left-truncation
-    while lower_bound > source_series[first_idx]:
+    while source_series[first_idx] < lower_bound:
         first_idx += 1
 
     return first_idx, last_idx

@@ -1,5 +1,9 @@
 Changelog for Pulse3D
 =====================
+0.26.0 (2022-10-04)
+-------------------
+- Added stiffness factor loading from barcode, and option to override the stiffness factor of the barcode
+
 0.25.4 (2022-09-20)
 -------------------
 - Added new normalize_y_axis param to disable or enable y axis normalization

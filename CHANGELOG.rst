@@ -1,5 +1,9 @@
 Changelog for Pulse3D
 =====================
+0.26.1 (2022-10-05)
+-------------------
+- Added ability to pass kwargs to use in ``PlateRecording`` initialization through ``PlateRecording.from_directory``
+
 0.26.0 (2022-10-04)
 -------------------
 - Added stiffness factor loading from barcode, and option to override the stiffness factor of the barcode

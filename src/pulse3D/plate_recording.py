@@ -514,9 +514,7 @@ class PlateRecording:
 
             data[w.get(WELL_NAME_UUID, str(i))] = pd.Series(interp_force)
 
-        df = pd.DataFrame(data)
-        df = df.dropna()
-
+        df = pd.DataFrame(data).dropna()
         return df
 
     @staticmethod
@@ -527,7 +525,7 @@ class PlateRecording:
         yield PlateRecording(path, force_df=df)
 
     @staticmethod
-    def from_directory(path):
+    def from_directory(path, **kwargs):
         # multi zip files
         for zf in glob.glob(os.path.join(path, "*.zip"), recursive=True):
             zip_file = zipfile.ZipFile(zf)
@@ -536,20 +534,20 @@ class PlateRecording:
                 with tempfile.TemporaryDirectory() as tmpdir:
                     zip_file.extractall(path=tmpdir)
                     for optical_file in os.scandir(tmpdir):
-                        yield PlateRecording(optical_file.path)
+                        yield PlateRecording(optical_file.path, **kwargs)
                 return
             log.info(f"Loading recording from file {zf}")
-            yield PlateRecording(zf)
+            yield PlateRecording(zf, **kwargs)
 
         # multi optical files
         for of in glob.glob(os.path.join(path, "*.xlsx"), recursive=True):
             log.info(f"Loading optical data from file {of}")
-            yield PlateRecording(of)
+            yield PlateRecording(of, **kwargs)
 
         # directory of .h5 files
         for dir in glob.glob(os.path.join(path, "*"), recursive=True):
             if glob.glob(os.path.join(dir, "*.h5"), recursive=True):
-                yield PlateRecording(dir)
+                yield PlateRecording(dir, **kwargs)
 
     def __iter__(self):
         self._iter = 0

@@ -312,14 +312,8 @@ def write_xlsx(
 
     data = []
 
-    twitch_width_percents = np.unique(
-        np.concatenate(
-            (
-                list(twitch_widths),
-                [(100 - width) for width in twitch_widths],
-                np.array(DEFAULT_TWITCH_WIDTH_PERCENTS),
-            )
-        )
+    twitch_width_percents = tuple(
+        set([*twitch_widths, *(100 - np.array(twitch_widths, dtype=int)), *DEFAULT_TWITCH_WIDTH_PERCENTS])
     )
 
     log.info("Computing data metrics for each well.")

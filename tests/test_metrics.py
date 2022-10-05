@@ -5,9 +5,7 @@ import os
 import uuid
 
 import numpy as np
-from pulse3D.constants import ALL_METRICS
 import pulse3D.metrics as metrics
-from pulse3D.peak_detection import data_metrics
 from pulse3D.peak_detection import find_twitch_indices
 from pulse3D.peak_detection import peak_detector
 from pulse3D.plate_recording import WellFile
@@ -21,13 +19,6 @@ PATH_OF_CURRENT_FILE = get_current_file_abs_directory()
 # prominence and width scaling factors for peak detection
 PROMINENCE_FACTORS = (4, 4)
 WIDTH_FACTORS = (2, 2)
-
-
-def get_force_metrics_from_well_file(w: WellFile, metrics_to_create=ALL_METRICS):
-    peak_and_valley_indices = peak_detector(
-        w.force, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS
-    )
-    return data_metrics(peak_and_valley_indices, w.force)
 
 
 def encode_dict(d):

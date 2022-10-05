@@ -805,7 +805,6 @@ def per_twitch_df(
                     if metric_id == BASELINE_TO_PEAK_UUID
                     else baseline_widths_to_use[1]
                 )
-                # print("###", metric_id, baseline_width)
                 # prevents duplicate entries in file if entered baseline(s) is/are the same as the entered twitch widths
                 if baseline_width not in widths:
                     values = [CALCULATED_METRIC_DISPLAY_NAMES[metric_id].format(baseline_width)]

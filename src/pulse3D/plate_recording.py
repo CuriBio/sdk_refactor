@@ -87,9 +87,12 @@ class WellFile:
 
                 if stiffness_factor:
                     self.stiffness_factor = stiffness_factor
-                else:
+                elif not self.get(IS_CALIBRATION_FILE_UUID, False):
+                    # earlier versions of files do not have the IS_CALIBRATION_FILE_UUID in their metadata
                     experiment_id = get_experiment_id(self[PLATE_BARCODE_UUID])
                     self.stiffness_factor = get_stiffness_factor(experiment_id, self[WELL_INDEX_UUID])
+                else:
+                    self.stiffness_factor = CALIBRATION_STIFFNESS_FACTOR
 
                 # extract datetime
                 self[UTC_BEGINNING_RECORDING_UUID] = self._extract_datetime(UTC_BEGINNING_RECORDING_UUID)

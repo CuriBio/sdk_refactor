@@ -1,5 +1,10 @@
 Changelog for Pulse3D
 =====================
+0.27.0 (2022-10-07)
+-------------------
+- Change magnet finding alg to account for 180 degree rotation of plates on V1 instrument
+- Fix issue with trying to grab barcode from calibration files
+
 0.26.1 (2022-10-05)
 -------------------
 - Added ability to pass kwargs to use in ``PlateRecording`` initialization through ``PlateRecording.from_directory``

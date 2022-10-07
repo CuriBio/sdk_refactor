@@ -92,6 +92,8 @@ class WellFile:
                     experiment_id = get_experiment_id(self[PLATE_BARCODE_UUID])
                     self.stiffness_factor = get_stiffness_factor(experiment_id, self[WELL_INDEX_UUID])
                 else:
+                    # calibration recordings do not have an associated barcode or post stiffness since they
+                    # are creatd when a plate is not even on the istrument, so just set the stiffness factor to 1
                     self.stiffness_factor = CALIBRATION_STIFFNESS_FACTOR
 
                 # extract datetime

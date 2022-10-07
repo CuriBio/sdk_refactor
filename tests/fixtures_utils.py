@@ -5,10 +5,8 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 
-from h5py import File
 import matplotlib
 import numpy as np
-from pulse3D.constants import TISSUE_SENSOR_READINGS
 from pulse3D.plate_recording import WellFile
 import pytest
 from stdlib_utils import get_current_file_abs_directory
@@ -104,20 +102,3 @@ def fixture_sample_reference_reading():
     time, gmr = _load_file_tsv(os.path.join(PATH_TO_DATASETS, "sample_reference_reading.tsv"))
     raw_gmr_data = create_numpy_array_of_raw_gmr_from_python_arrays(time, gmr)
     return raw_gmr_data
-
-
-def load_h5_folder_as_array(recording_name):
-    # TODO move this to magnet finding repo and then remove module ID mentions
-    plate_data_array = None
-    for module_id in range(1, 25):
-        file_path = os.path.join(
-            PATH_TO_MAGNET_FINDING_FILES, recording_name, f"{recording_name}__module_{module_id}.h5"
-        )
-        with File(file_path, "r") as well_file:
-            tissue_data = well_file[TISSUE_SENSOR_READINGS][:]
-        if plate_data_array is None:
-            num_samples = tissue_data.shape[-1]
-            plate_data_array = np.empty((24, 3, 3, num_samples))
-        reshaped_data = tissue_data.reshape((3, 3, num_samples))
-        plate_data_array[module_id - 1, :, :, :] = reshaped_data
-    return plate_data_array

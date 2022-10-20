@@ -2,7 +2,7 @@ Changelog for Pulse3D
 =====================
 0.27.1 (2022-10-20)
 -------------------
-- Added sorting for twitch_width_percent
+- Fixed issue with twitch_width_percents not being sorted
 
 0.27.0 (2022-10-07)
 -------------------

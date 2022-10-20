@@ -243,7 +243,7 @@ def calculate_force_from_displacement(
 
     Args:
         displacement_data: time and Displacement numpy array. Typically coming from calculate_displacement_from_voltage or the magnet finding alg
-        in_mm: whether this data is in units of mm or not. If coming from calculate_displacement_from_voltage, it is likely in meters and this value should be set to True
+        in_mm: whether this data is in units of mm or not. If coming from calculate_displacement_from_voltage, it is likely in meters and this value should be set to False
 
     Returns:
         A 2D array of time vs Force (Newtons)

@@ -1,5 +1,9 @@
 Changelog for Pulse3D
 =====================
+0.27.1 (2022-10-20)
+-------------------
+- Added sorting for twitch_width_percent
+
 0.27.0 (2022-10-07)
 -------------------
 - Change magnet finding alg to account for 180 degree rotation of plates on V1 instrument

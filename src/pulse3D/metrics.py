@@ -323,7 +323,7 @@ class TwitchWidth(BaseMetric):
                 for metric_type in ("force", "time")
             }
 
-            for iter_percent in twitch_width_percents:
+            for iter_percent in sorted(twitch_width_percents):
                 rising_threshold = peak_value - (iter_percent / 100) * rising_amplitude
                 falling_threshold = peak_value - (iter_percent / 100) * falling_amplitude
 

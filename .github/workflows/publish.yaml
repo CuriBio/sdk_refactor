@@ -97,9 +97,9 @@ jobs:
         if: runner.os == 'Linux'
         run: if [ "${{ steps.extract_branch.outputs.sha-of-current-branch}}" = "${{ steps.extract_branch.outputs.sha-of-main-branch}}" ] ; then echo "Running on main branch."; else echo "Not running on main branch."; fi
 
-      - name: Fail if attempting to publish from a branch other than main
-        if: runner.os == 'Linux' && github.event.inputs.dry_run != '1'
-        run: if [ "${{ steps.extract_branch.outputs.sha-of-current-branch}}" = "${{ steps.extract_branch.outputs.sha-of-main-branch}}" ] ; then echo "Running on main branch, can proceed to publish."; else exit 1; fi
+      # - name: Fail if attempting to publish from a branch other than main
+      #   if: runner.os == 'Linux' && github.event.inputs.dry_run != '1'
+      #   run: if [ "${{ steps.extract_branch.outputs.sha-of-current-branch}}" = "${{ steps.extract_branch.outputs.sha-of-main-branch}}" ] ; then echo "Running on main branch, can proceed to publish."; else exit 1; fi
 
       - name: Activate virtual environment (Linux/MacOS)
         if: runner.os == 'Linux' || runner.os == 'macOS'
@@ -224,13 +224,13 @@ jobs:
           name: dist--${{ matrix.os }}--${{ matrix.python-version }}
           path: dist
 
-      - name: Uploading to Test PyPI
-        if: github.event.inputs.dry_run != '1'
-        env:
-          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+      # - name: Uploading to Test PyPI
+      #   if: github.event.inputs.dry_run != '1'
+      #   env:
+      #     TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+      #     TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
 
-        run: twine upload --repository testpypi dist/*
+      #   run: twine upload --repository testpypi dist/*
 
       # - name: Sleep for 360 seconds to allow Test PyPI Index to update before proceeding to the next step
       #   if: github.event.inputs.dry_run != '1'

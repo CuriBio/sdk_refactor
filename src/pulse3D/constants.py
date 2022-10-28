@@ -272,7 +272,7 @@ CALCULATED_METRIC_DISPLAY_NAMES = {
     TWITCH_FREQUENCY_UUID: "Twitch Frequency (Hz)",
     AMPLITUDE_UUID: "Active Twitch Force (μN)",
     FRACTION_MAX_UUID: "Fraction of Maximum Active Twitch Force (μN)",
-    AUC_UUID: "Energy (μJ)",
+    AUC_UUID: "Area Under Curve (μN * second)",
     CONTRACTION_VELOCITY_UUID: "Twitch Contraction Velocity (μN/second)",
     RELAXATION_VELOCITY_UUID: "Twitch Relaxation Velocity (μN/second)",
     IRREGULARITY_INTERVAL_UUID: "Twitch Interval Irregularity (seconds)",

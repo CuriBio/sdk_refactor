@@ -1,10 +1,10 @@
 Changelog for Pulse3D
 =====================
 
-0.27.2 (unreleased)
+0.27.2 (2022-10-28)
 -------------------
-- Add Post Stiffness factor to metadata sheet of output
-
+- Added Post Stiffness factor to metadata sheet of output
+- Changed energy label from ``Energy (μJ)`` to ``Area Under Curve (μN * second)``
 
 0.27.1 (2022-10-20)
 -------------------

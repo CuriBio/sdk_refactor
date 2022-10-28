@@ -237,7 +237,7 @@ MAX_EXPERIMENT_ID = 999
 
 CARDIAC_STIFFNESS_LABEL = "Cardiac (1x)"
 SKM_STIFFNESS_LABEL = "Skeletal Muscle (12x)"
-VARIABLE_STIFFNESS_LABEL = "Variable (Row A: 12x, Row B: 9x, Row C: 6x, Row D: 3x"
+VARIABLE_STIFFNESS_LABEL = "Variable (Row A: 12x, Row B: 9x, Row C: 6x, Row D: 3x)"
 
 POST_STIFFNESS_LABEL_TO_FACTOR = immutabledict(
     {

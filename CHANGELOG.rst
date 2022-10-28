@@ -2,7 +2,7 @@ Changelog for Pulse3D
 =====================
 0.27.2 (2022-10-28)
 -------------------
-- Changed energy label from ``Energy (μJ)`` to ``Area Under Curver (μN * second)``
+- Changed energy label from ``Energy (μJ)`` to ``Area Under Curve (μN * second)``
 
 0.27.1 (2022-10-20)
 -------------------

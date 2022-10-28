@@ -18,7 +18,6 @@ global-exclude pytest.ini
 global-exclude tests/**
 global-exclude *.yaml
 global-exclude tests/pylintrc
-global-exclude prerelease.py
 global-exclude conftest.py
 global-exclude .bash_scripts/**
 global-exclude Dockerfile

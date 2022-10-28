@@ -13,6 +13,8 @@ import pyarrow.parquet as pq
 import pytest
 from stdlib_utils import get_current_file_abs_directory
 
+from ..fixtures_utils import PATH_TO_DATA_METRIC_FILES
+from ..fixtures_utils import PATH_TO_H5_FILES
 
 PATH_OF_CURRENT_FILE = get_current_file_abs_directory()
 
@@ -22,7 +24,7 @@ WIDTH_FACTORS = (2, 2)
 
 
 def encode_dict(d):
-    """Recursive function to endocide dictionary for saving as JSON file.
+    """Recursive function to encode dictionary for saving as JSON file.
 
     Args:
         d ([dict]): dictionary of metric values
@@ -50,7 +52,7 @@ def encode_dict(d):
 ##### TESTS FOR SCALAR METRICS #####
 def test_metrics__TwitchAmplitude():
     file_path = os.path.join(
-        PATH_OF_CURRENT_FILE, "data_metrics", "v0.3.1", "amplitude_MA201110001__2020_09_03_213024__A1.parquet"
+        PATH_TO_DATA_METRIC_FILES, "v0.3.1", "amplitude_MA201110001__2020_09_03_213024__A1.parquet"
     )
     try:
         table = pq.read_table(file_path)
@@ -61,8 +63,7 @@ def test_metrics__TwitchAmplitude():
 
     w = WellFile(
         os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "h5",
+            PATH_TO_H5_FILES,
             "v0.3.1",
             "MA201110001__2020_09_03_213024",
             "MA201110001__2020_09_03_213024__A1.h5",
@@ -80,7 +81,7 @@ def test_metrics__TwitchAmplitude():
 
 def test_metrics__TwitchAUC():
     file_path = os.path.join(
-        PATH_OF_CURRENT_FILE, "data_metrics", "v0.3.1", "auc_MA201110001__2020_09_03_213024__A1.parquet"
+        PATH_TO_DATA_METRIC_FILES, "v0.3.1", "auc_MA201110001__2020_09_03_213024__A1.parquet"
     )
     try:
         table = pq.read_table(file_path)
@@ -91,8 +92,7 @@ def test_metrics__TwitchAUC():
 
     w = WellFile(
         os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "h5",
+            PATH_TO_H5_FILES,
             "v0.3.1",
             "MA201110001__2020_09_03_213024",
             "MA201110001__2020_09_03_213024__A1.h5",
@@ -108,8 +108,7 @@ def test_metrics__TwitchAUC():
 
 def test_metrics__TwitchBaselineToPeak():
     file_path = os.path.join(
-        PATH_OF_CURRENT_FILE,
-        "data_metrics",
+        PATH_TO_DATA_METRIC_FILES,
         "v0.3.1",
         "baseline_to_peak_MA201110001__2020_09_03_213024__A1.parquet",
     )
@@ -122,8 +121,7 @@ def test_metrics__TwitchBaselineToPeak():
 
     w = WellFile(
         os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "h5",
+            PATH_TO_H5_FILES,
             "v0.3.1",
             "MA201110001__2020_09_03_213024",
             "MA201110001__2020_09_03_213024__A1.h5",
@@ -140,8 +138,7 @@ def test_metrics__TwitchBaselineToPeak():
 
 def test_metrics__TwitchPeakToBaseline():
     file_path = os.path.join(
-        PATH_OF_CURRENT_FILE,
-        "data_metrics",
+        PATH_TO_DATA_METRIC_FILES,
         "v0.3.1",
         "peak_to_baseline_MA201110001__2020_09_03_213024__A1.parquet",
     )
@@ -154,8 +151,7 @@ def test_metrics__TwitchPeakToBaseline():
 
     w = WellFile(
         os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "h5",
+            PATH_TO_H5_FILES,
             "v0.3.1",
             "MA201110001__2020_09_03_213024",
             "MA201110001__2020_09_03_213024__A1.h5",
@@ -172,8 +168,7 @@ def test_metrics__TwitchPeakToBaseline():
 
 def test_metrics__TwitchFracAmp():
     file_path = os.path.join(
-        PATH_OF_CURRENT_FILE,
-        "data_metrics",
+        PATH_TO_DATA_METRIC_FILES,
         "v0.3.1",
         "fraction_max_MA201110001__2020_09_03_213024__A1.parquet",
     )
@@ -186,8 +181,7 @@ def test_metrics__TwitchFracAmp():
 
     w = WellFile(
         os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "h5",
+            PATH_TO_H5_FILES,
             "v0.3.1",
             "MA201110001__2020_09_03_213024",
             "MA201110001__2020_09_03_213024__A1.h5",
@@ -204,8 +198,7 @@ def test_metrics__TwitchFracAmp():
 
 def test_metrics__TwitchFreq():
     file_path = os.path.join(
-        PATH_OF_CURRENT_FILE,
-        "data_metrics",
+        PATH_TO_DATA_METRIC_FILES,
         "v0.3.1",
         "twitch_frequency_MA201110001__2020_09_03_213024__A1.parquet",
     )
@@ -218,8 +211,7 @@ def test_metrics__TwitchFreq():
 
     w = WellFile(
         os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "h5",
+            PATH_TO_H5_FILES,
             "v0.3.1",
             "MA201110001__2020_09_03_213024",
             "MA201110001__2020_09_03_213024__A1.h5",
@@ -236,8 +228,7 @@ def test_metrics__TwitchFreq():
 
 def test_metrics__TwitchIrregularity():
     file_path = os.path.join(
-        PATH_OF_CURRENT_FILE,
-        "data_metrics",
+        PATH_TO_DATA_METRIC_FILES,
         "v0.3.1",
         "irregularity_interval_MA201110001__2020_09_03_213024__A1.parquet",
     )
@@ -250,8 +241,7 @@ def test_metrics__TwitchIrregularity():
 
     w = WellFile(
         os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "h5",
+            PATH_TO_H5_FILES,
             "v0.3.1",
             "MA201110001__2020_09_03_213024",
             "MA201110001__2020_09_03_213024__A1.h5",
@@ -268,8 +258,7 @@ def test_metrics__TwitchIrregularity():
 
 def test_metrics__TwitchPeriod():
     file_path = os.path.join(
-        PATH_OF_CURRENT_FILE,
-        "data_metrics",
+        PATH_TO_DATA_METRIC_FILES,
         "v0.3.1",
         "twitch_period_MA201110001__2020_09_03_213024__A1.parquet",
     )
@@ -282,8 +271,7 @@ def test_metrics__TwitchPeriod():
 
     w = WellFile(
         os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "h5",
+            PATH_TO_H5_FILES,
             "v0.3.1",
             "MA201110001__2020_09_03_213024",
             "MA201110001__2020_09_03_213024__A1.h5",
@@ -300,8 +288,7 @@ def test_metrics__TwitchPeriod():
 
 def test_metrics__TwitchContractionVelocity():
     file_path = os.path.join(
-        PATH_OF_CURRENT_FILE,
-        "data_metrics",
+        PATH_TO_DATA_METRIC_FILES,
         "v0.3.1",
         "contraction_velocity_MA201110001__2020_09_03_213024__A1.parquet",
     )
@@ -314,8 +301,7 @@ def test_metrics__TwitchContractionVelocity():
 
     w = WellFile(
         os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "h5",
+            PATH_TO_H5_FILES,
             "v0.3.1",
             "MA201110001__2020_09_03_213024",
             "MA201110001__2020_09_03_213024__A1.h5",
@@ -332,8 +318,7 @@ def test_metrics__TwitchContractionVelocity():
 
 def test_metrics__TwitchRelaxationVelocity():
     file_path = os.path.join(
-        PATH_OF_CURRENT_FILE,
-        "data_metrics",
+        PATH_TO_DATA_METRIC_FILES,
         "v0.3.1",
         "relaxation_velocity_MA201110001__2020_09_03_213024__A1.parquet",
     )
@@ -346,8 +331,7 @@ def test_metrics__TwitchRelaxationVelocity():
 
     w = WellFile(
         os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "h5",
+            PATH_TO_H5_FILES,
             "v0.3.1",
             "MA201110001__2020_09_03_213024",
             "MA201110001__2020_09_03_213024__A1.h5",
@@ -365,7 +349,7 @@ def test_metrics__TwitchRelaxationVelocity():
 ##### TESTS FOR BY-WIDTH METRICS #####
 def test_metrics__TwitchWidth():
     file_path = os.path.join(
-        PATH_OF_CURRENT_FILE, "data_metrics", "v0.3.1", "width_MA201110001__2020_09_03_213024__A1.parquet"
+        PATH_TO_DATA_METRIC_FILES, "v0.3.1", "width_MA201110001__2020_09_03_213024__A1.parquet"
     )
     try:
         table = pq.read_table(file_path)
@@ -376,8 +360,7 @@ def test_metrics__TwitchWidth():
 
     w = WellFile(
         os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "h5",
+            PATH_TO_H5_FILES,
             "v0.3.1",
             "MA201110001__2020_09_03_213024",
             "MA201110001__2020_09_03_213024__A1.h5",
@@ -395,8 +378,7 @@ def test_metrics__TwitchWidth():
 
 def test_metrics__TwitchContractionTime():
     file_path = os.path.join(
-        PATH_OF_CURRENT_FILE,
-        "data_metrics",
+        PATH_TO_DATA_METRIC_FILES,
         "v0.3.1",
         "contraction_time_MA201110001__2020_09_03_213024__A1.parquet",
     )
@@ -409,8 +391,7 @@ def test_metrics__TwitchContractionTime():
 
     w = WellFile(
         os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "h5",
+            PATH_TO_H5_FILES,
             "v0.3.1",
             "MA201110001__2020_09_03_213024",
             "MA201110001__2020_09_03_213024__A1.h5",
@@ -427,8 +408,7 @@ def test_metrics__TwitchContractionTime():
 
 def test_metrics__TwitchRelaxationTime():
     file_path = os.path.join(
-        PATH_OF_CURRENT_FILE,
-        "data_metrics",
+        PATH_TO_DATA_METRIC_FILES,
         "v0.3.1",
         "relaxation_time_MA201110001__2020_09_03_213024__A1.parquet",
     )
@@ -441,8 +421,7 @@ def test_metrics__TwitchRelaxationTime():
 
     w = WellFile(
         os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "h5",
+            PATH_TO_H5_FILES,
             "v0.3.1",
             "MA201110001__2020_09_03_213024",
             "MA201110001__2020_09_03_213024__A1.h5",

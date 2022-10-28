@@ -8,6 +8,16 @@ from typing import Union
 
 from nptyping import NDArray
 
+from .constants import CARDIAC_STIFFNESS_FACTOR
+from .constants import MAX_CARDIAC_EXPERIMENT_ID
+from .constants import MAX_EXPERIMENT_ID
+from .constants import MAX_SKM_EXPERIMENT_ID
+from .constants import MAX_VARIABLE_EXPERIMENT_ID
+from .constants import MIN_EXPERIMENT_ID
+from .constants import ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR
+from .constants import SKM_STIFFNESS_FACTOR
+from .constants import TWENTY_FOUR_WELL_PLATE
+
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +26,21 @@ def get_experiment_id(barcode: str) -> int:
     if "-" in barcode:
         barcode = barcode.split("-")[0]
     return int(barcode[-3:])
+
+
+def get_stiffness_factor(barcode_experiment_id: int, well_idx: int) -> int:
+    if not (MIN_EXPERIMENT_ID <= barcode_experiment_id <= MAX_EXPERIMENT_ID):
+        raise ValueError(f"Experiment ID must be in the range 000-999, not {barcode_experiment_id}")
+
+    if barcode_experiment_id <= MAX_CARDIAC_EXPERIMENT_ID:
+        return CARDIAC_STIFFNESS_FACTOR
+    if barcode_experiment_id <= MAX_SKM_EXPERIMENT_ID:
+        return SKM_STIFFNESS_FACTOR
+    if barcode_experiment_id <= MAX_VARIABLE_EXPERIMENT_ID:
+        well_row_label = TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_idx)[0]
+        return ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR[well_row_label]
+    # if experiment ID does not have a stiffness factor defined (currently 300-999) then just use the value for Cardiac
+    return CARDIAC_STIFFNESS_FACTOR
 
 
 def truncate_float(value: float, digits: int) -> float:

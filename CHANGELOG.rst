@@ -1,8 +1,14 @@
 Changelog for Pulse3D
 =====================
+
+0.27.2 (unreleased)
+-------------------
+- Add Post Stiffness factor to metadata sheet of output
+
+
 0.27.1 (2022-10-20)
 -------------------
-- Fixed issue with twitch_width_percents not being sorted
+- Fixed issue with ``twitch_width_percents`` not being sorted
 
 0.27.0 (2022-10-07)
 -------------------

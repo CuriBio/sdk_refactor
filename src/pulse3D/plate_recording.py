@@ -36,9 +36,9 @@ from .transforms import calculate_displacement_from_voltage
 from .transforms import calculate_force_from_displacement
 from .transforms import calculate_voltage_from_gmr
 from .transforms import create_filter
-from .transforms import get_stiffness_factor
 from .transforms import noise_cancellation
 from .utils import get_experiment_id
+from .utils import get_stiffness_factor
 from .utils import truncate
 from .utils import truncate_float
 
@@ -94,7 +94,7 @@ class WellFile:
                 else:
                     # calibration recordings do not have an associated barcode or post stiffness since they
                     # are creatd when a plate is not even on the istrument, so just set the stiffness factor to 1
-                    self.stiffness_factor = CALIBRATION_STIFFNESS_FACTOR
+                    self.stiffness_factor = CALIBRATION_STIFFNESS_FACTOR  # TODO might want to make this None
 
                 # extract datetime
                 self[UTC_BEGINNING_RECORDING_UUID] = self._extract_datetime(UTC_BEGINNING_RECORDING_UUID)
@@ -313,7 +313,7 @@ class WellFile:
             data = data.reshape(1, data.shape[0])
 
         # fmt: off
-        # black reformatted this into a very ugly few lines of code
+        # black reformatted this into a few very ugly lines of code
         times = np.mgrid[: data.shape[1],] * time_step
         # fmt: on
 

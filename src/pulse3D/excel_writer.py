@@ -247,9 +247,9 @@ def write_xlsx(
     # create output file name
     input_file_name_no_ext = os.path.splitext(os.path.basename(plate_recording.path))[0]
     if is_full_analysis:
-        output_file_name = f"{input_file_name_no_ext}_full.xlsx"
+        output_file_name = f"{PACKAGE_VERSION}_{input_file_name_no_ext}_full.xlsx"
     else:
-        output_file_name = f"{input_file_name_no_ext}_{start_time}-{end_time}.xlsx"
+        output_file_name = f"{PACKAGE_VERSION}_{input_file_name_no_ext}_{start_time}-{end_time}.xlsx"
 
     # create metadata sheet format as DataFrame
     metadata = {

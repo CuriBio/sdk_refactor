@@ -47,7 +47,7 @@ def test_get_experiment_id__return_correct_value(test_barcode_format):
         (MAX_CARDIAC_EXPERIMENT_ID, random_well_idx(), CARDIAC_STIFFNESS_FACTOR),
         (MAX_CARDIAC_EXPERIMENT_ID + 1, random_well_idx(), SKM_STIFFNESS_FACTOR),
         (MAX_SKM_EXPERIMENT_ID, random_well_idx(), SKM_STIFFNESS_FACTOR),
-        (MAX_SKM_EXPERIMENT_ID + 1, random_well_idx_in_row("A"), ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR["A"]),
+        (MAX_SKM_EXPERIMENT_ID + 1, 0, ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR["A"]),
         (
             MAX_VARIABLE_EXPERIMENT_ID,
             random_well_idx_in_row("A"),

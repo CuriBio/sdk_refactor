@@ -51,7 +51,7 @@ def _get_stiffness_info(barcode_experiment_id: int, well_idx: Optional[int] = No
     elif barcode_experiment_id <= MAX_VARIABLE_EXPERIMENT_ID:
         stiffness_label = VARIABLE_STIFFNESS_LABEL
         # if no well index given, assume the stiffness factor isn't needed by the caller
-        if well_idx:
+        if well_idx is not None:
             well_row_label = TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_idx)[0]
     else:
         # if experiment ID does not have a stiffness factor defined (currently 300-999) then just use the value for Cardiac

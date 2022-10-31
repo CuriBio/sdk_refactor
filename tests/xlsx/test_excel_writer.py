@@ -13,14 +13,12 @@ from pulse3D.constants import PEAK_TO_BASELINE_UUID
 from pulse3D.excel_writer import write_xlsx
 from pulse3D.plate_recording import PlateRecording
 import pytest
-from stdlib_utils import get_current_file_abs_directory
 
-PATH_OF_CURRENT_FILE = get_current_file_abs_directory()
+from ..fixtures_utils import PATH_TO_H5_FILES
 
 
 TEST_FILE_PATH = os.path.join(
-    PATH_OF_CURRENT_FILE,
-    "h5",
+    PATH_TO_H5_FILES,
     "v1.1.0",
     "ML2022126006_Position 1 Baseline_2022_06_15_004655.zip",
 )

@@ -11,19 +11,20 @@ from pulse3D import plate_recording
 from pulse3D.constants import BASELINE_MEAN_NUM_DATA_POINTS
 from pulse3D.constants import CARDIAC_STIFFNESS_FACTOR
 from pulse3D.magnet_finding import fix_dropped_samples
-from pulse3D.magnet_finding import format_well_file_data
 from pulse3D.plate_recording import load_files
 from pulse3D.plate_recording import PlateRecording
 import pytest
 from stdlib_utils import get_current_file_abs_directory
+
+from ..fixtures_utils import PATH_TO_H5_FILES
+from ..fixtures_utils import PATH_TO_MAGNET_FINDING_FILES
 
 PATH_OF_CURRENT_FILE = get_current_file_abs_directory()
 
 
 def test_load_files__loads_zipped_folder_with_calibration_recordings_correctly():
     path = os.path.join(
-        PATH_OF_CURRENT_FILE,
-        "magnet_finding",
+        PATH_TO_MAGNET_FINDING_FILES,
         "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
     )
 
@@ -38,8 +39,7 @@ def test_load_files__loads_zipped_folder_with_calibration_recordings_correctly()
 
 def test_load_files__loads_zipped_files_with_calibration_recordings_correctly():
     path = os.path.join(
-        PATH_OF_CURRENT_FILE,
-        "magnet_finding",
+        PATH_TO_MAGNET_FINDING_FILES,
         "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_files.zip",
     )
 
@@ -58,8 +58,7 @@ def test_PlateRecording__uses_mean_of_baseline_by_default(mocker):
 
     pr = PlateRecording(
         os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "magnet_finding",
+            PATH_TO_MAGNET_FINDING_FILES,
             "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
         )
     )
@@ -80,8 +79,7 @@ def test_PlateRecording__creates_mean_of_baseline_data_correctly(mocker):
 
     PlateRecording(
         os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "magnet_finding",
+            PATH_TO_MAGNET_FINDING_FILES,
             "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
         )
     )
@@ -102,108 +100,18 @@ def test_PlateRecording__creates_mean_of_baseline_data_correctly(mocker):
                 )
 
 
-def test_PlateRecording__runs_mag_finding_algo_by_default(mocker):
+def test_PlateRecording__runs_mag_finding_alg_by_default(mocker):
     # mock instead of spy so magnet finding alg doesn't run
     mocked_process_data = mocker.patch.object(PlateRecording, "_process_plate_data", autospec=True)
 
     pr = PlateRecording(
         os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "magnet_finding",
+            PATH_TO_MAGNET_FINDING_FILES,
             "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
         )
     )
 
     mocked_process_data.assert_called_once_with(pr, mocker.ANY, use_mean_of_baseline=True)
-
-
-# Tanner (10/4/22): TODO this test is currently failing, so commenting it out so it doesn't become a blocker.
-# Not sure if it will pass anyway because of interpolation
-# def test_PlateRecording__well_data_loaded_from_dataframe_will_equal_original_well_data(mocker):
-#     # mock so magnet finding alg doesn't run
-#     mocker.patch.object(
-#         plate_recording,
-#         "find_magnet_positions",
-#         autospec=True,
-#         side_effect=lambda data, *args: {"X": np.zeros((data.shape[-1], 24))},
-#     )
-
-#     rec_path = os.path.join(
-#         PATH_OF_CURRENT_FILE,
-#         "magnet_finding",
-#         "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
-#     )
-#     pr_created_from_h5 = PlateRecording(rec_path)
-#     existing_df = pr_created_from_h5.to_dataframe()
-
-#     pr_recreated_from_df = next(PlateRecording.from_dataframe(rec_path, existing_df))
-
-#     for well_idx, (original_wf, recreated_wf) in enumerate(zip(pr_created_from_h5, pr_recreated_from_df)):
-#         np.testing.assert_array_almost_equal(
-#             original_wf.force, recreated_wf.force, err_msg=f"Well {well_idx} failed"
-#         )
-
-
-def test_PlateRecording__writes_time_force_csv_with_no_errors(mocker):
-    # mock instead of spy so magnet finding alg doesn't run
-    mocker.patch.object(
-        plate_recording,
-        "find_magnet_positions",
-        autospec=True,
-        side_effect=lambda data, *args: {"X": np.zeros((data.shape[-1], 24))},
-    )
-
-    zip_pr = PlateRecording(
-        os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "magnet_finding",
-            "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
-        )
-    )
-    h5_pr = PlateRecording.from_directory(
-        os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "h5",
-            "v0.3.2",
-        )
-    )
-    # raw_baseline_data = spied_mfd_from_memsic.spy_return
-    with tempfile.TemporaryDirectory() as output_dir:
-        zip_pr.write_time_force_csv(output_dir)
-        for pr in h5_pr:
-            df, _ = pr.write_time_force_csv(output_dir)
-            assert len(df.index) == 7975
-            assert len(df.columns) == 25
-
-        assert (
-            "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.csv"
-            in os.listdir(output_dir)
-        )
-        assert "MA20223322__2020_09_02_173919.csv" in os.listdir(output_dir)
-
-
-def test_PlateRecording__removes_dropped_samples_from_raw_tissue_signal_before_converting_to_mfd(mocker):
-    spied_fix = mocker.spy(plate_recording, "fix_dropped_samples")
-    spied_mfd = mocker.spy(plate_recording, "calculate_magnetic_flux_density_from_memsic")
-    # mock instead of spy so magnet finding alg doesn't run
-    mocker.patch.object(
-        plate_recording,
-        "find_magnet_positions",
-        autospec=True,
-        side_effect=lambda data, *args: {"X": np.zeros((data[0].shape[-1], 24))},
-    )
-
-    pr = PlateRecording(
-        os.path.join(
-            PATH_OF_CURRENT_FILE,
-            "magnet_finding",
-            "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
-        )
-    )
-    actual_plate_data = spied_fix.call_args[0][0]
-    expected_plate_data = format_well_file_data(pr.wells)
-    np.testing.assert_array_equal(actual_plate_data, expected_plate_data)
-    np.testing.assert_array_equal(spied_mfd.call_args_list[0][0][0], spied_fix.spy_return)
 
 
 def test_PlateRecording__passes_data_to_magnet_finding_alg_correctly__using_mean_of_baseline_data(
@@ -218,8 +126,7 @@ def test_PlateRecording__passes_data_to_magnet_finding_alg_correctly__using_mean
     )
 
     test_zip_file_path = os.path.join(
-        PATH_OF_CURRENT_FILE,
-        "magnet_finding",
+        PATH_TO_MAGNET_FINDING_FILES,
         "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
     )
 
@@ -251,14 +158,16 @@ def test_PlateRecording__passes_data_to_magnet_finding_alg_correctly__using_mean
     [
         (
             os.path.join(
-                "magnet_finding",
+                PATH_TO_MAGNET_FINDING_FILES,
                 "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
             ),
             {},
             False,
         ),
         (
-            os.path.join("h5", "v1.1.0", "ML2022126006_Position 1 Baseline_2022_06_15_004655.zip"),
+            os.path.join(
+                PATH_TO_H5_FILES, "v1.1.0", "ML2022126006_Position 1 Baseline_2022_06_15_004655.zip"
+            ),
             {"X": 0, "Y": 2, "Z": -5, "REMN": 1200},
             True,
         ),

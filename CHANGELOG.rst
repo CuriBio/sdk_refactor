@@ -1,12 +1,14 @@
 Changelog for Pulse3D
 =====================
-0.27.2 (2022-10-28)
+
+0.27.2 (2022-10-31)
 -------------------
+- Added Post Stiffness factor to metadata sheet of output
 - Changed energy label from ``Energy (μJ)`` to ``Area Under Curve (μN * second)``
 
 0.27.1 (2022-10-20)
 -------------------
-- Fixed issue with twitch_width_percents not being sorted
+- Fixed issue with ``twitch_width_percents`` not being sorted
 
 0.27.0 (2022-10-07)
 -------------------

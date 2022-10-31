@@ -5,20 +5,17 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 
-import matplotlib
 import numpy as np
 from pulse3D.plate_recording import WellFile
-import pytest
 from stdlib_utils import get_current_file_abs_directory
 
 
-matplotlib.use("Agg")
 PATH_OF_CURRENT_FILE = get_current_file_abs_directory()
 
 
-PATH_TO_DATASETS = os.path.join(PATH_OF_CURRENT_FILE, "datasets")
-PATH_TO_MAGNET_FINDING_FILES = os.path.join(PATH_OF_CURRENT_FILE, "magnet_finding")
-# PATH_TO_PNGS = os.path.join(PATH_OF_CURRENT_FILE, "pngs")
+PATH_TO_MAGNET_FINDING_FILES = os.path.join(PATH_OF_CURRENT_FILE, "data_files", "magnet_finding")
+PATH_TO_H5_FILES = os.path.join(PATH_OF_CURRENT_FILE, "data_files", "h5")
+PATH_TO_DATA_METRIC_FILES = os.path.join(PATH_OF_CURRENT_FILE, "data_files", "data_metrics")
 
 
 def _load_file(file_path: str) -> Tuple[List[str], List[str]]:
@@ -73,32 +70,3 @@ def create_numpy_array_of_raw_gmr_from_python_arrays(time_array, gmr_array):
 def assert_percent_diff(actual, expected, threshold=0.0006):
     percent_diff = abs(actual - expected) / expected
     assert percent_diff < threshold
-
-
-@pytest.fixture(scope="function", name="raw_generic_well_a1")
-def fixture_raw_generic_well_a1():
-    time, gmr = _load_file_tsv(os.path.join(PATH_TO_DATASETS, "new_A1_tsv.tsv"))
-    raw_gmr_data = create_numpy_array_of_raw_gmr_from_python_arrays(time, gmr)
-    raw_gmr_data[0] *= 10
-    return raw_gmr_data
-
-
-@pytest.fixture(scope="function", name="raw_generic_well_a2")
-def fixture_raw_generic_well_a2():
-    time, gmr = _load_file_tsv(os.path.join(PATH_TO_DATASETS, "new_A2_tsv.tsv"))
-    raw_gmr_data = create_numpy_array_of_raw_gmr_from_python_arrays(time, gmr)
-    return raw_gmr_data
-
-
-@pytest.fixture(scope="function", name="sample_tissue_reading")
-def fixture_sample_tissue_reading():
-    time, gmr = _load_file_tsv(os.path.join(PATH_TO_DATASETS, "sample_tissue_reading.tsv"))
-    raw_gmr_data = create_numpy_array_of_raw_gmr_from_python_arrays(time, gmr)
-    return raw_gmr_data
-
-
-@pytest.fixture(scope="function", name="sample_reference_reading")
-def fixture_sample_reference_reading():
-    time, gmr = _load_file_tsv(os.path.join(PATH_TO_DATASETS, "sample_reference_reading.tsv"))
-    raw_gmr_data = create_numpy_array_of_raw_gmr_from_python_arrays(time, gmr)
-    return raw_gmr_data

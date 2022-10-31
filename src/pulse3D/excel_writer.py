@@ -23,6 +23,8 @@ from .peak_detection import init_dfs
 from .peak_detection import peak_detector
 from .plate_recording import PlateRecording
 from .plotting import plotting_parameters
+from .utils import get_experiment_id
+from .utils import get_stiffness_label
 from .utils import truncate
 from .utils import truncate_float
 from .utils import xl_col_to_name
@@ -246,71 +248,35 @@ def write_xlsx(
 
     # create output file name
     input_file_name_no_ext = os.path.splitext(os.path.basename(plate_recording.path))[0]
-    if is_full_analysis:
-        output_file_name = f"{input_file_name_no_ext}_full.xlsx"
-    else:
-        output_file_name = f"{input_file_name_no_ext}_{start_time}-{end_time}.xlsx"
+    file_suffix = "full" if is_full_analysis else f"{start_time}-{end_time}"
+    output_file_name = f"{input_file_name_no_ext}_{file_suffix}.xlsx"
 
     # create metadata sheet format as DataFrame
-    metadata = {
-        "A": [
-            "Recording Information:",
+    metadata_rows = [
+        ("Recording Information:", "", ""),
+        ("", "Plate Barcode", w[PLATE_BARCODE_UUID]),
+        (
             "",
-            "",
-            "",
-            "Device Information:",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "Output Format:",
-            "",
-            "",
-            "",
-            "",
-            "",
-        ],
-        "B": [
-            "",
-            "Plate Barcode",
             "UTC Timestamp of Beginning of Recording",
-            "",
-            "",
-            "H5 File Layout Version",
-            "Mantarray Serial Number",
-            "Software Release Version",
-            "Software Build Version",
-            "Firmware Version (Main Controller)",
-            "",
-            "Pulse3D Version",
-            "File Creation Timestamp",
-            "Analysis Type (Full or Windowed)",
-            "Analysis Start Time (seconds)",
-            "Analysis End Time (seconds)",
-        ],
-        "C": [
-            "",
-            w[PLATE_BARCODE_UUID],
             str(w[UTC_BEGINNING_RECORDING_UUID].replace(tzinfo=None)),
-            "",
-            "",
-            w[FILE_FORMAT_VERSION_METADATA_KEY],
-            w.get(MANTARRAY_SERIAL_NUMBER_UUID, ""),
-            w.get(SOFTWARE_RELEASE_VERSION_UUID, ""),
-            w.get(SOFTWARE_BUILD_NUMBER_UUID, ""),
-            w.get(MAIN_FIRMWARE_VERSION_UUID, ""),
-            "",
-            PACKAGE_VERSION,
-            str(datetime.datetime.utcnow().replace(microsecond=0)),
-            "Full" if is_full_analysis else "Windowed",
-            "%.1f" % (start_time),
-            "%.1f" % (end_time),
-        ],
-    }
-    metadata_df = pd.DataFrame(metadata)
-
-    data = []
+        ),
+        ("", "Post Stiffness Factor", get_stiffness_label(get_experiment_id(w[PLATE_BARCODE_UUID]))),
+        ("", "", ""),
+        ("Device Information:", "", ""),
+        ("", "H5 File Layout Version", w[FILE_FORMAT_VERSION_METADATA_KEY]),
+        ("", "Mantarray Serial Number", w.get(MANTARRAY_SERIAL_NUMBER_UUID, "")),
+        ("", "Software Release Version", w.get(SOFTWARE_RELEASE_VERSION_UUID, "")),
+        ("", "Firmware Version (Main Controller)", w.get(MAIN_FIRMWARE_VERSION_UUID, "")),
+        ("Output Format:", "", ""),
+        ("", "Pulse3D Version", PACKAGE_VERSION),
+        ("", "File Creation Timestamp", str(datetime.datetime.utcnow().replace(microsecond=0))),
+        ("", "Analysis Type (Full or Windowed)", "Full" if is_full_analysis else "Windowed"),
+        ("", "Analysis Start Time (seconds)", f"{start_time:.1f}"),
+        ("", "Analysis End Time (seconds)", f"{end_time:.1f}"),
+    ]
+    metadata_df = pd.DataFrame(
+        {col: [row[i] for row in metadata_rows] for i, col in enumerate(("A", "B", "C"))}
+    )
 
     twitch_width_percents = tuple(
         sorted(
@@ -320,6 +286,7 @@ def write_xlsx(
 
     log.info("Computing data metrics for each well.")
 
+    data = []
     max_force_of_recording = 0
     for well_file in plate_recording:
         # initialize some data structures

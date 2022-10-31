@@ -139,9 +139,6 @@ jobs:
         if: matrix.IS_FASTEST_JOB == true
         run: SPHINXOPTS="-W" make --directory=docs html # the -W flag treats warnings as errors to cause build failures
 
-      # - name: Run prerelease to check packaging compatibilty
-      #   run: python prerelease.py --no-input
-
       - name: Build wheel for release
         run: python setup.py bdist_wheel
 

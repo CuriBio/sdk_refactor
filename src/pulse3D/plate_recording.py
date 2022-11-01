@@ -76,6 +76,13 @@ class WellFile:
         self.displacement: NDArray[(2, Any), np.float64]
         self.force: NDArray[(2, Any), np.float64]
 
+        if stiffness_factor not in (*POST_STIFFNESS_OVERRIDE_OPTIONS, None):
+            raise ValueError(
+                f"Invalid Post Stiffness {stiffness_factor}, must be in {POST_STIFFNESS_OVERRIDE_OPTIONS}"
+            )
+
+        self.stiffness_override = stiffness_factor is not None
+
         if file_path.endswith(".h5"):
             with h5py.File(file_path, "r") as h5_file:
                 self.file_name = os.path.basename(h5_file.filename)
@@ -85,7 +92,7 @@ class WellFile:
                 self.attrs = {attr: h5_file.attrs[attr] for attr in list(h5_file.attrs)}
                 self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
 
-                if stiffness_factor:
+                if self.stiffness_override:
                     self.stiffness_factor = stiffness_factor
                 elif not self.get(IS_CALIBRATION_FILE_UUID, False):
                     # earlier versions of files do not have the IS_CALIBRATION_FILE_UUID in their metadata

@@ -251,6 +251,12 @@ def write_xlsx(
     file_suffix = "full" if is_full_analysis else f"{start_time}-{end_time}"
     output_file_name = f"{input_file_name_no_ext}_{file_suffix}.xlsx"
 
+    if w.stiffness_override:
+        # reverse dict to use the stiffness factor as a key and get the label value
+        post_stiffness_factor = {v: k for k, v in POST_STIFFNESS_LABEL_TO_FACTOR.items()}[w.stiffness_factor]
+    else:
+        post_stiffness_factor = get_stiffness_label(get_experiment_id(w[PLATE_BARCODE_UUID]))
+
     # create metadata sheet format as DataFrame
     metadata_rows = [
         ("Recording Information:", "", ""),
@@ -260,7 +266,7 @@ def write_xlsx(
             "UTC Timestamp of Beginning of Recording",
             str(w[UTC_BEGINNING_RECORDING_UUID].replace(tzinfo=None)),
         ),
-        ("", "Post Stiffness Factor", get_stiffness_label(get_experiment_id(w[PLATE_BARCODE_UUID]))),
+        ("", "Post Stiffness Factor", post_stiffness_factor),
         ("", "", ""),
         ("Device Information:", "", ""),
         ("", "H5 File Layout Version", w[FILE_FORMAT_VERSION_METADATA_KEY]),

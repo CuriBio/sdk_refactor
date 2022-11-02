@@ -1,6 +1,10 @@
 Changelog for Pulse3D
 =====================
 
+0.27.3 (2022-11-01)
+-------------------
+- Fix Post Stiffness factor being incorrectly reported in metadata sheet if an override value is provided
+
 0.27.2 (2022-10-31)
 -------------------
 - Added Post Stiffness factor to metadata sheet of output

@@ -8,6 +8,7 @@ import math
 import os
 import tempfile
 from typing import Any
+from typing import List
 from typing import Optional
 from typing import Union
 import uuid
@@ -72,6 +73,7 @@ class WellFile:
         sampling_period: Optional[Union[int, float]] = None,
         # TODO unit test the stiffness factor, auto and override
         stiffness_factor: Optional[int] = None,
+        has_inverted_post_magnet: bool = False,
     ):
         self.displacement: NDArray[(2, Any), np.float64]
         self.force: NDArray[(2, Any), np.float64]
@@ -80,6 +82,8 @@ class WellFile:
             raise ValueError(
                 f"Invalid Post Stiffness {stiffness_factor}, must be in {POST_STIFFNESS_OVERRIDE_OPTIONS}"
             )
+
+        self.has_inverted_post_magnet = has_inverted_post_magnet
 
         self.stiffness_override = stiffness_factor is not None
 
@@ -103,14 +107,13 @@ class WellFile:
                     # are creatd when a plate is not even on the istrument, so just set the stiffness factor to 1
                     self.stiffness_factor = CALIBRATION_STIFFNESS_FACTOR  # TODO might want to make this None
 
-                # extract datetime
-                self[UTC_BEGINNING_RECORDING_UUID] = self._extract_datetime(UTC_BEGINNING_RECORDING_UUID)
-                self[UTC_BEGINNING_DATA_ACQUISTION_UUID] = self._extract_datetime(
-                    UTC_BEGINNING_DATA_ACQUISTION_UUID
-                )
-                self[UTC_FIRST_TISSUE_DATA_POINT_UUID] = self._extract_datetime(
-                    UTC_FIRST_TISSUE_DATA_POINT_UUID
-                )
+                # extract datetimes
+                for uuid_ in (
+                    UTC_BEGINNING_RECORDING_UUID,
+                    UTC_BEGINNING_DATA_ACQUISTION_UUID,
+                    UTC_FIRST_TISSUE_DATA_POINT_UUID,
+                ):
+                    self[uuid_] = self._extract_datetime(uuid_)
 
                 self.tissue_sampling_period = (
                     sampling_period if sampling_period else self[TISSUE_SAMPLING_PERIOD_UUID]
@@ -145,6 +148,9 @@ class WellFile:
                     )
                     self._load_magnetic_data()
                 else:
+                    if self.has_inverted_post_magnet:
+                        raise ValueError("V1 algorithm will automatically fix this issue")
+
                     self.noise_filter_uuid = None
                     self.filter_coefficients = None
                     self.is_magnetic_data = False
@@ -187,6 +193,10 @@ class WellFile:
 
         # magnetic data is flipped
         if self.is_magnetic_data:
+            adj_raw_tissue_reading[1] *= -1
+
+        # some posts have a flipped magnet
+        if self.has_inverted_post_magnet:
             adj_raw_tissue_reading[1] *= -1
 
         self.raw_tissue_magnetic_data: NDArray[(2, Any), int] = adj_raw_tissue_reading
@@ -342,6 +352,7 @@ class PlateRecording:
         end_time: Union[float, int] = np.inf,
         # TODO unit test the stiffness factor, auto and override
         stiffness_factor: Optional[int] = None,
+        inverted_post_magnet_wells: Optional[List[str]] = None,
     ):
         self.path = path
         self.wells = []
@@ -354,14 +365,18 @@ class PlateRecording:
             with tempfile.TemporaryDirectory() as tmpdir:
                 zf = zipfile.ZipFile(path)
                 zf.extractall(path=tmpdir)
-                self.wells, calibration_recordings = load_files(tmpdir, stiffness_factor)
+                self.wells, calibration_recordings = load_files(
+                    tmpdir, stiffness_factor, inverted_post_magnet_wells
+                )
         elif self.path.endswith(".xlsx"):  # optical file
             self.is_optical_recording = True
             well_file = WellFile(self.path, stiffness_factor=stiffness_factor)
             self.wells = [None] * (well_file[WELL_INDEX_UUID] + 1)
             self.wells[well_file[WELL_INDEX_UUID]] = well_file
         else:  # .h5 files
-            self.wells, calibration_recordings = load_files(self.path, stiffness_factor)
+            self.wells, calibration_recordings = load_files(
+                self.path, stiffness_factor, inverted_post_magnet_wells
+            )
 
         if not self.wells:
             # might not be any well files in the path
@@ -577,7 +592,12 @@ class PlateRecording:
 
 
 # helpers
-def load_files(path: str, stiffness_factor: Optional[int]):
+def load_files(
+    path: str, stiffness_factor: Optional[int], inverted_post_magnet_wells: Optional[List[str]] = None
+):
+    if not inverted_post_magnet_wells:
+        inverted_post_magnet_wells = []
+
     h5_files = glob.glob(os.path.join(path, "**", "*.h5"), recursive=True)
 
     recording_files = [f for f in h5_files if "Calibration" not in f]
@@ -588,7 +608,12 @@ def load_files(path: str, stiffness_factor: Optional[int]):
 
     for f in recording_files:
         log.info(f"Loading data from {os.path.basename(f)}")
-        well_file = WellFile(f, stiffness_factor=stiffness_factor)
+        well_name = os.path.splitext(f)[0].split("__")[1]
+        well_file = WellFile(
+            f,
+            stiffness_factor=stiffness_factor,
+            has_inverted_post_magnet=well_name in inverted_post_magnet_wells,
+        )
         tissue_well_files[well_file[WELL_INDEX_UUID]] = well_file  # type: ignore
 
     for f in calibration_files:

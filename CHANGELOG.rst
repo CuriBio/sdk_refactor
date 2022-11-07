@@ -1,6 +1,10 @@
 Changelog for Pulse3D
 =====================
 
+0.27.4 (2022-11-08)
+-------------------
+- Add ability to flip waveform data of individual wells for Beta 1 data files
+
 0.27.3 (2022-11-01)
 -------------------
 - Fix Post Stiffness factor being incorrectly reported in metadata sheet if an override value is provided

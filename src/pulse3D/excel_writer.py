@@ -261,6 +261,7 @@ def write_xlsx(
     metadata_rows = [
         ("Recording Information:", "", ""),
         ("", "Plate Barcode", w[PLATE_BARCODE_UUID]),
+        ("", "Stimulation Lid Barcode", w[STIM_BARCODE_UUID]),
         (
             "",
             "UTC Timestamp of Beginning of Recording",

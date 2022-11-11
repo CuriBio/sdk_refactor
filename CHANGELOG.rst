@@ -1,5 +1,8 @@
 Changelog for Pulse3D
 =====================
+0.27.5 (2022-11-10)
+-------------------
+- Added Stim Lid Barcode to output file
 
 0.27.4 (2022-11-08)
 -------------------

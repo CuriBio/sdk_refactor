@@ -10,6 +10,7 @@ from pulse3D import magnet_finding
 from pulse3D import plate_recording
 from pulse3D.constants import BASELINE_MEAN_NUM_DATA_POINTS
 from pulse3D.constants import CARDIAC_STIFFNESS_FACTOR
+from pulse3D.constants import NUM_CHANNELS_PER_WELL
 from pulse3D.magnet_finding import fix_dropped_samples
 from pulse3D.plate_recording import load_files
 from pulse3D.plate_recording import PlateRecording
@@ -52,20 +53,6 @@ def test_load_files__loads_zipped_files_with_calibration_recordings_correctly():
     assert len(baseline_recordings) == 24
 
 
-def test_PlateRecording__uses_mean_of_baseline_by_default(mocker):
-    # mock instead of spy so magnet finding alg doesn't run
-    mocked_process_data = mocker.patch.object(PlateRecording, "_process_plate_data", autospec=True)
-
-    pr = PlateRecording(
-        os.path.join(
-            PATH_TO_MAGNET_FINDING_FILES,
-            "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
-        )
-    )
-
-    mocked_process_data.assert_called_once_with(pr, mocker.ANY, use_mean_of_baseline=True)
-
-
 def test_PlateRecording__creates_mean_of_baseline_data_correctly(mocker):
     # spy for easy access to baseline data array
     spied_mfd_from_memsic = mocker.spy(plate_recording, "calculate_magnetic_flux_density_from_memsic")
@@ -86,7 +73,7 @@ def test_PlateRecording__creates_mean_of_baseline_data_correctly(mocker):
     raw_baseline_data = spied_mfd_from_memsic.spy_return
 
     actual_baseline_mean_arr = mocked_find_positions.call_args[0][1]
-    assert actual_baseline_mean_arr.shape == (24, 3, 3, 1)
+    assert actual_baseline_mean_arr.shape == (NUM_CHANNELS_PER_WELL, 1)
     for well_idx in range(actual_baseline_mean_arr.shape[0]):
         for sensor_idx in range(actual_baseline_mean_arr.shape[1]):
             for axis_idx in range(actual_baseline_mean_arr.shape[2]):
@@ -111,7 +98,7 @@ def test_PlateRecording__runs_mag_finding_alg_by_default(mocker):
         )
     )
 
-    mocked_process_data.assert_called_once_with(pr, mocker.ANY, use_mean_of_baseline=True)
+    mocked_process_data.assert_called_once_with(pr, mocker.ANY)
 
 
 def test_PlateRecording__passes_data_to_magnet_finding_alg_correctly__using_mean_of_baseline_data(
@@ -143,7 +130,7 @@ def test_PlateRecording__passes_data_to_magnet_finding_alg_correctly__using_mean
     baseline_data_mt = calculate_magnetic_flux_density_from_memsic(baseline_data_memsic)
     baseline_data_mt_mean = np.mean(
         baseline_data_mt[:, :, :, -BASELINE_MEAN_NUM_DATA_POINTS:], axis=3
-    ).reshape((24, 3, 3, 1))
+    ).reshape((NUM_CHANNELS_PER_WELL, 1))
     expected_input_data = tissue_data_mt - baseline_data_mt_mean
 
     # test alg input

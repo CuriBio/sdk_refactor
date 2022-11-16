@@ -4,7 +4,6 @@ import datetime
 import glob
 import json
 import logging
-import math
 import os
 import tempfile
 from typing import Any
@@ -346,7 +345,6 @@ class PlateRecording:
     def __init__(
         self,
         path,
-        use_mean_of_baseline=True,
         force_df: pd.DataFrame = None,
         start_time: Union[float, int] = 0,
         end_time: Union[float, int] = np.inf,
@@ -386,11 +384,11 @@ class PlateRecording:
         # currently file versions 1.0.0 and above must have all their data processed together
         if not self.is_optical_recording and self.wells[0].version >= VersionInfo.parse("1.0.0"):
             if force_df is None:
-                self._process_plate_data(calibration_recordings, use_mean_of_baseline=use_mean_of_baseline)
+                self._process_plate_data(calibration_recordings)
             else:
                 self._load_dataframe(force_df)
 
-    def _process_plate_data(self, calibration_recordings, use_mean_of_baseline):
+    def _process_plate_data(self, calibration_recordings):
         if not all(isinstance(well_file, WellFile) for well_file in self.wells) or len(self.wells) != 24:
             raise NotImplementedError("All 24 wells must have a recording file present")
 
@@ -404,27 +402,16 @@ class PlateRecording:
             self.wells[0].get(INITIAL_MAGNET_FINDING_PARAMS_UUID, r"{}")
         )
 
-        # load data
+        # load tissue data
         plate_data_array = format_well_file_data(self.wells)
         fixed_plate_data_array = fix_dropped_samples(plate_data_array)
         plate_data_array_mt = calculate_magnetic_flux_density_from_memsic(fixed_plate_data_array)
+        # load 'calibration' data
         baseline_data = format_well_file_data(calibration_recordings)
         baseline_data_mt = calculate_magnetic_flux_density_from_memsic(baseline_data)
 
         # create baseline data array
-        if use_mean_of_baseline:
-            baseline_data_mt = np.mean(
-                baseline_data_mt[:, :, :, -BASELINE_MEAN_NUM_DATA_POINTS:], axis=3
-            ).reshape((24, 3, 3, 1))
-        else:
-            # extend baseline data (if necessary) so that it has at least as many samples as the tissue data
-            num_samples_in_recording = plate_data_array_mt.shape[-1]
-            num_samples_in_baseline = baseline_data_mt.shape[-1]
-            num_times_to_duplicate = math.ceil(num_samples_in_recording / num_samples_in_baseline)
-            # truncate so baseline data has exactly as many samples as the tissue data
-            baseline_data_mt = np.tile(baseline_data_mt, num_times_to_duplicate)[
-                :, :, :, :num_samples_in_recording
-            ]
+        baseline_data_mt = np.mean(baseline_data_mt[:, -BASELINE_MEAN_NUM_DATA_POINTS:], axis=1)
 
         # pass data into magnet finding alg
         log.info("Estimating magnet positions")

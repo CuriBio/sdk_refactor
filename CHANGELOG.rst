@@ -1,5 +1,10 @@
 Changelog for Pulse3D
 =====================
+
+0.28.0 (2022-11-16)
+-------------------
+- Accuracy and performance improvements to magnet finding alg
+
 0.27.5 (2022-11-10)
 -------------------
 - Added Stim Lid Barcode to output file

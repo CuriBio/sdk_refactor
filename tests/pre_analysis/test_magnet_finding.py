@@ -10,7 +10,7 @@ from pulse3D import magnet_finding
 from pulse3D import plate_recording
 from pulse3D.constants import BASELINE_MEAN_NUM_DATA_POINTS
 from pulse3D.constants import CARDIAC_STIFFNESS_FACTOR
-from pulse3D.constants import NUM_CHANNELS_PER_WELL
+from pulse3D.constants import NUM_CHANNELS_24_WELL_PLATE
 from pulse3D.magnet_finding import fix_dropped_samples
 from pulse3D.plate_recording import load_files
 from pulse3D.plate_recording import PlateRecording
@@ -73,18 +73,10 @@ def test_PlateRecording__creates_mean_of_baseline_data_correctly(mocker):
     raw_baseline_data = spied_mfd_from_memsic.spy_return
 
     actual_baseline_mean_arr = mocked_find_positions.call_args[0][1]
-    assert actual_baseline_mean_arr.shape == (NUM_CHANNELS_PER_WELL, 1)
-    for well_idx in range(actual_baseline_mean_arr.shape[0]):
-        for sensor_idx in range(actual_baseline_mean_arr.shape[1]):
-            for axis_idx in range(actual_baseline_mean_arr.shape[2]):
-                expected_mean = np.mean(
-                    raw_baseline_data[well_idx, sensor_idx, axis_idx, -BASELINE_MEAN_NUM_DATA_POINTS:]
-                )
-                assert actual_baseline_mean_arr[well_idx, sensor_idx, axis_idx] == expected_mean, (
-                    well_idx,
-                    sensor_idx,
-                    axis_idx,
-                )
+    assert actual_baseline_mean_arr.shape == (NUM_CHANNELS_24_WELL_PLATE,)
+    for channel_idx in range(actual_baseline_mean_arr.shape[0]):
+        expected_mean = np.mean(raw_baseline_data[channel_idx, -BASELINE_MEAN_NUM_DATA_POINTS:])
+        assert actual_baseline_mean_arr[channel_idx] == expected_mean, channel_idx
 
 
 def test_PlateRecording__runs_mag_finding_alg_by_default(mocker):
@@ -128,10 +120,8 @@ def test_PlateRecording__passes_data_to_magnet_finding_alg_correctly__using_mean
         )
     tissue_data_mt = calculate_magnetic_flux_density_from_memsic(tissue_data_memsic)
     baseline_data_mt = calculate_magnetic_flux_density_from_memsic(baseline_data_memsic)
-    baseline_data_mt_mean = np.mean(
-        baseline_data_mt[:, :, :, -BASELINE_MEAN_NUM_DATA_POINTS:], axis=3
-    ).reshape((NUM_CHANNELS_PER_WELL, 1))
-    expected_input_data = tissue_data_mt - baseline_data_mt_mean
+    baseline_data_mt_mean = np.mean(baseline_data_mt[:, -BASELINE_MEAN_NUM_DATA_POINTS:], axis=1)
+    expected_input_data = (tissue_data_mt.T - baseline_data_mt_mean).T
 
     # test alg input
     PlateRecording(test_zip_file_path)

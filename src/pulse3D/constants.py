@@ -4,6 +4,7 @@ import uuid
 
 from immutabledict import immutabledict
 from labware_domain_models import LabwareDefinition
+from mantarray_magnet_finding.constants import NUM_CHANNELS as NUM_CHANNELS_PER_WELL
 
 try:
     from importlib import metadata
@@ -12,6 +13,9 @@ except ImportError:  # pragma: no cover
 PACKAGE_VERSION = metadata.version("pulse3D")
 
 TWENTY_FOUR_WELL_PLATE = LabwareDefinition(row_count=4, column_count=6)
+
+
+NUM_CHANNELS_24_WELL_PLATE = 24 * NUM_CHANNELS_PER_WELL
 
 MIN_SUPPORTED_FILE_VERSION = "0.1.1"
 CURRENT_BETA1_HDF5_FILE_FORMAT_VERSION = "0.4.2"

@@ -4,7 +4,6 @@ import datetime
 import glob
 import json
 import logging
-import math
 import os
 import tempfile
 from typing import Any
@@ -346,10 +345,9 @@ class PlateRecording:
     def __init__(
         self,
         path,
-        use_mean_of_baseline=True,
         force_df: pd.DataFrame = None,
         start_time: Union[float, int] = 0,
-        end_time: Union[float, int] = np.inf,
+        end_time: Optional[Union[float, int]] = None,
         # TODO unit test the stiffness factor, auto and override
         stiffness_factor: Optional[int] = None,
         inverted_post_magnet_wells: Optional[List[str]] = None,
@@ -358,8 +356,16 @@ class PlateRecording:
         self.wells = []
         self._iter = 0
         self.is_optical_recording = False
-        self.start_time = start_time * MICRO_TO_BASE_CONVERSION
-        self.end_time = end_time * MICRO_TO_BASE_CONVERSION
+
+        # Tanner (11/16/22): due to the needs of the scientists for the full analysis,
+        # these params should only be used in the recording snapshot.
+        # These params also have no effect on Beta 1 data.
+        if start_time < 0:
+            raise ValueError("'start_time' must be >= 0")
+        if end_time and start_time >= end_time:
+            raise ValueError("'start_time' must be < 'end_time'")
+        self.start_time_secs = start_time
+        self.end_time_secs = end_time
 
         if self.path.endswith(".zip"):
             with tempfile.TemporaryDirectory() as tmpdir:
@@ -386,11 +392,11 @@ class PlateRecording:
         # currently file versions 1.0.0 and above must have all their data processed together
         if not self.is_optical_recording and self.wells[0].version >= VersionInfo.parse("1.0.0"):
             if force_df is None:
-                self._process_plate_data(calibration_recordings, use_mean_of_baseline=use_mean_of_baseline)
+                self._process_plate_data(calibration_recordings)
             else:
                 self._load_dataframe(force_df)
 
-    def _process_plate_data(self, calibration_recordings, use_mean_of_baseline):
+    def _process_plate_data(self, calibration_recordings):
         if not all(isinstance(well_file, WellFile) for well_file in self.wells) or len(self.wells) != 24:
             raise NotImplementedError("All 24 wells must have a recording file present")
 
@@ -404,27 +410,22 @@ class PlateRecording:
             self.wells[0].get(INITIAL_MAGNET_FINDING_PARAMS_UUID, r"{}")
         )
 
-        # load data
-        plate_data_array = format_well_file_data(self.wells)
+        sampling_period_us = self.wells[0][TISSUE_SAMPLING_PERIOD_UUID]
+        sampling_freq = MICRO_TO_BASE_CONVERSION / sampling_period_us
+        start_idx = int(self.start_time_secs * sampling_freq)
+        end_idx = int(self.end_time_secs * sampling_freq) if self.end_time_secs else None
+        analysis_window = slice(start_idx, end_idx)
+
+        # load tissue data
+        plate_data_array = format_well_file_data(self.wells)[:, analysis_window]
         fixed_plate_data_array = fix_dropped_samples(plate_data_array)
         plate_data_array_mt = calculate_magnetic_flux_density_from_memsic(fixed_plate_data_array)
+        # load 'calibration' data
         baseline_data = format_well_file_data(calibration_recordings)
         baseline_data_mt = calculate_magnetic_flux_density_from_memsic(baseline_data)
 
         # create baseline data array
-        if use_mean_of_baseline:
-            baseline_data_mt = np.mean(
-                baseline_data_mt[:, :, :, -BASELINE_MEAN_NUM_DATA_POINTS:], axis=3
-            ).reshape((24, 3, 3, 1))
-        else:
-            # extend baseline data (if necessary) so that it has at least as many samples as the tissue data
-            num_samples_in_recording = plate_data_array_mt.shape[-1]
-            num_samples_in_baseline = baseline_data_mt.shape[-1]
-            num_times_to_duplicate = math.ceil(num_samples_in_recording / num_samples_in_baseline)
-            # truncate so baseline data has exactly as many samples as the tissue data
-            baseline_data_mt = np.tile(baseline_data_mt, num_times_to_duplicate)[
-                :, :, :, :num_samples_in_recording
-            ]
+        baseline_data_mt = np.mean(baseline_data_mt[:, -BASELINE_MEAN_NUM_DATA_POINTS:], axis=1)
 
         # pass data into magnet finding alg
         log.info("Estimating magnet positions")
@@ -443,12 +444,10 @@ class PlateRecording:
                 x *= -1
 
             # have time indices start at 0
-            adjusted_time_indices = well_file[TIME_INDICES] - well_file[TIME_INDICES][0]
-            start_idx, end_idx = truncate(
-                source_series=adjusted_time_indices, lower_bound=self.start_time, upper_bound=self.end_time
-            )
+            time_indices = well_file[TIME_INDICES]
+            adjusted_time_indices = time_indices[analysis_window] - time_indices[start_idx]
 
-            well_file.displacement = np.array([adjusted_time_indices, x])[:, start_idx : end_idx + 1]
+            well_file.displacement = np.array([adjusted_time_indices, x])
             well_file.force = calculate_force_from_displacement(
                 well_file.displacement, stiffness_factor=well_file.stiffness_factor
             )
@@ -520,12 +519,9 @@ class PlateRecording:
         data["Time (s)"] = pd.Series(time_steps)
 
         for i, w in enumerate(self.wells):
-
             if not from_dataframe:
                 start_idx, end_idx = truncate(
-                    source_series=time_steps,
-                    lower_bound=w.force[0][0],
-                    upper_bound=w.force[0][-1],
+                    source_series=time_steps, lower_bound=w.force[0][0], upper_bound=w.force[0][-1]
                 )
 
                 interp_fn = interpolate.interp1d(w.force[0, :], w.force[1, :])

@@ -15,19 +15,14 @@ else:
     USE_CYTHON = True
 
 ext = ".pyx" if USE_CYTHON else ".c"
-extensions = [
-    Extension(
-        "pulse3D.compression_cy",
-        [os.path.join("src", "pulse3D", "compression_cy") + ext],
-    )
-]
+extensions = [Extension("pulse3D.compression_cy", [os.path.join("src", "pulse3D", "compression_cy") + ext])]
 if USE_CYTHON:
     # cythonizing compression_cy.pyx with kwarg annotate=True will help when optimizing the code by enabling generation of the html annotation file
     extensions = cythonize(extensions, annotate=False)
 
 setup(
     name="Pulse3D",
-    version="0.27.5",
+    version="0.28.0",
     description="Pulse3D Analysis Platform",
     url="https://github.com/CuriBio/Pulse3D",
     project_urls={"Documentation": "https://pulse3D.readthedocs.io/en/latest/"},
@@ -40,9 +35,9 @@ setup(
     install_requires=[
         "h5py>=3.7.0",
         "nptyping==1.4.4",  # Tanner (4/7/22): pinning for now, can upgrade 2.0.0 once there is time to refactor
-        "numpy>=1.22.4",
-        "scipy>=1.8.1",
-        "numba==0.55.2",
+        "numpy>=1.23.4",
+        "scipy>=1.9.3",
+        "numba==0.56.4",
         "immutabledict>=1.2.0",
         "XlsxWriter>=1.3.8",
         "openpyxl>=3.0.7",

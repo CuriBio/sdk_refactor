@@ -4,8 +4,9 @@ Changelog for Pulse3D
 0.28.0 (2022-11-16)
 -------------------
 - Accuracy and performance improvements to magnet finding alg
-- PlateRecording's ``start_time`` and ``end_time`` parameters now take effect before running the magnet finding algorithm.
+- ``PlateRecording``'s ``start_time`` and ``end_time`` parameters now take effect before running the magnet finding algorithm.
   These params are currently only intended to be used for recording snapshots. They have no effect on Beta 1 data.
+- Removed ``use_mean_of_baseline`` from ``PlateRecording`` since the alternative is never used
 
 0.27.5 (2022-11-10)
 -------------------

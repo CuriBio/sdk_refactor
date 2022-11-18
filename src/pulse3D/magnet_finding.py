@@ -11,6 +11,8 @@ from nptyping import NDArray
 import numpy as np
 import scipy.signal as signal
 
+from .constants import NUM_CHANNELS_24_WELL_PLATE
+from .constants import NUM_CHANNELS_PER_WELL
 from .constants import TISSUE_SENSOR_READINGS
 
 
@@ -19,12 +21,12 @@ if TYPE_CHECKING:
 
 
 def find_magnet_positions(
-    fields: NDArray[(24, 3, 3, Any), float],
-    baseline: NDArray[(24, 3, 3, Any), float],
+    fields: NDArray[(NUM_CHANNELS_24_WELL_PLATE, Any), float],
+    baseline: NDArray[(NUM_CHANNELS_24_WELL_PLATE, Any), float],
     initial_magnet_finding_params: Dict[str, Union[int, float]],
     filter_outputs: bool = True,
 ) -> Dict[str, NDArray[(1, Any), float]]:
-    output_dict = get_positions(fields - baseline, **initial_magnet_finding_params)  # type: ignore  # mypy complaining about **
+    output_dict = get_positions((fields.T - baseline).T, **initial_magnet_finding_params)  # type: ignore  # mypy complaining about **
     if filter_outputs:
         for param, output_arr in output_dict.items():
             output_dict[param] = filter_magnet_positions(output_arr)
@@ -41,16 +43,18 @@ def filter_magnet_positions(magnet_positions: NDArray[(Any, 24), float]) -> NDAr
     return filtered_magnet_positions
 
 
-def format_well_file_data(well_files: List["WellFile"]) -> NDArray[(24, 3, 3, Any), float]:
+def format_well_file_data(well_files: List["WellFile"]) -> NDArray[(NUM_CHANNELS_24_WELL_PLATE, Any), float]:
     """Convert well data to input array format of magnet finding alg."""
     plate_data_array = None
     for well_idx, well_file in enumerate(well_files):
         tissue_data = well_file[TISSUE_SENSOR_READINGS][:]
         if plate_data_array is None:
             num_samples = tissue_data.shape[-1]
-            plate_data_array = np.empty((24, 3, 3, num_samples))
-        reshaped_data = tissue_data.reshape((3, 3, num_samples))
-        plate_data_array[well_idx, :, :, :] = reshaped_data
+            plate_data_array = np.empty((NUM_CHANNELS_24_WELL_PLATE, num_samples))
+        reshaped_data = tissue_data.reshape((NUM_CHANNELS_PER_WELL, num_samples))
+        plate_data_array[
+            well_idx * NUM_CHANNELS_PER_WELL : (well_idx + 1) * NUM_CHANNELS_PER_WELL, :
+        ] = reshaped_data
     return plate_data_array
 
 

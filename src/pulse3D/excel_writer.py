@@ -2,6 +2,7 @@
 import datetime
 import logging
 import os
+import json
 from typing import Any
 from typing import Dict
 from typing import List
@@ -194,6 +195,7 @@ def write_xlsx(
     prominence_factors: Tuple[Union[int, float], Union[int, float]] = DEFAULT_PROMINENCE_FACTORS,
     width_factors: Tuple[Union[int, float], Union[int, float]] = DEFAULT_WIDTH_FACTORS,
     peaks_valleys: Dict[str, List[List[int]]] = None,
+    show_stim_meta: bool = False,
 ):
     """Write plate recording waveform and computed metrics to Excel spredsheet.
 
@@ -208,6 +210,7 @@ def write_xlsx(
         prominence_factors: factors used to determine the prominence peaks/valleys must have
         width_factors: factors used to determine the width peaks/valleys must have
         peaks_valleys: User-defined peaks and valleys to use instead of peak_detector
+        show_stim_meta: Toggles the addition of stimulation-protocols tab in the output excel
     Raises:
         NotImplementedError: if peak finding algorithm fails for unexpected reason
         ValueError: if start and end times are outside of expected bounds, or do not ?
@@ -221,6 +224,64 @@ def write_xlsx(
     interpolated_data_period = (
         w[INTERPOLATION_VALUE_UUID] if plate_recording.is_optical_recording else INTERPOLATED_DATA_PERIOD_US
     )
+
+    # get stim meta data
+    if show_stim_meta and w[STIMULATION_PROTOCOL_UUID] == "null":
+        stim_protocols_df = pd.DataFrame({"No stimulation protocols have been used for this recording"})
+    elif show_stim_meta and [STIMULATION_PROTOCOL_UUID] != "null":
+        stim_protocols = []
+        for well in plate_recording.wells:
+            well_data = json.loads(well.stimulation_protocol)
+            if well_data is not None:
+                stim_protocols.extend(
+                    (
+                        ("Well", well[WELL_NAME_UUID], ""),
+                        ("Protocol ID", well_data["protocol_id"], ""),
+                        (
+                            "Stimulation Type",
+                            "Current" if well_data["stimulation_type"] == "C" else "Voltage",
+                            "",
+                        ),
+                        ("Run Until Stopped", "Yes" if well_data["run_until_stopped"] else "No", ""),
+                    )
+                )
+                for i in range(len(well_data["subprotocols"])):
+                    stim_protocols.extend(
+                        (
+                            ("", f"Subprotocol {i + 1}:", "", ""),
+                            ("", "", "Phase 1 Duration ", well_data["subprotocols"][i]["phase_one_duration"]),
+                            ("", "", "Phase 1 Charge", well_data["subprotocols"][i]["phase_one_charge"]),
+                            (
+                                "",
+                                "",
+                                "Interphase Interval",
+                                well_data["subprotocols"][i]["interphase_interval"],
+                            ),
+                            ("", "", "Phase 2 Duration", well_data["subprotocols"][i]["phase_two_duration"]),
+                            ("", "", "Phase 2 Charge", well_data["subprotocols"][i]["phase_two_charge"]),
+                            (
+                                "",
+                                "",
+                                "PostPhase Interval",
+                                well_data["subprotocols"][i]["postphase_interval"]
+                                if "postphase_interval" in well_data["subprotocols"][i]
+                                else "",
+                            ),
+                            (
+                                "",
+                                "",
+                                "Number of Cycles",
+                                well_data["subprotocols"][i]["num_cycles"]
+                                if "num_cycles" in well_data["subprotocols"][i]
+                                else "",
+                            ),
+                            ("", "", "", ""),
+                        )
+                    )
+        stim_protocols_df = pd.DataFrame(stim_protocols)
+    else:
+        stim_protocols_df = pd.DataFrame()
+
     # get max and min of final timepoints across each well
     raw_timepoints = [w.force[0][-1] for w in plate_recording if w]
     max_final_time_secs = max(raw_timepoints)
@@ -427,8 +488,10 @@ def write_xlsx(
         output_file_name,
         metadata_df,
         continuous_waveforms_df,
+        stim_protocols_df,
         data,
         max_y,
+        show_stim_meta,
         is_optical_recording=plate_recording.is_optical_recording,
         twitch_widths=twitch_widths,
         baseline_widths_to_use=baseline_widths_to_use,
@@ -442,8 +505,10 @@ def _write_xlsx(
     output_file_name: str,
     metadata_df: pd.DataFrame,
     continuous_waveforms_df: pd.DataFrame,
+    stim_protocols_df: pd.DataFrame,
     data: List[Dict[Any, Any]],
     max_y: Optional[Union[float, int]],
+    show_stim_meta: bool = False,
     is_optical_recording: bool = False,
     twitch_widths: Tuple[int, ...] = DEFAULT_TWITCH_WIDTHS,
     baseline_widths_to_use: Tuple[int, ...] = DEFAULT_BASELINE_WIDTHS,
@@ -455,6 +520,12 @@ def _write_xlsx(
 
         for i_col_idx, i_col_width in ((0, 25), (1, 40), (2, 25)):
             ws.set_column(i_col_idx, i_col_idx, i_col_width)
+
+        # stimulation protocols
+        if show_stim_meta:
+            stim_protocols_df.to_excel(writer, sheet_name="stimulation-protocols", index=False, header=False)
+            stim_protocols_sheet = writer.sheets["stimulation-protocols"]
+            stim_protocols_sheet.set_column(0, 3, 23)
 
         log.info("Writing continuous waveforms.")
         continuous_waveforms_df.to_excel(writer, sheet_name="continuous-waveforms", index=False)

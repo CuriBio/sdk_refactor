@@ -230,19 +230,48 @@ def write_xlsx(
         if w[STIMULATION_PROTOCOL_UUID] == "null":
             stim_protocols_df = pd.DataFrame({"No stimulation protocols have been used for this recording"})
         else:
-            stim_protocols = [
-                {
-                    "protocol_id": "Protocol ID",
-                    "stimulation_type": "Stimulation Type",
-                    "run_until_stopped": "Run Until Stopped",
-                    "subprotocols": "Subprotocols",
+            protocols = []
+            meta_dict = {
+                "Title": {
+                    "Protocol ID": "Protocol ID:",
+                    "Stimulation Type": "Stimulation Type:",
+                    "Run Until Stopped": "Run Until Stopped:",
+                    "Wells": "Wells:",
+                    "Subprotocols": "Subprotocols:",
                 }
-            ]
+            }
             for well in plate_recording.wells:
-                well_data = json.loads(well.stimulation_protocol)
-                if well_data is not None:
-                    stim_protocols.append(well_data)
-            stim_protocols_df = pd.DataFrame(stim_protocols)
+                well_data = json.loads(well[STIMULATION_PROTOCOL_UUID])
+                if well_data != None:
+                    protocol_id = well_data.get("protocol_id")
+                    well_id = well[WELL_NAME_UUID]
+                    if protocol_id not in protocols:
+                        protocols.append(protocol_id)
+                        meta_dict[protocol_id] = {
+                            "Protocol ID": protocol_id,
+                            "Stimulation Type": "Current"
+                            if well_data.get("stimulation_type") == "C"
+                            else "Voltage"
+                            if well_data.get("stimulation_type") == "V"
+                            else well_data.get("stimulation_type"),
+                            "Run Until Stopped": "Active"
+                            if well_data.get("run_until_stopped")
+                            else "Disabled",
+                            "Wells": f"{well_id}, ",
+                            "Subprotocols": "",
+                        }
+                        for i in range(len(well_data.get("subprotocols"))):
+                            meta_dict[protocol_id]["subprotocol_break" + str(i)] = f"sub protocol : {i + 1}"
+                            for key in well_data.get("subprotocols")[i]:
+                                meta_dict[protocol_id][
+                                    key + str(i)
+                                ] = f"{key} : {well_data.get('subprotocols')[i][key]}"
+                            meta_dict[protocol_id]["break" + str(i)] = ""
+                    else:
+                        meta_dict[protocol_id]["Wells"] += f"{well_id}, "
+                else:
+                    pass
+            stim_protocols_df = pd.DataFrame(meta_dict)
     else:
         stim_protocols_df = None
 
@@ -489,7 +518,8 @@ def _write_xlsx(
         if include_stim_protocols:
             stim_protocols_df.to_excel(writer, sheet_name="stimulation-protocols", index=False, header=False)
             stim_protocols_sheet = writer.sheets["stimulation-protocols"]
-            stim_protocols_sheet.set_column(0, 3, 23)
+            stim_protocols_sheet.set_column(0, 0, 18)
+            stim_protocols_sheet.set_column(1, stim_protocols_df.shape[1] - 1, 40)
 
         log.info("Writing continuous waveforms.")
         continuous_waveforms_df.to_excel(writer, sheet_name="continuous-waveforms", index=False)

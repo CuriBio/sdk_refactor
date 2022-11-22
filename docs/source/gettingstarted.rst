@@ -313,7 +313,7 @@ An example of using this argument::
 
 
 ``include_stim_protocols``
-^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Specifies whether stimulation protocols meta data will be displayed in the pulse3d output file.
 If selected then an additional page "stimulation-protocols" will be added in the output excel.

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 import datetime
+import json
 import logging
 import os
-import json
 from typing import Any
 from typing import Dict
 from typing import List
@@ -247,7 +247,7 @@ def write_xlsx(
             for well in plate_recording.wells:
                 well_data = json.loads(well[STIMULATION_PROTOCOL_UUID])
 
-                if well_data != None:
+                if well_data is not None:
                     protocol_id = well_data.get("protocol_id")
                     well_id = well[WELL_NAME_UUID]
 
@@ -513,7 +513,7 @@ def _write_xlsx(
     output_file_name: str,
     metadata_df: pd.DataFrame,
     continuous_waveforms_df: pd.DataFrame,
-    stim_protocols_df: Optional[pd.DataFrame],
+    stim_protocols_df: pd.DataFrame,
     data: List[Dict[Any, Any]],
     max_y: Optional[Union[float, int]],
     include_stim_protocols: bool = False,

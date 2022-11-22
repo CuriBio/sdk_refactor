@@ -271,11 +271,11 @@ def write_xlsx(
                         for i in range(len(well_data.get("subprotocols"))):
                             stim_protocols_dict[protocol_id][
                                 "subprotocol_break" + str(i)
-                            ] = f"sub protocol : {i + 1}"
+                            ] = f"Subprotocol : {i + 1}"
                             for key in well_data.get("subprotocols")[i]:
                                 stim_protocols_dict[protocol_id][
                                     key + str(i)
-                                ] = f"{key} : {well_data.get('subprotocols')[i][key]}"
+                                ] = f"{str(key).replace('_',' ').title()} : {well_data.get('subprotocols')[i][key]}"
                             stim_protocols_dict[protocol_id]["break" + str(i)] = ""
                     else:
                         stim_protocols_dict[protocol_id]["Wells"] += f"{well_id}, "
@@ -535,7 +535,7 @@ def _write_xlsx(
             stim_protocols_df.to_excel(writer, sheet_name="stimulation-protocols", index=False, header=False)
             stim_protocols_sheet = writer.sheets["stimulation-protocols"]
             stim_protocols_sheet.set_column(0, 0, 18)
-            stim_protocols_sheet.set_column(1, stim_protocols_df.shape[1] - 1, 40)
+            stim_protocols_sheet.set_column(1, stim_protocols_df.shape[1] - 1, 45)
 
         # continuous waveforms
         log.info("Writing continuous waveforms.")

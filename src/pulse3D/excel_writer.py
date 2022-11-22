@@ -230,8 +230,9 @@ def write_xlsx(
         if w[STIMULATION_PROTOCOL_UUID] == "null":
             stim_protocols_df = pd.DataFrame({"No stimulation protocols have been used for this recording"})
         else:
-            protocols = []
-            meta_dict = {
+            protocols_id_list = []
+            unassigned_wells = ""
+            stim_protocols_dict = {
                 "Title": {
                     "Unassigned Wells": "Unassigned Wells:",
                     "title_break": "",
@@ -242,15 +243,18 @@ def write_xlsx(
                     "Subprotocols": "Subprotocols:",
                 }
             }
-            null_protocol_wells = ""
+
             for well in plate_recording.wells:
                 well_data = json.loads(well[STIMULATION_PROTOCOL_UUID])
+
                 if well_data != None:
                     protocol_id = well_data.get("protocol_id")
                     well_id = well[WELL_NAME_UUID]
-                    if protocol_id not in protocols:
-                        protocols.append(protocol_id)
-                        meta_dict[protocol_id] = {
+
+                    if protocol_id not in protocols_id_list:
+                        protocols_id_list.append(protocol_id)
+
+                        stim_protocols_dict[protocol_id] = {
                             "Protocol ID": protocol_id,
                             "Stimulation Type": "Current"
                             if well_data.get("stimulation_type") == "C"
@@ -263,21 +267,26 @@ def write_xlsx(
                             "Wells": f"{well_id}, ",
                             "Subprotocols": "",
                         }
+
                         for i in range(len(well_data.get("subprotocols"))):
-                            meta_dict[protocol_id]["subprotocol_break" + str(i)] = f"sub protocol : {i + 1}"
+                            stim_protocols_dict[protocol_id][
+                                "subprotocol_break" + str(i)
+                            ] = f"sub protocol : {i + 1}"
                             for key in well_data.get("subprotocols")[i]:
-                                meta_dict[protocol_id][
+                                stim_protocols_dict[protocol_id][
                                     key + str(i)
                                 ] = f"{key} : {well_data.get('subprotocols')[i][key]}"
-                            meta_dict[protocol_id]["break" + str(i)] = ""
+                            stim_protocols_dict[protocol_id]["break" + str(i)] = ""
                     else:
-                        meta_dict[protocol_id]["Wells"] += f"{well_id}, "
+                        stim_protocols_dict[protocol_id]["Wells"] += f"{well_id}, "
                 else:
-                    null_protocol_wells += f"{well[WELL_NAME_UUID]}, "
-                    print(null_protocol_wells)
-            if len(null_protocol_wells) > 0:
-                meta_dict[list(meta_dict.keys())[1]]["Unassigned Wells"] = null_protocol_wells
-            stim_protocols_df = pd.DataFrame(meta_dict)
+                    unassigned_wells += f"{well[WELL_NAME_UUID]}, "
+            if len(unassigned_wells) > 0:
+                stim_protocols_dict[list(stim_protocols_dict.keys())[1]][
+                    "Unassigned Wells"
+                ] = unassigned_wells
+
+            stim_protocols_df = pd.DataFrame(stim_protocols_dict)
     else:
         stim_protocols_df = None
 
@@ -522,11 +531,13 @@ def _write_xlsx(
 
         # stimulation protocols
         if include_stim_protocols:
+            log.info("Writing stimulation protocols.")
             stim_protocols_df.to_excel(writer, sheet_name="stimulation-protocols", index=False, header=False)
             stim_protocols_sheet = writer.sheets["stimulation-protocols"]
             stim_protocols_sheet.set_column(0, 0, 18)
             stim_protocols_sheet.set_column(1, stim_protocols_df.shape[1] - 1, 40)
 
+        # continuous waveforms
         log.info("Writing continuous waveforms.")
         continuous_waveforms_df.to_excel(writer, sheet_name="continuous-waveforms", index=False)
         continuous_waveforms_sheet = writer.sheets["continuous-waveforms"]

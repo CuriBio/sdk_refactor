@@ -267,15 +267,22 @@ def write_xlsx(
                             "Wells": f"{well_id}, ",
                             "Subprotocols": "",
                         }
-
                         for i in range(len(well_data.get("subprotocols"))):
                             stim_protocols_dict[protocol_id][
                                 "subprotocol_break" + str(i)
                             ] = f"Subprotocol : {i + 1}"
                             for key in well_data.get("subprotocols")[i]:
-                                stim_protocols_dict[protocol_id][
-                                    key + str(i)
-                                ] = f"{str(key).replace('_',' ').title()} : {well_data.get('subprotocols')[i][key]}"
+                                prot_key = key + str(i)
+                                value_string = f"{str(key).replace('_',' ').title()} : {well_data.get('subprotocols')[i][key]}"
+                                if "duration" in str(key).lower() or "interval" in str(key).lower():
+                                    value_string = (
+                                        value_string.split(":")[0] + "(ms):" + value_string.split(":")[1]
+                                    )
+                                else:
+                                    value_string = (
+                                        value_string.split(":")[0] + "(mA):" + value_string.split(":")[1]
+                                    )
+                                stim_protocols_dict[protocol_id][prot_key] = value_string
                             stim_protocols_dict[protocol_id]["break" + str(i)] = ""
                     else:
                         stim_protocols_dict[protocol_id]["Wells"] += f"{well_id}, "

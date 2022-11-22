@@ -233,6 +233,8 @@ def write_xlsx(
             protocols = []
             meta_dict = {
                 "Title": {
+                    "Unassigned Wells": "Unassigned Wells:",
+                    "title_break": "",
                     "Protocol ID": "Protocol ID:",
                     "Stimulation Type": "Stimulation Type:",
                     "Run Until Stopped": "Run Until Stopped:",
@@ -240,6 +242,7 @@ def write_xlsx(
                     "Subprotocols": "Subprotocols:",
                 }
             }
+            null_protocol_wells = ""
             for well in plate_recording.wells:
                 well_data = json.loads(well[STIMULATION_PROTOCOL_UUID])
                 if well_data != None:
@@ -270,7 +273,10 @@ def write_xlsx(
                     else:
                         meta_dict[protocol_id]["Wells"] += f"{well_id}, "
                 else:
-                    pass
+                    null_protocol_wells += f"{well[WELL_NAME_UUID]}, "
+                    print(null_protocol_wells)
+            if len(null_protocol_wells) > 0:
+                meta_dict[list(meta_dict.keys())[1]]["Unassigned Wells"] = null_protocol_wells
             stim_protocols_df = pd.DataFrame(meta_dict)
     else:
         stim_protocols_df = None

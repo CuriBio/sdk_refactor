@@ -3,6 +3,7 @@ import datetime
 import json
 import logging
 import os
+import string
 from typing import Any
 from typing import Dict
 from typing import List
@@ -227,8 +228,10 @@ def write_xlsx(
 
     # get stim meta data
     if include_stim_protocols:
+        # no stimulation used
         if w[STIMULATION_PROTOCOL_UUID] == "null":
             stim_protocols_df = pd.DataFrame({"No stimulation protocols have been used for this recording"})
+        # when data present
         else:
             protocols_id_list = []
             unassigned_wells = ""
@@ -243,17 +246,13 @@ def write_xlsx(
                     "Subprotocols": "Subprotocols:",
                 }
             }
-
             for well in plate_recording.wells:
                 well_data = json.loads(well[STIMULATION_PROTOCOL_UUID])
-
                 if well_data is not None:
                     protocol_id = well_data.get("protocol_id")
                     well_id = well[WELL_NAME_UUID]
-
                     if protocol_id not in protocols_id_list:
                         protocols_id_list.append(protocol_id)
-
                         stim_protocols_dict[protocol_id] = {
                             "Protocol ID": protocol_id,
                             "Stimulation Type": "Current"
@@ -267,23 +266,7 @@ def write_xlsx(
                             "Wells": f"{well_id}, ",
                             "Subprotocols": "",
                         }
-                        for i in range(len(well_data.get("subprotocols"))):
-                            stim_protocols_dict[protocol_id][
-                                "subprotocol_break" + str(i)
-                            ] = f"Subprotocol : {i + 1}"
-                            for key in well_data.get("subprotocols")[i]:
-                                prot_key = key + str(i)
-                                value_string = f"{str(key).replace('_',' ').title()} : {well_data.get('subprotocols')[i][key]}"
-                                if "duration" in str(key).lower() or "interval" in str(key).lower():
-                                    value_string = (
-                                        value_string.split(":")[0] + "(ms):" + value_string.split(":")[1]
-                                    )
-                                else:
-                                    value_string = (
-                                        value_string.split(":")[0] + "(mA):" + value_string.split(":")[1]
-                                    )
-                                stim_protocols_dict[protocol_id][prot_key] = value_string
-                            stim_protocols_dict[protocol_id]["break" + str(i)] = ""
+                        stim_protocols_dict[protocol_id]["Subprotocols"] = well_data.get("subprotocols")
                     else:
                         stim_protocols_dict[protocol_id]["Wells"] += f"{well_id}, "
                 else:
@@ -292,8 +275,8 @@ def write_xlsx(
                 stim_protocols_dict[list(stim_protocols_dict.keys())[1]][
                     "Unassigned Wells"
                 ] = unassigned_wells
-
             stim_protocols_df = pd.DataFrame(stim_protocols_dict)
+    # if option is off
     else:
         stim_protocols_df = None
 
@@ -543,6 +526,19 @@ def _write_xlsx(
             stim_protocols_sheet = writer.sheets["stimulation-protocols"]
             stim_protocols_sheet.set_column(0, 0, 18)
             stim_protocols_sheet.set_column(1, stim_protocols_df.shape[1] - 1, 45)
+            column_counter = 0
+            # add each subprotocols to each column with formats
+            for _, protocol_data in stim_protocols_df.iteritems():
+                subprotocols = protocol_data["Subprotocols"]
+                subprotocols_format = writer.book.add_format()
+                subprotocols_format.set_text_wrap()
+                subprotocols_format.set_align("top")
+                stim_protocols_sheet.write(
+                    f"{string.ascii_uppercase[column_counter]}7",
+                    json.dumps(subprotocols, indent=4),
+                    subprotocols_format,
+                )
+                column_counter += 1
 
         # continuous waveforms
         log.info("Writing continuous waveforms.")

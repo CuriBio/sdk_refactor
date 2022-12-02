@@ -1,6 +1,6 @@
 Changelog for Pulse3D
 =====================
-0.28.1 (2022-11-17)
+0.28.1 (2022-12-01)
 - Added option to add stim protocols sheet in analysis output
 
 0.28.0 (2022-11-16)

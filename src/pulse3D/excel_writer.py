@@ -265,9 +265,11 @@ def write_xlsx(
                 unassigned_wells.append(f"{well[WELL_NAME_UUID]}, ")
         # if all wells are unassigned
         if len(unassigned_wells) == 24:
-            stim_protocols_dict = {"No stimulation protocols applied"}
+            stim_protocols_dict["Title"] = {"message": "No stimulation protocols applied"}
         elif len(unassigned_wells) > 0:
-            stim_protocols_dict["Title"]["title_break"] = unassigned_wells
+            stim_protocols_dict[list(stim_protocols_dict.keys())[1]]["Unassigned Wells"] = "".join(
+                unassigned_wells
+            )
         stim_protocols_df = pd.DataFrame(stim_protocols_dict)
     # if toggle is false
     else:

@@ -228,55 +228,48 @@ def write_xlsx(
 
     # get stim meta data
     if include_stim_protocols:
-        # no stimulation used
-        if w[STIMULATION_PROTOCOL_UUID] == "null":
-            stim_protocols_df = pd.DataFrame({"No stimulation protocols have been used for this recording"})
-        # when data present
-        else:
-            protocols_id_list = []
-            unassigned_wells = ""
-            stim_protocols_dict = {
-                "Title": {
-                    "Unassigned Wells": "Unassigned Wells:",
-                    "title_break": "",
-                    "Protocol ID": "Protocol ID:",
-                    "Stimulation Type": "Stimulation Type:",
-                    "Run Until Stopped": "Run Until Stopped:",
-                    "Wells": "Wells:",
-                    "Subprotocols": "Subprotocols:",
-                }
+        protocols_id_list = []
+        unassigned_wells = []
+        stim_protocols_dict = {
+            "Title": {
+                "Unassigned Wells": "Unassigned Wells:",
+                "title_break": "",
+                "Protocol ID": "Protocol ID:",
+                "Stimulation Type": "Stimulation Type:",
+                "Run Until Stopped": "Run Until Stopped:",
+                "Wells": "Wells:",
+                "Subprotocols": "Subprotocols:",
             }
-            for well in plate_recording.wells:
-                well_data = json.loads(well[STIMULATION_PROTOCOL_UUID])
-                if well_data is not None:
-                    protocol_id = well_data.get("protocol_id")
-                    well_id = well[WELL_NAME_UUID]
-                    if protocol_id not in protocols_id_list:
-                        protocols_id_list.append(protocol_id)
-                        stim_protocols_dict[protocol_id] = {
-                            "Protocol ID": protocol_id,
-                            "Stimulation Type": "Current"
-                            if well_data.get("stimulation_type") == "C"
-                            else "Voltage"
-                            if well_data.get("stimulation_type") == "V"
-                            else well_data.get("stimulation_type"),
-                            "Run Until Stopped": "Active"
-                            if well_data.get("run_until_stopped")
-                            else "Disabled",
-                            "Wells": f"{well_id}, ",
-                            "Subprotocols": "",
-                        }
-                        stim_protocols_dict[protocol_id]["Subprotocols"] = well_data.get("subprotocols")
-                    else:
-                        stim_protocols_dict[protocol_id]["Wells"] += f"{well_id}, "
+        }
+        for well in plate_recording.wells:
+            if (well_data := json.loads(well[STIMULATION_PROTOCOL_UUID])) is not None:
+                protocol_id = well_data.get("protocol_id")
+                well_id = well[WELL_NAME_UUID]
+                if protocol_id not in protocols_id_list:
+                    protocols_id_list.append(protocol_id)
+                    stim_protocols_dict[protocol_id] = {
+                        "Protocol ID": protocol_id,
+                        "Stimulation Type": "Current"
+                        if well_data.get("stimulation_type") == "C"
+                        else "Voltage"
+                        if well_data.get("stimulation_type") == "V"
+                        else well_data.get("stimulation_type"),
+                        "Run Until Stopped": "Active" if well_data.get("run_until_stopped") else "Disabled",
+                        "Wells": f"{well_id}, ",
+                        "Subprotocols": "",
+                    }
+                    stim_protocols_dict[protocol_id]["Subprotocols"] = well_data.get("subprotocols")
                 else:
-                    unassigned_wells += f"{well[WELL_NAME_UUID]}, "
-            if len(unassigned_wells) > 0:
-                stim_protocols_dict[list(stim_protocols_dict.keys())[1]][
-                    "Unassigned Wells"
-                ] = unassigned_wells
-            stim_protocols_df = pd.DataFrame(stim_protocols_dict)
-    # if option is off
+                    stim_protocols_dict[protocol_id]["Wells"] += f"{well_id}, "
+            else:
+                unassigned_wells.append(f"{well[WELL_NAME_UUID]}, ")
+        # if all wells are unassigned
+        if len(unassigned_wells) == 24:
+            stim_protocols_dict = {"No stimulation protocols applied"}
+        elif len(unassigned_wells) > 0:
+            stim_protocols_dict["Title"]["title_break"] = unassigned_wells
+        stim_protocols_df = pd.DataFrame(stim_protocols_dict)
+    # if toggle is false
     else:
         stim_protocols_df = None
 
@@ -526,20 +519,21 @@ def _write_xlsx(
             stim_protocols_sheet = writer.sheets["stimulation-protocols"]
             stim_protocols_sheet.set_column(0, 0, 18)
             stim_protocols_sheet.set_column(1, stim_protocols_df.shape[1] - 1, 45)
-            column_counter = 0
+            # if the length is one then protocols sheet was requested but no protocols have been used
             # add each subprotocols to each column with formats
-            for _, protocol_data in stim_protocols_df.iteritems():
-                subprotocols = protocol_data["Subprotocols"]
-                subprotocols_format = writer.book.add_format()
-                subprotocols_format.set_text_wrap()
-                subprotocols_format.set_align("top")
-                stim_protocols_sheet.write(
-                    f"{string.ascii_uppercase[column_counter]}7",
-                    json.dumps(subprotocols, indent=4),
-                    subprotocols_format,
-                )
-                column_counter += 1
-
+            if len(stim_protocols_df) > 1:
+                column_counter = 0
+                for _, protocol_data in stim_protocols_df.iteritems():
+                    subprotocols = protocol_data["Subprotocols"]
+                    subprotocols_format = writer.book.add_format()
+                    subprotocols_format.set_text_wrap()
+                    subprotocols_format.set_align("top")
+                    stim_protocols_sheet.write(
+                        f"{string.ascii_uppercase[column_counter]}7",
+                        json.dumps(subprotocols, indent=4),
+                        subprotocols_format,
+                    )
+                    column_counter += 1
         # continuous waveforms
         log.info("Writing continuous waveforms.")
         continuous_waveforms_df.to_excel(writer, sheet_name="continuous-waveforms", index=False)

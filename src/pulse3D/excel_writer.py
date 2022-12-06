@@ -228,7 +228,6 @@ def write_xlsx(
 
     # get stim meta data
     if include_stim_protocols:
-        protocols_id_list = []
         unassigned_wells = []
         stim_protocols_dict = {
             "Title": {
@@ -242,11 +241,11 @@ def write_xlsx(
             }
         }
         for well in plate_recording.wells:
-            if (well_data := json.loads(well[STIMULATION_PROTOCOL_UUID])) is not None:
+            if well_data := json.loads(well[STIMULATION_PROTOCOL_UUID]):
                 protocol_id = well_data.get("protocol_id")
                 well_id = well[WELL_NAME_UUID]
-                if protocol_id not in protocols_id_list:
-                    protocols_id_list.append(protocol_id)
+                if protocol_id not in stim_protocols_dict:
+                    # functions as the scheme for entering data into this sheet
                     stim_protocols_dict[protocol_id] = {
                         "Protocol ID": protocol_id,
                         "Stimulation Type": "Current"
@@ -263,10 +262,9 @@ def write_xlsx(
                     stim_protocols_dict[protocol_id]["Wells"] += f"{well_id}, "
             else:
                 unassigned_wells.append(f"{well[WELL_NAME_UUID]}, ")
-        # if all wells are unassigned
-        if len(unassigned_wells) == 24:
+        if len(unassigned_wells) == 24:  # if all wells are unassigned
             stim_protocols_dict["Title"] = {"message": "No stimulation protocols applied"}
-        elif len(unassigned_wells) > 0:
+        elif len(unassigned_wells) > 0:  # if some of the wells are unassigned
             stim_protocols_dict[list(stim_protocols_dict.keys())[1]]["Unassigned Wells"] = "".join(
                 unassigned_wells
             )

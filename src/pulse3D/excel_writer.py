@@ -526,6 +526,10 @@ def _write_xlsx(
             if len(stim_protocols_df) > 1:
                 column_counter = 0
                 for _, protocol_data in stim_protocols_df.iteritems():
+                    if column_counter != 0:
+                        stim_protocols_sheet.merge_range(
+                            6, column_counter, len(protocol_data["Subprotocols"]) * 10 + 6, column_counter, ""
+                        )
                     subprotocols = protocol_data["Subprotocols"]
                     subprotocols_format = writer.book.add_format()
                     subprotocols_format.set_text_wrap()

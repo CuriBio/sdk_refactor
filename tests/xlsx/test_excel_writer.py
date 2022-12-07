@@ -53,8 +53,12 @@ def get_per_twitch_labels(df) -> Set[str]:
 
 
 @pytest.mark.slow
-def test_write_xlsx__runs_without_error():
-    # Tanner (10/4/22): do not add anything to this test, it is just meant to run a full analysis start to finish. Any and all param testing should be done in separate tests as is done below
+def test_write_xlsx__runs_magnet_finding_alg_without_error():
+    # Tanner (12/8/22): do not add anything to this test, it is just meant to run a full analysis start to
+    # finish with no mocking. This is specifically to make sure that there are no issues with using the magnet
+    # finding alg since it is often mocked in other tests to make them run faster.
+    # Any and all param testing should be done in separate tests and make assertions on the xlsx output as is
+    # done in the tests below.
 
     pr = PlateRecording(TEST_FILE_PATH)
 
@@ -69,6 +73,7 @@ def test_write_xlsx__runs_without_error():
         # switch dir back to avoid causing issues with other tests
         os.chdir(cwd)
 
+    # this assertion isn't really necessary, but it's nice to make an assertion in a test that otherwise has none
     assert isinstance(output_file_name, str)
 
 

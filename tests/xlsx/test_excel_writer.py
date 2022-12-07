@@ -22,6 +22,9 @@ TEST_FILE_PATH = os.path.join(
     "v1.1.0",
     "ML2022126006_Position 1 Baseline_2022_06_15_004655.zip",
 )
+TEST_FILE_WITH_PROTOCOLS = os.path.join(
+    PATH_TO_H5_FILES, "subprotocols", "ML22001000-2__2022_11_17_233136.zip"
+)
 
 
 DEFAULT_TWITCH_WIDTH_LABELS = set(
@@ -31,6 +34,12 @@ DEFAULT_TWITCH_WIDTH_LABELS = set(
 )
 
 # TODO add tests for the following params:
+#     normalize_y_axis: bool = True
+#     max_y: Union[int, float] = None
+#     start_time: Union[float, int] = 0
+#     end_time: Union[float, int] = np.inf
+#     prominence_factors: Tuple[Union[int, float], Union[int, float]] = DEFAULT_PROMINENCE_FACTORS
+#     width_factors: Tuple[Union[int, float], Union[int, float]] = DEFAULT_WIDTH_FACTORS
 #     peaks_valleys: Dict[str, List[List[int]]] = None
 
 
@@ -125,8 +134,8 @@ def test_write_xlsx__correctly_handles_custom_twitch_widths(mocker):
         os.chdir(cwd)
 
 
-@pytest.mark.parametrize("test_value", [None, True, False])
-def test_include_stim_protocols_runs_without_error(mocker, test_value):
+@pytest.mark.parametrize("test_value", [None, False])
+def test_write_xlsx__correctly_handles_include_stim_protocols_param_with_false_values(mocker, test_value):
     # mock so slow function doesn't actually run
     mocker.patch.object(
         magnet_finding,
@@ -135,7 +144,7 @@ def test_include_stim_protocols_runs_without_error(mocker, test_value):
         side_effect=lambda x, **kwargs: {"X": np.zeros((x.shape[-1], 24))},
     )
 
-    pr = PlateRecording(TEST_FILE_PATH)
+    pr = PlateRecording(TEST_FILE_WITH_PROTOCOLS)
 
     # save dir before switching to temp dir
     cwd = os.getcwd()
@@ -144,14 +153,44 @@ def test_include_stim_protocols_runs_without_error(mocker, test_value):
         os.chdir(tmpdir)
         output_file_name = write_xlsx(pr, include_stim_protocols=test_value)
 
+        output_filepath = os.path.join(tmpdir, output_file_name)
+        df = pd.read_excel(output_filepath, None)
+
+        # check that all sheets are present except stimulation-protocols sheet
+        assert len(df.keys()) == 8
+
         # switch dir back to avoid causing issues with other tests
         os.chdir(cwd)
 
-    assert isinstance(output_file_name, str)
+
+def test_write_xlsx__correctly_handles_include_stim_protocols_param_with_stim_protocols(mocker):
+    # mock so slow function doesn't actually run
+    mocker.patch.object(
+        magnet_finding,
+        "get_positions",
+        autospec=True,
+        side_effect=lambda x, **kwargs: {"X": np.zeros((x.shape[-1], 24))},
+    )
+
+    pr = PlateRecording(TEST_FILE_WITH_PROTOCOLS)
+
+    # save dir before switching to temp dir
+    cwd = os.getcwd()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # switch to temp dir so output file is automatically deleted
+        os.chdir(tmpdir)
+        output_file_name = write_xlsx(pr, include_stim_protocols=True)
+
+        output_filepath = os.path.join(tmpdir, output_file_name)
+        df = pd.read_excel(output_filepath, sheet_name="stimulation-protocols", usecols=[1])
+
+        # check that stimulation-protocols sheet has unassigned well lables
+        df.keys()[0] == "D5, D6,"
+        # switch dir back to avoid causing issues with other tests
+        os.chdir(cwd)
 
 
-@pytest.mark.parametrize("test_value", [None, True, False])
-def test_normalize_y_axis_runs_without_error(mocker, test_value):
+def test_write_xlsx__correctly_handles_include_stim_protocols_param_without_stim_protocols(mocker):
     # mock so slow function doesn't actually run
     mocker.patch.object(
         magnet_finding,
@@ -167,138 +206,13 @@ def test_normalize_y_axis_runs_without_error(mocker, test_value):
     with tempfile.TemporaryDirectory() as tmpdir:
         # switch to temp dir so output file is automatically deleted
         os.chdir(tmpdir)
-        output_file_name = write_xlsx(pr, normalize_y_axis=test_value)
+        output_file_name = write_xlsx(pr, include_stim_protocols=True)
+
+        output_filepath = os.path.join(tmpdir, output_file_name)
+        df = pd.read_excel(output_filepath, sheet_name="stimulation-protocols", usecols=[0])
+
+        # check that stimulation-protocols sheet has correct message
+        assert df.keys()[0] == "No stimulation protocols applied"
 
         # switch dir back to avoid causing issues with other tests
         os.chdir(cwd)
-
-    assert isinstance(output_file_name, str)
-
-
-@pytest.mark.parametrize("test_value", [None, 100])
-def test_max_y_runs_without_error(mocker, test_value):
-    # mock so slow function doesn't actually run
-    mocker.patch.object(
-        magnet_finding,
-        "get_positions",
-        autospec=True,
-        side_effect=lambda x, **kwargs: {"X": np.zeros((x.shape[-1], 24))},
-    )
-
-    pr = PlateRecording(TEST_FILE_PATH)
-
-    # save dir before switching to temp dir
-    cwd = os.getcwd()
-    with tempfile.TemporaryDirectory() as tmpdir:
-        # switch to temp dir so output file is automatically deleted
-        os.chdir(tmpdir)
-        output_file_name = write_xlsx(pr, max_y=test_value)
-
-        # switch dir back to avoid causing issues with other tests
-        os.chdir(cwd)
-
-    assert isinstance(output_file_name, str)
-
-
-# Passing None does not pass tests
-@pytest.mark.parametrize("test_value", [1])
-def test_start_time_runs_without_error(mocker, test_value):
-    # mock so slow function doesn't actually run
-    mocker.patch.object(
-        magnet_finding,
-        "get_positions",
-        autospec=True,
-        side_effect=lambda x, **kwargs: {"X": np.zeros((x.shape[-1], 24))},
-    )
-
-    pr = PlateRecording(TEST_FILE_PATH)
-
-    # save dir before switching to temp dir
-    cwd = os.getcwd()
-    with tempfile.TemporaryDirectory() as tmpdir:
-        # switch to temp dir so output file is automatically deleted
-        os.chdir(tmpdir)
-        output_file_name = write_xlsx(pr, start_time=test_value)
-
-        # switch dir back to avoid causing issues with other tests
-        os.chdir(cwd)
-
-    assert isinstance(output_file_name, str)
-
-
-# Passing None does not pass tests
-@pytest.mark.parametrize("test_value", [100])
-def test_end_time_runs_without_error(mocker, test_value):
-    # mock so slow function doesn't actually run
-    mocker.patch.object(
-        magnet_finding,
-        "get_positions",
-        autospec=True,
-        side_effect=lambda x, **kwargs: {"X": np.zeros((x.shape[-1], 24))},
-    )
-
-    pr = PlateRecording(TEST_FILE_PATH)
-
-    # save dir before switching to temp dir
-    cwd = os.getcwd()
-    with tempfile.TemporaryDirectory() as tmpdir:
-        # switch to temp dir so output file is automatically deleted
-        os.chdir(tmpdir)
-        output_file_name = write_xlsx(pr, end_time=test_value)
-
-        # switch dir back to avoid causing issues with other tests
-        os.chdir(cwd)
-
-    assert isinstance(output_file_name, str)
-
-
-# Passing None does not pass tests
-@pytest.mark.parametrize("test_value", [(1, 3)])
-def test_prominence_factors_runs_without_error(mocker, test_value):
-    # mock so slow function doesn't actually run
-    mocker.patch.object(
-        magnet_finding,
-        "get_positions",
-        autospec=True,
-        side_effect=lambda x, **kwargs: {"X": np.zeros((x.shape[-1], 24))},
-    )
-
-    pr = PlateRecording(TEST_FILE_PATH)
-
-    # save dir before switching to temp dir
-    cwd = os.getcwd()
-    with tempfile.TemporaryDirectory() as tmpdir:
-        # switch to temp dir so output file is automatically deleted
-        os.chdir(tmpdir)
-        output_file_name = write_xlsx(pr, prominence_factors=test_value)
-
-        # switch dir back to avoid causing issues with other tests
-        os.chdir(cwd)
-
-    assert isinstance(output_file_name, str)
-
-
-# Passing None does not pass tests
-@pytest.mark.parametrize("test_value", [(1, 3)])
-def test_width_factors_runs_without_error(mocker, test_value):
-    # mock so slow function doesn't actually run
-    mocker.patch.object(
-        magnet_finding,
-        "get_positions",
-        autospec=True,
-        side_effect=lambda x, **kwargs: {"X": np.zeros((x.shape[-1], 24))},
-    )
-
-    pr = PlateRecording(TEST_FILE_PATH)
-
-    # save dir before switching to temp dir
-    cwd = os.getcwd()
-    with tempfile.TemporaryDirectory() as tmpdir:
-        # switch to temp dir so output file is automatically deleted
-        os.chdir(tmpdir)
-        output_file_name = write_xlsx(pr, width_factors=test_value)
-
-        # switch dir back to avoid causing issues with other tests
-        os.chdir(cwd)
-
-    assert isinstance(output_file_name, str)

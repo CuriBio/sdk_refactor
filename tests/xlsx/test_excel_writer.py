@@ -129,3 +129,28 @@ def test_write_xlsx__correctly_handles_custom_twitch_widths(mocker):
 
         # switch dir back to avoid causing issues with other tests
         os.chdir(cwd)
+
+
+@pytest.mark.parametrize("test_value", [True, False])
+def test_include_stim_protocols_runs_without_error(mocker, test_value):
+    # mock so slow function doesn't actually run
+    mocker.patch.object(
+        magnet_finding,
+        "get_positions",
+        autospec=True,
+        side_effect=lambda x, **kwargs: {"X": np.zeros((x.shape[-1], 24))},
+    )
+
+    pr = PlateRecording(TEST_FILE_PATH)
+
+    # save dir before switching to temp dir
+    cwd = os.getcwd()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # switch to temp dir so output file is automatically deleted
+        os.chdir(tmpdir)
+        output_file_name = write_xlsx(pr, include_stim_protocols=test_value)
+
+        # switch dir back to avoid causing issues with other tests
+        os.chdir(cwd)
+
+    assert isinstance(output_file_name, str)

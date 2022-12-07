@@ -182,10 +182,21 @@ def test_write_xlsx__correctly_handles_include_stim_protocols_param_with_stim_pr
         output_file_name = write_xlsx(pr, include_stim_protocols=True)
 
         output_filepath = os.path.join(tmpdir, output_file_name)
-        df = pd.read_excel(output_filepath, sheet_name="stimulation-protocols", usecols=[1])
 
+        df = pd.read_excel(output_filepath, sheet_name="stimulation-protocols", usecols=[1])
         # check that stimulation-protocols sheet has unassigned well lables
-        df.keys()[0] == "D5, D6,"
+        assert df.keys()[0] == "D5, D6, "
+        # check first protocol has correct assigned wells
+        assert df["D5, D6, "][4] == "A1, A2, B2, C2, B3, "
+
+        # check second protocol has correct assigned wells
+        df = pd.read_excel(output_filepath, sheet_name="stimulation-protocols", usecols=[2])
+        assert df[df.keys()[0]][4] == "B1, C1, D1, D2, A3, D3, A4, D4, C5, A6, B6, C6, "
+
+        # check final protocol has correct assigned wells
+        df = pd.read_excel(output_filepath, sheet_name="stimulation-protocols", usecols=[3])
+        assert df[df.keys()[0]][4] == "C3, B4, C4, A5, B5, "
+
         # switch dir back to avoid causing issues with other tests
         os.chdir(cwd)
 

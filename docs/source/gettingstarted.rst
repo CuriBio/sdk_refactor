@@ -187,6 +187,7 @@ They are:
 - ``twitch_widths``
 - ``start_time``
 - ``end_time``
+- ``include_stim_protocols``
 
 Any combination of these arguments can be given. Omitting them all is fine too.
 Their behavior is documented in detail below.
@@ -309,3 +310,18 @@ An example of using this argument::
 
     # stop analysis 12.5 seconds into the recording
     write_xlsx(r, end_time=12.5)
+
+
+``include_stim_protocols``
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Specifies whether stimulation protocols meta data will be displayed in the pulse3d output file.
+If selected then an additional page "stimulation-protocols" will be added in the output excel.
+
+    # add stimulation meta data to output file
+    write_xlsx(r,include_stim_protocols=True)
+
+    # no stimulation meta data in output
+    write_excel(r)
+    # you can also use
+    write_excel(r, include_stim_protocols=False)

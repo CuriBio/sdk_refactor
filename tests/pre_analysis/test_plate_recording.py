@@ -104,27 +104,35 @@ def test_PlateRecording__writes_time_force_csv_with_no_errors(mocker):
         assert "MA20223322__2020_09_02_173919.csv" in os.listdir(output_dir)
 
 
-# Tanner (10/4/22): TODO this test is currently failing, so commenting it out so it doesn't become a blocker.
-# Not sure if it will pass anyway because of interpolation
-# def test_PlateRecording__well_data_loaded_from_dataframe_will_equal_original_well_data(mocker):
-#     # mock so magnet finding alg doesn't run
-#     mocker.patch.object(
-#         plate_recording,
-#         "find_magnet_positions",
-#         autospec=True,
-#         side_effect=lambda data, *args: {"X": np.zeros((data.shape[-1], 24))},
-#     )
+def test_PlateRecording__well_data_loaded_from_dataframe_will_equal_original_well_data(mocker):
+    # mock so magnet finding alg doesn't run
+    mocker.patch.object(
+        plate_recording,
+        "find_magnet_positions",
+        autospec=True,
+        side_effect=lambda data, *args: {"X": np.zeros((data.shape[-1], 24))},
+    )
 
-#     rec_path = os.path.join(
-#         PATH_TO_MAGNET_FINDING_FILES,
-#         "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
-#     )
-#     pr_created_from_h5 = PlateRecording(rec_path)
-#     existing_df = pr_created_from_h5.to_dataframe()
+    rec_path = os.path.join(
+        PATH_TO_MAGNET_FINDING_FILES,
+        "MA00101011__2021_12_31_045823.zip",
+    )
 
-#     pr_recreated_from_df = next(PlateRecording.from_dataframe(rec_path, existing_df))
+    pr_created_from_h5 = PlateRecording(rec_path, start_time=3, end_time=5)
+    existing_df = pr_created_from_h5.to_dataframe()
+    pr_recreated_from_df = PlateRecording(rec_path, force_df=existing_df)
 
-#     for well_idx, (original_wf, recreated_wf) in enumerate(zip(pr_created_from_h5, pr_recreated_from_df)):
-#         np.testing.assert_array_almost_equal(
-#             original_wf.force, recreated_wf.force, err_msg=f"Well {well_idx} failed"
-#         )
+    for well_idx, (original_wf, recreated_wf) in enumerate(zip(pr_created_from_h5, pr_recreated_from_df)):
+        # to_dataframe normalizes time points so platerecording sometimes has timepoints like
+        # 0.0, 10000.0, 20003.0, 30000.0, 40001.0, 50000.0, 60001.0, 70001.0, 80001.0, 90001.0 and to_dataframe makes them
+        # 0.0, 10000.0, 20000.0, 30000.0, 40000.0, 50000.0, 60000.0, 70000.0, 80000.0, 90000.0
+        # convert to seconds and then only check two decimal places
+        original_wf.force[0] /= MICRO_TO_BASE_CONVERSION
+        recreated_wf.force[0] /= MICRO_TO_BASE_CONVERSION
+
+        np.testing.assert_array_almost_equal(
+            original_wf.force,
+            recreated_wf.force,
+            decimal=2,
+            err_msg=f"Well {well_idx} failed",
+        )

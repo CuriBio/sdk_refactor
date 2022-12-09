@@ -460,6 +460,7 @@ class PlateRecording:
             df: pd.Dataframe existing time force data to be added
         """
         time = df["Time (s)"].values
+
         for well in self.wells:
             well_name = well[WELL_NAME_UUID]
             well_data = np.vstack((time, df[f"{well_name}__raw"])).astype(np.float64)
@@ -515,7 +516,8 @@ class PlateRecording:
             time_steps = copy.deepcopy(first_well.force[0])
         else:
             max_time = max([w.force[0][-1] for w in self.wells if w])
-            time_steps = np.arange(interp_period, max_time + interp_period, interp_period)
+            min_time = min([w.force[0][0] for w in self.wells if w])
+            time_steps = np.arange(min_time, max_time + interp_period, interp_period)
 
         data["Time (s)"] = pd.Series(time_steps)
 
@@ -527,6 +529,7 @@ class PlateRecording:
 
                 interp_fn = interpolate.interp1d(w.force[0, :], w.force[1, :])
                 interp_force = interp_fn(time_steps[start_idx : end_idx + 1])
+
             else:
                 interp_force = copy.deepcopy(w.force[1, 1:])
 
@@ -538,8 +541,7 @@ class PlateRecording:
 
             data[w.get(WELL_NAME_UUID, str(i))] = pd.Series(interp_force)
 
-        df = pd.DataFrame(data).dropna()
-        return df
+        return pd.DataFrame(data).dropna()
 
     @staticmethod
     def from_dataframe(path, df: pd.DataFrame):

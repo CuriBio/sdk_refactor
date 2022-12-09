@@ -1,10 +1,13 @@
 Changelog for Pulse3D
 =====================
 
+0.28.3 (2022-12-08)
+-------------------
+- Fix ``to_dataframe`` to include minimum timepoint
+
 0.28.2 (2022-12-08)
 -------------------
 - Show aggregate metrics as long as 1 twitch is present
-
 
 0.28.1 (2022-12-06)
 -------------------
@@ -53,7 +56,6 @@ Changelog for Pulse3D
 - Added ``Time From Peak to Relaxation 10 (seconds)`` to default output
 
 0.25.4 (2022-09-20)
--------------------
 - Added new normalize_y_axis param to disable or enable y axis normalization
 
 0.25.3 (2022-09-15)

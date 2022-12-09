@@ -3,7 +3,7 @@ Changelog for Pulse3D
 
 0.28.3 (2022-12-08)
 -------------------
-- Fix ``to_dataframe`` to include timepoint 0
+- Fix ``to_dataframe`` to include minimum timepoint
 
 0.28.2 (2022-12-08)
 -------------------

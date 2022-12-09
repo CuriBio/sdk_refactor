@@ -93,6 +93,7 @@ class WellFile:
 
                 self.attrs = {attr: h5_file.attrs[attr] for attr in list(h5_file.attrs)}
                 self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
+                self.stimulation_protocol = self.get(STIMULATION_PROTOCOL_UUID, "null")
 
                 if self.stiffness_override:
                     self.stiffness_factor = stiffness_factor

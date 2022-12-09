@@ -22,6 +22,9 @@ TEST_FILE_PATH = os.path.join(
     "v1.1.0",
     "ML2022126006_Position 1 Baseline_2022_06_15_004655.zip",
 )
+TEST_FILE_WITH_PROTOCOLS = os.path.join(
+    PATH_TO_H5_FILES, "subprotocols", "ML22001000-2__2022_11_17_233136.zip"
+)
 
 
 DEFAULT_TWITCH_WIDTH_LABELS = set(
@@ -126,6 +129,101 @@ def test_write_xlsx__correctly_handles_custom_twitch_widths(mocker):
             "Time From Peak to Relaxation 81 (seconds)",
             "Time From Peak to Relaxation 93 (seconds)",
         }
+
+        # switch dir back to avoid causing issues with other tests
+        os.chdir(cwd)
+
+
+@pytest.mark.parametrize("test_value", [None, False])
+def test_write_xlsx__correctly_handles_include_stim_protocols_param_with_false_values(mocker, test_value):
+    # mock so slow function doesn't actually run
+    mocker.patch.object(
+        magnet_finding,
+        "get_positions",
+        autospec=True,
+        side_effect=lambda x, **kwargs: {"X": np.zeros((x.shape[-1], 24))},
+    )
+
+    pr = PlateRecording(TEST_FILE_WITH_PROTOCOLS)
+
+    # save dir before switching to temp dir
+    cwd = os.getcwd()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # switch to temp dir so output file is automatically deleted
+        os.chdir(tmpdir)
+        output_file_name = write_xlsx(pr, include_stim_protocols=test_value)
+
+        output_filepath = os.path.join(tmpdir, output_file_name)
+        df = pd.read_excel(output_filepath, None)
+
+        # check that all sheets are present except stimulation-protocols sheet
+        assert len(df.keys()) == 8
+
+        # switch dir back to avoid causing issues with other tests
+        os.chdir(cwd)
+
+
+def test_write_xlsx__correctly_handles_include_stim_protocols_param_with_stim_protocols(mocker):
+    # mock so slow function doesn't actually run
+    mocker.patch.object(
+        magnet_finding,
+        "get_positions",
+        autospec=True,
+        side_effect=lambda x, **kwargs: {"X": np.zeros((x.shape[-1], 24))},
+    )
+
+    pr = PlateRecording(TEST_FILE_WITH_PROTOCOLS)
+
+    # save dir before switching to temp dir
+    cwd = os.getcwd()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # switch to temp dir so output file is automatically deleted
+        os.chdir(tmpdir)
+        output_file_name = write_xlsx(pr, include_stim_protocols=True)
+
+        output_filepath = os.path.join(tmpdir, output_file_name)
+
+        df = pd.read_excel(output_filepath, sheet_name="stimulation-protocols", usecols=[1])
+        # check that stimulation-protocols sheet has unassigned well lables
+        assert df.keys()[0] == "D5, D6, "
+        # check first protocol has correct assigned wells
+        assert df["D5, D6, "][4] == "A1, A2, B2, C2, B3, "
+
+        # check second protocol has correct assigned wells
+        df = pd.read_excel(output_filepath, sheet_name="stimulation-protocols", usecols=[2])
+        assert df[df.keys()[0]][4] == "B1, C1, D1, D2, A3, D3, A4, D4, C5, A6, B6, C6, "
+
+        # check final protocol has correct assigned wells
+        df = pd.read_excel(output_filepath, sheet_name="stimulation-protocols", usecols=[3])
+        assert df[df.keys()[0]][4] == "C3, B4, C4, A5, B5, "
+
+        # switch dir back to avoid causing issues with other tests
+        os.chdir(cwd)
+
+
+def test_write_xlsx__correctly_handles_include_stim_protocols_param_without_stim_protocols(mocker):
+    # mock so slow function doesn't actually run
+    mocker.patch.object(
+        magnet_finding,
+        "get_positions",
+        autospec=True,
+        side_effect=lambda x, **kwargs: {"X": np.zeros((x.shape[-1], 24))},
+    )
+
+    pr = PlateRecording(TEST_FILE_PATH)
+
+    # save dir before switching to temp dir
+    cwd = os.getcwd()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # switch to temp dir so output file is automatically deleted
+        os.chdir(tmpdir)
+        output_file_name = write_xlsx(pr, include_stim_protocols=True)
+
+        output_filepath = os.path.join(tmpdir, output_file_name)
+        df = pd.read_excel(output_filepath, sheet_name="stimulation-protocols", usecols=[0])
+
+        # check that stimulation-protocols sheet has correct message
+        assert df.keys()[0] == "No stimulation protocols applied"
 
         # switch dir back to avoid causing issues with other tests
         os.chdir(cwd)

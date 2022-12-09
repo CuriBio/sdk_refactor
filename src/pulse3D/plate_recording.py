@@ -20,27 +20,26 @@ import numpy as np
 from openpyxl import load_workbook
 from openpyxl.worksheet.worksheet import Worksheet
 import pandas as pd
+from pulse3D.compression_cy import compress_filtered_magnetic_data
+from pulse3D.constants import *
+from pulse3D.magnet_finding import find_magnet_positions
+from pulse3D.magnet_finding import fix_dropped_samples
+from pulse3D.magnet_finding import format_well_file_data
+from pulse3D.transforms import apply_empty_plate_calibration
+from pulse3D.transforms import apply_noise_filtering
+from pulse3D.transforms import apply_sensitivity_calibration
+from pulse3D.transforms import calculate_displacement_from_voltage
+from pulse3D.transforms import calculate_force_from_displacement
+from pulse3D.transforms import calculate_voltage_from_gmr
+from pulse3D.transforms import create_filter
+from pulse3D.transforms import noise_cancellation
+from pulse3D.utils import get_experiment_id
+from pulse3D.utils import get_stiffness_factor
+from pulse3D.utils import truncate
+from pulse3D.utils import truncate_float
 from scipy import interpolate
 from semver import VersionInfo
 from xlsxwriter.utility import xl_cell_to_rowcol
-
-from .compression_cy import compress_filtered_magnetic_data
-from .constants import *
-from .magnet_finding import find_magnet_positions
-from .magnet_finding import fix_dropped_samples
-from .magnet_finding import format_well_file_data
-from .transforms import apply_empty_plate_calibration
-from .transforms import apply_noise_filtering
-from .transforms import apply_sensitivity_calibration
-from .transforms import calculate_displacement_from_voltage
-from .transforms import calculate_force_from_displacement
-from .transforms import calculate_voltage_from_gmr
-from .transforms import create_filter
-from .transforms import noise_cancellation
-from .utils import get_experiment_id
-from .utils import get_stiffness_factor
-from .utils import truncate
-from .utils import truncate_float
 
 log = logging.getLogger(__name__)
 
@@ -459,6 +458,7 @@ class PlateRecording:
             df: pd.Dataframe existing time force data to be added
         """
         time = df["Time (s)"].values
+
         for well in self.wells:
             well_name = well[WELL_NAME_UUID]
             well_data = np.vstack((time, df[f"{well_name}__raw"])).astype(np.float64)
@@ -514,7 +514,7 @@ class PlateRecording:
             time_steps = copy.deepcopy(first_well.force[0])
         else:
             max_time = max([w.force[0][-1] for w in self.wells if w])
-            time_steps = np.arange(interp_period, max_time + interp_period, interp_period)
+            time_steps = np.arange(self.start_time_secs, max_time + interp_period, interp_period)
 
         data["Time (s)"] = pd.Series(time_steps)
 
@@ -526,6 +526,7 @@ class PlateRecording:
 
                 interp_fn = interpolate.interp1d(w.force[0, :], w.force[1, :])
                 interp_force = interp_fn(time_steps[start_idx : end_idx + 1])
+
             else:
                 interp_force = copy.deepcopy(w.force[1, 1:])
 
@@ -537,8 +538,7 @@ class PlateRecording:
 
             data[w.get(WELL_NAME_UUID, str(i))] = pd.Series(interp_force)
 
-        df = pd.DataFrame(data).dropna()
-        return df
+        return pd.DataFrame(data).dropna()
 
     @staticmethod
     def from_dataframe(path, df: pd.DataFrame):

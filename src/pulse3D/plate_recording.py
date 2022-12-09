@@ -516,7 +516,8 @@ class PlateRecording:
             time_steps = copy.deepcopy(first_well.force[0])
         else:
             max_time = max([w.force[0][-1] for w in self.wells if w])
-            time_steps = np.arange(0, max_time + interp_period, interp_period)
+            min_time = min([w.force[0][0] for w in self.wells if w])
+            time_steps = np.arange(min_time, max_time + interp_period, interp_period)
 
         data["Time (s)"] = pd.Series(time_steps)
 

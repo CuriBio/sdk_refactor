@@ -103,7 +103,6 @@ def test_PlateRecording__writes_time_force_csv_with_no_errors(mocker):
         )
         assert "MA20223322__2020_09_02_173919.csv" in os.listdir(output_dir)
 
-
 def test_PlateRecording__well_data_loaded_from_dataframe_will_equal_original_well_data(mocker):
     # mock so magnet finding alg doesn't run
     mocker.patch.object(
@@ -118,7 +117,7 @@ def test_PlateRecording__well_data_loaded_from_dataframe_will_equal_original_wel
         "MA00101011__2021_12_31_045823.zip",
     )
 
-    pr_created_from_h5 = PlateRecording(rec_path)
+    pr_created_from_h5 = PlateRecording(rec_path, start_time=3, end_time=5)
     existing_df = pr_created_from_h5.to_dataframe()
     pr_recreated_from_df = PlateRecording(rec_path, force_df=existing_df)
 

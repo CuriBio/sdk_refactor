@@ -103,6 +103,7 @@ def test_PlateRecording__writes_time_force_csv_with_no_errors(mocker):
         )
         assert "MA20223322__2020_09_02_173919.csv" in os.listdir(output_dir)
 
+
 def test_PlateRecording__well_data_loaded_from_dataframe_will_equal_original_well_data(mocker):
     # mock so magnet finding alg doesn't run
     mocker.patch.object(

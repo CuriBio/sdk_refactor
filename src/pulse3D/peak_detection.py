@@ -131,36 +131,6 @@ def _format_factors(factors):
     return expected_prominences
 
 
-def too_few_peaks_or_valleys(
-    peak_indices: NDArray[int],
-    valley_indices: NDArray[int],
-    min_number_peaks: int = MIN_NUMBER_PEAKS,
-    min_number_valleys: int = MIN_NUMBER_VALLEYS,
-) -> None:
-    """Raise an error if there are too few peaks or valleys detected.
-
-    Args:
-        peak_indices: NDArray
-            a 1D array of integers representing the indices of the peaks
-        valley_indices: NDArray
-            a 1D array of integeres representing the indices of the valleys
-        min_number_peaks: int
-            minimum number of required peaks
-        min_number_valleys: int
-            minumum number of required valleys
-    Raises:
-        TooFewPeaksDetectedError
-    """
-    if len(peak_indices) < min_number_peaks:
-        raise TooFewPeaksDetectedError(
-            f"A minimum of {min_number_peaks} peaks is required to extract twitch metrics, however only {len(peak_indices)} peak(s) were detected."
-        )
-    if len(valley_indices) < min_number_valleys:
-        raise TooFewPeaksDetectedError(
-            f"A minimum of {min_number_valleys} valleys is required to extract twitch metrics, however only {len(valley_indices)} valley(s) were detected."
-        )
-
-
 def find_twitch_indices(
     peak_and_valley_indices: Tuple[NDArray[int], NDArray[int]],
 ) -> Dict[int, Dict[UUID, Optional[int]]]:
@@ -179,8 +149,16 @@ def find_twitch_indices(
         of interest and the value is an inner dictionary with various UUIDs of prior/subsequent
         peaks and valleys and their index values.
     """
-    too_few_peaks_or_valleys(*peak_and_valley_indices)
     peak_indices, valley_indices = peak_and_valley_indices
+
+    if len(peak_indices) < MIN_NUMBER_PEAKS:
+        raise TooFewPeaksDetectedError(
+            f"A minimum of {MIN_NUMBER_PEAKS} peaks is required to extract twitch metrics, however only {len(peak_indices)} peak(s) were detected."
+        )
+    if len(valley_indices) < MIN_NUMBER_VALLEYS:
+        raise TooFewPeaksDetectedError(
+            f"A minimum of {MIN_NUMBER_VALLEYS} valleys is required to extract twitch metrics, however only {len(valley_indices)} valley(s) were detected."
+        )
 
     twitches: Dict[int, Dict[UUID, Optional[int]]] = {}
 
@@ -296,7 +274,10 @@ def data_metrics(
         for metric_id in metrics:
             if metric_id in metrics_to_create:
                 metric = metric_mapper[metric_id]
-                estimate = metric.fit(**metric_parameters)
+                try:
+                    estimate = metric.fit(**metric_parameters)
+                except Exception:  # nosec B110
+                    continue
                 metric.add_per_twitch_metrics(per_twitch_df, metric_id, estimate)
                 metric.add_aggregate_metrics(aggregate_df, metric_id, estimate)
 

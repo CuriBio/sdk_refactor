@@ -111,28 +111,22 @@ def test_peak_detection_input__width_factors(test_width, mocker):
     )
 
 
-def test_find_twitch_indices__raises_error_if_less_than_3_peaks_given():
+def test_find_twitch_indices__raises_error_if_not_enough_peaks_given():
+    test_num_peaks = MIN_NUMBER_PEAKS - 1
     with pytest.raises(
         TooFewPeaksDetectedError,
-        match=rf"A minimum of {MIN_NUMBER_PEAKS} peaks is required to extract twitch metrics, however only 2 peak\(s\) were detected",
+        match=rf"A minimum of {MIN_NUMBER_PEAKS} peaks is required to extract twitch metrics, however only {test_num_peaks} peak\(s\) were detected",
     ):
-        find_twitch_indices((np.array([1, 2]), None))
+        find_twitch_indices((np.zeros((test_num_peaks,)), np.zeros((MIN_NUMBER_VALLEYS,))))
 
 
-def test_find_twitch_indices__raises_error_if_less_than_3_valleys_given():
+def test_find_twitch_indices__raises_error_if_not_enough_valleys_given():
+    test_num_valleys = MIN_NUMBER_VALLEYS - 1
     with pytest.raises(
         TooFewPeaksDetectedError,
-        match=rf"A minimum of {MIN_NUMBER_VALLEYS} valleys is required to extract twitch metrics, however only 2 valley\(s\) were detected",
+        match=rf"A minimum of {MIN_NUMBER_VALLEYS} valleys is required to extract twitch metrics, however only {test_num_valleys} valley\(s\) were detected",
     ):
-        find_twitch_indices((np.array([1, 3, 5]), np.array([2, 4])))
-
-
-def test_find_twitch_indices__raises_error_if_no_valleys_given():
-    with pytest.raises(
-        TooFewPeaksDetectedError,
-        match=rf"A minimum of {MIN_NUMBER_VALLEYS} valleys is required to extract twitch metrics, however only 0 valley\(s\) were detected",
-    ):
-        find_twitch_indices((np.array([1, 3, 5]), np.array([])))
+        find_twitch_indices((np.zeros((MIN_NUMBER_PEAKS,)), np.zeros((test_num_valleys,))))
 
 
 def test_find_twitch_indices__excludes_first_and_last_peak_when_starts_and_ends_with_peaks():

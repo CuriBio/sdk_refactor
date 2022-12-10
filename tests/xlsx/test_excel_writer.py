@@ -23,7 +23,7 @@ TEST_FILE_PATH = os.path.join(
     "ML2022126006_Position 1 Baseline_2022_06_15_004655.zip",
 )
 TEST_FILE_WITH_PROTOCOLS = os.path.join(
-    PATH_TO_H5_FILES, "subprotocols", "ML22001000-2__2022_11_17_233136.zip"
+    PATH_TO_H5_FILES, "stim_protocols", "ML22001000-2__2022_11_17_233136.zip"
 )
 
 

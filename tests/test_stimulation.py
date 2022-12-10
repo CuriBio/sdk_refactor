@@ -174,3 +174,7 @@ def test_create_interpolated_subprotocol_waveform___creates_biphasic_waveform_co
         mocked_truncate.call_args[0][0], np.array([expected_timepoints, expected_amplitudes])
     )
     assert mocked_truncate.call_args[0][1] == test_stop_timepoint
+
+
+def test_create_interpolated_protocol_waveform__creates_full_waveform_correctly():
+    assert not "TODO"

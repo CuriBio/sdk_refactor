@@ -2,6 +2,7 @@
 import itertools
 from typing import Any
 from typing import Dict
+from typing import List
 
 from nptyping import NDArray
 import numpy as np
@@ -74,3 +75,13 @@ def create_interpolated_subprotocol_waveform(
     )
 
     return interpolated_waveform_arr
+
+
+def create_interpolated_protocol_waveform(
+    subprotocols: List[Dict[str, int]], stim_status_updates: NDArray[(2, Any), int]
+) -> NDArray[(2, Any), int]:
+    pass  # TODO
+
+    # return np.concatenate(
+    #     [create_interpolated_subprotocol_waveform(subprotocol) for subprotocol in subprotocols], axis=1
+    # )

@@ -139,6 +139,7 @@ def create_stim_session_waveforms(
     initial_timepoint: int,
     final_timepoint: int,
 ):
+    print(initial_timepoint, final_timepoint)
     stim_sessions = [
         session
         for session in np.split(stim_status_updates, np.where(stim_status_updates[1] == 255)[0] + 1, axis=1)
@@ -154,3 +155,24 @@ def create_stim_session_waveforms(
         for session_updates, session_stop_timepoint in zip(stim_sessions, stop_timepoints_of_each_session)
     ]
     return interpolated_stim_sessions
+
+
+def aggregate_timepoints(timepoints_from_wells: List[NDArray[(1, Any), int]]) -> NDArray[(1, Any), int]:
+    unique_timepoints = set(t for timepoints in timepoints_from_wells for t in timepoints)
+    return np.array(sorted(unique_timepoints), dtype=int)
+
+
+def realign_interpolated_stim_data(
+    new_timepoints: NDArray[(1, Any), int], orignal_stim_status_data: NDArray[(2, Any), int]
+) -> NDArray[(1, Any), int]:
+    adjusted_interpolated_stim_data = np.full((len(new_timepoints)), np.NaN)
+    orignal_timepoints_list = orignal_stim_status_data[0].tolist()
+    for new_idx, new_t in enumerate(new_timepoints):
+        try:
+            old_idx = orignal_timepoints_list.index(new_t)
+        except ValueError:
+            continue
+        else:
+            orignal_timepoints_list[old_idx] = None  # remove since there will be duplicate timepoints
+            adjusted_interpolated_stim_data[new_idx] = orignal_stim_status_data[1, old_idx]
+    return adjusted_interpolated_stim_data

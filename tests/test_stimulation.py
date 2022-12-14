@@ -4,9 +4,11 @@ from random import randint
 
 import numpy as np
 from pulse3D import stimulation
+from pulse3D.stimulation import aggregate_timepoints
 from pulse3D.stimulation import create_interpolated_subprotocol_waveform
 from pulse3D.stimulation import create_stim_session_waveforms
 from pulse3D.stimulation import interpolate_stim_session
+from pulse3D.stimulation import realign_interpolated_stim_data
 from pulse3D.stimulation import truncate_interpolated_subprotocol_waveform
 import pytest
 
@@ -405,3 +407,22 @@ def test_create_stim_session_waveforms__creates_list_of_session_waveforms_correc
         np.testing.assert_array_equal(
             mocked_interpolate_stim_session.call_args_list[i][0][1], stim_session_arr
         )
+
+
+def test_aggregate_timepoints__returns_correct_values_sorted():
+    test_timepoint_arrs = [np.arange(0, 35, 5), np.arange(0, 33, 3), np.array([22, 13, 7]), np.array([])]
+    expected_timepoint_aggregate = [0, 3, 5, 6, 7, 9, 10, 12, 13, 15, 18, 20, 21, 22, 24, 25, 27, 30]
+
+    actual_timepoints = aggregate_timepoints(test_timepoint_arrs)
+    np.testing.assert_array_equal(actual_timepoints, expected_timepoint_aggregate)
+
+
+def test_realign_interpolated_stim_data__returns_correct_array():
+    new_timepoints = np.repeat(np.arange(0, 15, 1), 2)
+    orignal_stim_status_data = np.array([[0, 0, 3, 3, 14], [10, 20, 20, 30, 30]])
+
+    actual_adjusted_stim_status_data = realign_interpolated_stim_data(
+        new_timepoints, orignal_stim_status_data
+    )
+    expected_data = np.array([10, 20] + ([np.NaN] * 4) + [20, 30] + ([np.NaN] * 20) + [30, np.NaN])
+    np.testing.assert_array_equal(actual_adjusted_stim_status_data, expected_data)

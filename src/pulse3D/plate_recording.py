@@ -76,6 +76,7 @@ class WellFile:
     ):
         self.displacement: NDArray[(2, Any), np.float64]
         self.force: NDArray[(2, Any), np.float64]
+        self.stim_readings: NDArray[(2, Any), int]
 
         if stiffness_factor not in (*POST_STIFFNESS_OVERRIDE_OPTIONS, None):
             raise ValueError(
@@ -160,8 +161,12 @@ class WellFile:
                         TIME_OFFSETS,
                         TISSUE_SENSOR_READINGS,
                         REFERENCE_SENSOR_READINGS,
+                        STIMULATION_READINGS,  # TODO unit test, might need to add handling for if this isn't present
                     ):
                         self[dataset] = h5_file[dataset][:]
+
+                    self.stim_readings = self[STIMULATION_READINGS]
+                    self.stim_readings[0] -= self[TIME_INDICES][0]
 
         elif file_path.endswith(".xlsx"):
             self._excel_sheet = _get_single_sheet(file_path)
@@ -438,8 +443,7 @@ class PlateRecording:
 
         # create displacement and force arrays for each WellFile
         log.info("Create diplacement and force data for each well")
-        for well_idx in range(24):
-            well_file = self.wells[well_idx]
+        for well_idx, well_file in enumerate(self.wells):
             x = estimated_magnet_positions["X"][:, well_idx]
             if flip_data:
                 x *= -1

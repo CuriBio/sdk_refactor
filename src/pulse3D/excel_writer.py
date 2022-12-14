@@ -7,6 +7,7 @@ import string
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Literal
 from typing import Optional
 from typing import Tuple
 from typing import Union
@@ -25,6 +26,9 @@ from .peak_detection import init_dfs
 from .peak_detection import peak_detector
 from .plate_recording import PlateRecording
 from .plotting import plotting_parameters
+from .stimulation import aggregate_timepoints
+from .stimulation import create_stim_session_waveforms
+from .stimulation import realign_interpolated_stim_data
 from .utils import get_experiment_id
 from .utils import get_stiffness_label
 from .utils import truncate
@@ -48,9 +52,14 @@ def add_peak_detection_series(
     is_optical_recording,
     minimum_value: float,
 ) -> None:
-    label = "Relaxation" if detector_type == "Valley" else "Contraction"
-    offset = 1 if detector_type == "Valley" else 0
-    marker_color = "#D95F02" if detector_type == "Valley" else "#7570B3"
+    if detector_type == "Valley":
+        label = "Relaxation"
+        offset = 1
+        marker_color = "#D95F02"
+    else:
+        label = "Contraction"
+        offset = 0
+        marker_color = "#7570B3"
 
     result_column = xl_col_to_name(PEAK_VALLEY_COLUMN_START + (well_index * 2) + offset)
     continuous_waveform_sheet.write(f"{result_column}1", f"{well_name} {detector_type} Values")
@@ -79,22 +88,59 @@ def add_peak_detection_series(
 
         continuous_waveform_sheet.write(f"{result_column}{row}", value)
 
-    if waveform_charts is not None:  # Tanner (11/11/20): chart is None when skipping chart creation
-        for chart in waveform_charts:
-            chart.add_series(
-                {
-                    "name": label,
-                    "categories": f"='continuous-waveforms'!$A$2:$A${upper_x_bound_cell}",
-                    "values": f"='continuous-waveforms'!${result_column}$2:${result_column}${upper_x_bound_cell}",
-                    "marker": {
-                        "type": "circle",
-                        "size": 8,
-                        "border": {"color": marker_color, "width": 1.5},
-                        "fill": {"none": True},
-                    },
-                    "line": {"none": True},
-                }
-            )
+    if waveform_charts is None:  # Tanner (11/11/20): chart is None when skipping chart creation
+        return
+
+    for chart in waveform_charts:
+        chart.add_series(
+            {
+                "name": label,
+                "categories": f"='continuous-waveforms'!$A$2:$A${upper_x_bound_cell}",
+                "values": f"='continuous-waveforms'!${result_column}$2:${result_column}${upper_x_bound_cell}",
+                "marker": {
+                    "type": "circle",
+                    "size": 8,
+                    "border": {"color": marker_color, "width": 1.5},
+                    "fill": {"none": True},
+                },
+                "line": {"none": True},
+            }
+        )
+
+
+def add_stim_data_series(
+    waveform_charts,
+    continuous_waveform_sheet,
+    well_index: int,
+    well_name: str,
+    stim_session_idx: int,
+    upper_x_bound_cell: int,
+    stim_data,
+    timepoints_aggregate,
+) -> None:
+    # TODO
+
+    result_column = xl_col_to_name(STIM_DATA_COLUMN_START + well_index)
+    continuous_waveform_sheet.write(f"{result_column}1", f"{well_name} Stim Status Updates")
+
+    if waveform_charts is None:  # Tanner (11/11/20): chart is None when skipping chart creation
+        return
+
+    for chart in waveform_charts:
+        chart.add_series(
+            {
+                "name": f"Stim Session {stim_session_idx}",
+                "categories": f"='continuous-waveforms'!$AA$2:$AA${upper_x_bound_cell}",
+                "values": f"='continuous-waveforms'!${result_column}$2:${result_column}${upper_x_bound_cell}",
+                # "marker": {
+                #     "type": "circle",
+                #     "size": 8,
+                #     "border": {"color": "#d1d128", "width": 1.5},
+                #     "fill": {"none": True},
+                # },
+                "line": {"color": "#d1d128"},
+            }
+        )
 
 
 def create_force_frequency_relationship_charts(
@@ -197,6 +243,8 @@ def write_xlsx(
     width_factors: Tuple[Union[int, float], Union[int, float]] = DEFAULT_WIDTH_FACTORS,
     peaks_valleys: Dict[str, List[List[int]]] = None,
     include_stim_protocols: bool = False,
+    # TODO unit test
+    stim_waveform_format: Optional[Union[Literal["stacked"], Literal["overlayed"]]] = None,
 ):
     """Write plate recording waveform and computed metrics to Excel spredsheet.
 
@@ -212,17 +260,26 @@ def write_xlsx(
         width_factors: factors used to determine the width peaks/valleys must have
         peaks_valleys: User-defined peaks and valleys to use instead of peak_detector
         include_stim_protocols: Toggles the addition of stimulation-protocols sheet in the output excel
+        stim_waveform_format: Toggles the output format of the stim waveforms if provided, o/w no waveforms are displayed
     Raises:
         NotImplementedError: if peak finding algorithm fails for unexpected reason
         ValueError: if start and end times are outside of expected bounds, or do not ?
     """
+    # TODO unit test all this
+    if stim_waveform_format is not None:
+        if stim_waveform_format not in ("stacked", "overlayed"):
+            raise ValueError(f"Invalid stim_waveform_format: {stim_waveform_format}")
+
+        # TODO check the file version and override this value if it the file version isn't supported. Use 999.999.999 as the version for now
+        # TODO override option to display protocols to True?
+
     # make sure windows bounds are floats
     start_time = float(start_time)
     end_time = float(end_time)
 
     # get metadata from first well file
     w = [pw for pw in plate_recording if pw][0]
-    interpolated_data_period = (
+    interpolated_data_period_us = (
         w[INTERPOLATION_VALUE_UUID] if plate_recording.is_optical_recording else INTERPOLATED_DATA_PERIOD_US
     )
 
@@ -274,29 +331,29 @@ def write_xlsx(
         stim_protocols_df = None
 
     # get max and min of final timepoints across each well
-    raw_timepoints = [w.force[0][-1] for w in plate_recording if w]
-    max_final_time_secs = max(raw_timepoints)
-    interpolated_timepoints_secs = np.arange(
-        interpolated_data_period, max_final_time_secs, interpolated_data_period
+    raw_timepoints = [w.force[0, -1] for w in plate_recording if w]
+    max_final_time_us = max(raw_timepoints)
+    interpolated_timepoints_us = np.arange(
+        interpolated_data_period_us, max_final_time_us, interpolated_data_period_us
     )
 
-    max_final_time_us = max_final_time_secs / MICRO_TO_BASE_CONVERSION
+    max_final_time_secs = max_final_time_us / MICRO_TO_BASE_CONVERSION
     # produce min final time truncated to 1 decimal place
-    min_final_time_us = truncate_float(min(raw_timepoints) / MICRO_TO_BASE_CONVERSION, 1)
+    min_final_time_secs = truncate_float(min(raw_timepoints) / MICRO_TO_BASE_CONVERSION, 1)
 
     if start_time < 0:
         raise ValueError(f"Window start time ({start_time}s) cannot be negative")
-    if start_time >= round(min_final_time_us, 1):
+    if start_time >= round(min_final_time_secs, 1):
         raise ValueError(
-            f"Window start time ({start_time}s) greater than the max timepoint of this recording ({min_final_time_us:.1f}s)"
+            f"Window start time ({start_time}s) greater than the max timepoint of this recording ({min_final_time_secs:.1f}s)"
         )
     if end_time <= start_time:
         raise ValueError(
             f"Window end time ({end_time}s) must be greater than window start time ({start_time}s)"
         )
 
-    end_time = min(end_time, max_final_time_us)
-    is_full_analysis = start_time == 0 and end_time == max_final_time_us
+    end_time = min(end_time, max_final_time_secs)
+    is_full_analysis = start_time == 0 and end_time == max_final_time_secs
 
     # create output file name
     input_file_name_no_ext = os.path.splitext(os.path.basename(plate_recording.path))[0]
@@ -345,7 +402,7 @@ def write_xlsx(
 
     log.info("Computing data metrics for each well.")
 
-    data = []
+    tissue_data = []
     max_force_of_recording = 0
     for well_file in plate_recording:
         # initialize some data structures
@@ -365,14 +422,14 @@ def write_xlsx(
 
         # find bounding indices with respect to well recording
         well_start_idx, well_end_idx = truncate(
-            source_series=interpolated_timepoints_secs,
+            source_series=interpolated_timepoints_us,
             lower_bound=well_file.force[0][0],
             upper_bound=well_file.force[0][-1],
         )
 
         # find bounding indices of specified start/end windows
         window_start_idx, window_end_idx = truncate(
-            source_series=interpolated_timepoints_secs / MICRO_TO_BASE_CONVERSION,
+            source_series=interpolated_timepoints_us / MICRO_TO_BASE_CONVERSION,
             lower_bound=start_time,
             upper_bound=end_time,
         )
@@ -383,9 +440,9 @@ def write_xlsx(
         # fit interpolation function on recorded data
         interp_data_fn = interpolate.interp1d(well_file.force[0, :], well_file.force[1, :])
         # interpolate, normalize, and scale data
-        interpolated_force = interp_data_fn(interpolated_timepoints_secs[start_idx:end_idx])
+        interpolated_force = interp_data_fn(interpolated_timepoints_us[start_idx:end_idx])
         interpolated_well_data = np.row_stack(
-            [interpolated_timepoints_secs[start_idx:end_idx], interpolated_force]
+            [interpolated_timepoints_us[start_idx:end_idx], interpolated_force]
         )
 
         min_value = min(interpolated_force)
@@ -437,7 +494,7 @@ def write_xlsx(
         except TooFewPeaksDetectedError:
             error_msg = "Not Enough Twitches Detected"
 
-        data.append(
+        tissue_data.append(
             {
                 "error_msg": error_msg,
                 "peaks_and_valleys": peaks_and_valleys,
@@ -450,37 +507,70 @@ def write_xlsx(
                 "force": interpolated_well_data,
                 "num_data_points": len(interpolated_well_data[0]),
                 "start_time": start_time,
-                "end_time": np.min(
-                    [
-                        interpolated_timepoints_secs[-1] / MICRO_TO_BASE_CONVERSION,
-                        end_time,
-                    ]
-                ),
+                "end_time": np.min([interpolated_timepoints_us[-1] / MICRO_TO_BASE_CONVERSION, end_time]),
             }
         )
-    # if the max y was not set by user and normalize_y_axis was not disabled by user, then set max_y to be the max twitch force between all wells
+    # if max_y was not set by user and normalize_y_axis was not disabled by user, then set max_y to be the max twitch force between all wells
     if max_y is None and normalize_y_axis:
         max_y = int(max_force_of_recording)
 
     # waveform table
     continuous_waveforms = {
-        "Time (seconds)": pd.Series(
-            interpolated_timepoints_secs[start_idx:end_idx] / MICRO_TO_BASE_CONVERSION
-        )
+        "Time (seconds)": pd.Series(interpolated_timepoints_us[start_idx:end_idx] / MICRO_TO_BASE_CONVERSION)
     }
-
-    for d in data:
-        continuous_waveforms[f"{d['well_name']} - Active Twitch Force (μN)"] = pd.Series(d["interp_data"])
-
+    continuous_waveforms.update(
+        {f"{d['well_name']} - Active Twitch Force (μN)": pd.Series(d["interp_data"]) for d in tissue_data}
+    )
     continuous_waveforms_df = pd.DataFrame(continuous_waveforms)
+
+    print()
+    print(start_time * MICRO_TO_BASE_CONVERSION, end_time * MICRO_TO_BASE_CONVERSION)
+
+    if stim_waveform_format:
+        # insert this first since dict insertion order matters for the data frame creation
+        stim_status_updates_dict = {"Stim Time (seconds)": None}
+        for well_idx, wf in enumerate(plate_recording.wells):
+            well_name = TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_idx)
+
+            stim_data = wf.stim_readings
+            print("---------------")
+            print(well_name)
+            print(stim_data)
+            if not stim_data.shape[-1]:
+                continue
+            stim_sessions_waveforms = create_stim_session_waveforms(
+                json.loads(wf[STIMULATION_PROTOCOL_UUID])["subprotocols"],
+                stim_data,
+                int(start_time * MICRO_TO_BASE_CONVERSION),
+                int(end_time * MICRO_TO_BASE_CONVERSION),
+            )
+            print(stim_sessions_waveforms)
+            for stim_session_idx, waveform in enumerate(stim_sessions_waveforms, 1):
+                stim_status_updates_dict[f"{well_name} - Stim Session {stim_session_idx}"] = waveform
+
+        stim_status_timepoints_aggregate_us = aggregate_timepoints(
+            [waveform[0] for title, waveform in stim_status_updates_dict.items() if "Stim Session" in title]
+        )
+        stim_status_timepoints_for_plotting_us = np.repeat(stim_status_timepoints_aggregate_us, 2)
+
+        # convert all to series, remove timepoints in stim sessions
+        for title, arr in stim_status_updates_dict.items():
+            if title == "Stim Time (seconds)":
+                new_arr = stim_status_timepoints_for_plotting_us / MICRO_TO_BASE_CONVERSION
+            else:
+                new_arr = realign_interpolated_stim_data(stim_status_timepoints_for_plotting_us, arr)
+            stim_status_updates_dict[title] = pd.Series(new_arr)
+    stim_status_df = pd.DataFrame(stim_status_updates_dict)
 
     _write_xlsx(
         output_file_name,
         metadata_df,
         continuous_waveforms_df,
         stim_protocols_df,
-        data,
+        stim_status_df,  # TODO
+        tissue_data,
         max_y,
+        stim_waveform_format,
         include_stim_protocols,
         is_optical_recording=plate_recording.is_optical_recording,
         twitch_widths=twitch_widths,
@@ -496,8 +586,10 @@ def _write_xlsx(
     metadata_df: pd.DataFrame,
     continuous_waveforms_df: pd.DataFrame,
     stim_protocols_df: pd.DataFrame,
+    stim_status_df: pd.DataFrame,
     data: List[Dict[Any, Any]],
     max_y: Optional[Union[float, int]],
+    stim_waveform_format: "TODO",
     include_stim_protocols: bool = False,
     is_optical_recording: bool = False,
     twitch_widths: Tuple[int, ...] = DEFAULT_TWITCH_WIDTHS,
@@ -542,6 +634,12 @@ def _write_xlsx(
         continuous_waveforms_df.to_excel(writer, sheet_name="continuous-waveforms", index=False)
         continuous_waveforms_sheet = writer.sheets["continuous-waveforms"]
 
+        # stim data
+        if stim_waveform_format:
+            stim_status_df.to_excel(
+                writer, sheet_name="continuous-waveforms", index=False, startcol=STIM_DATA_COLUMN_START
+            )
+
         for iter_well_idx in range(1, 24):
             continuous_waveforms_sheet.set_column(iter_well_idx, iter_well_idx, 13)
 
@@ -562,6 +660,7 @@ def _write_xlsx(
                 snapshot_sheet,
                 full_sheet,
                 is_optical_recording,
+                # TODO add param to add stim data to charts
             )
 
         # aggregate metrics sheet
@@ -620,6 +719,8 @@ def create_waveform_charts(
     full_sheet,
     is_optical_recording,
 ):
+    well_name = dm["well_name"]
+
     # maximum snapshot size is 10 seconds
     lower_x_bound = dm["start_time"]
 
@@ -629,7 +730,7 @@ def create_waveform_charts(
         else dm["start_time"] + CHART_MAXIMUM_SNAPSHOT_LENGTH
     )
 
-    df_column = continuous_waveforms_df.columns.get_loc(f"{dm['well_name']} - Active Twitch Force (μN)")
+    df_column = continuous_waveforms_df.columns.get_loc(f"{well_name} - Active Twitch Force (μN)")
 
     well_column = xl_col_to_name(df_column)
     full_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
@@ -642,7 +743,7 @@ def create_waveform_charts(
     snapshot_chart.set_y_axis(
         {"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0}, "max": max_y}
     )
-    snapshot_chart.set_title({"name": f"Well {dm['well_name']}"})
+    snapshot_chart.set_title({"name": f"Well {well_name}"})
 
     snapshot_chart.add_series(
         {
@@ -672,7 +773,7 @@ def create_waveform_charts(
     full_chart.set_y_axis(
         {"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0}, "max": max_y}
     )
-    full_chart.set_title({"name": f"Well {dm['well_name']}"})
+    full_chart.set_title({"name": f"Well {well_name}"})
 
     full_chart.add_series(
         {
@@ -695,6 +796,20 @@ def create_waveform_charts(
         }
     )
 
+    log.info(f'Adding stim data series for well {dm["well_name"]}')
+
+    # TODO
+    # timepoints_aggregate = stim_status_updates_df["Time (seconds)"]
+    # add_stim_data_series(
+    #     waveform_charts=[snapshot_chart, full_chart],
+    #     continuous_waveform_sheet=continuous_waveforms_sheet,
+    #     well_index=well_idx,
+    #     well_name=well_name,
+    #     upper_x_bound_cell=len(timepoints_aggregate),
+    #     stim_data=stim_status_updates_df[well_name],
+    #     timepoints_aggregate=timepoints_aggregate,
+    # )
+
     peaks, valleys = dm["peaks_and_valleys"]
     log.info(f'Adding peak detection series for well {dm["well_name"]}')
 
@@ -703,7 +818,7 @@ def create_waveform_charts(
         continuous_waveform_sheet=continuous_waveforms_sheet,
         detector_type="Peak",
         well_index=well_idx,
-        well_name=f"{dm['well_name']}",
+        well_name=well_name,
         upper_x_bound_cell=dm["num_data_points"],
         indices=peaks,
         interpolated_data_function=dm["interp_data_fn"],
@@ -717,7 +832,7 @@ def create_waveform_charts(
         continuous_waveform_sheet=continuous_waveforms_sheet,
         detector_type="Valley",
         well_index=well_idx,
-        well_name=f"{dm['well_name']}",
+        well_name=well_name,
         upper_x_bound_cell=dm["num_data_points"],
         indices=valleys,
         interpolated_data_function=dm["interp_data_fn"],

@@ -232,3 +232,22 @@ def test_write_xlsx__correctly_handles_include_stim_protocols_param_without_stim
 
         # switch dir back to avoid causing issues with other tests
         os.chdir(cwd)
+
+
+def test_stim_interpolation(mocker):
+    mocker.patch.object(
+        magnet_finding,
+        "get_positions",
+        autospec=True,
+        side_effect=lambda x, **kwargs: {"X": np.zeros((x.shape[-1], 24))},
+    )
+
+    pr = PlateRecording(
+        "/Users/tannerpeterson/Documents/Github/pulse3d/tests/data_files/h5/stim/StimInterpolationTest-SingleSession.zip"
+        # "/Users/tannerpeterson/Library/Application Support/Electron/recordings/SmallBeta2FileNoStim"
+    )
+    write_xlsx(pr, stim_waveform_format="overlayed")
+    # print(pr.wells[0][STIMULATION_READINGS])
+    # print(pr.wells[1][STIMULATION_READINGS])
+    # print(pr.wells[0][TIME_INDICES][0])
+    # print(pr.wells[0][TIME_INDICES][-1])

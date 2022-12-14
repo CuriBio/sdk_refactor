@@ -41,7 +41,7 @@ def truncate_interpolated_subprotocol_waveform(
 
 
 def create_interpolated_subprotocol_waveform(
-    subprotocol: Dict[str, int], start_timepoint: int, stop_timepoint: int
+    subprotocol: Dict[str, int], start_timepoint: int, stop_timepoint: int, include_start_timepoint: bool
 ) -> NDArray[(2, Any), int]:
     try:
         subprotocol_type = subprotocol["type"]
@@ -74,20 +74,30 @@ def create_interpolated_subprotocol_waveform(
         )[1:-1]
         first_cycle_amplitudes = np.repeat([subprotocol.get(comp, 0) for comp in amplitude_components], 2)
         cycle_dur = first_cycle_timepoints[-1] - start_timepoint
-        # add repeated cycle with incremented timepoints to initial pair
-        all_cycles_timepoints = [start_timepoint] + [
+        # add repeated cycle with incremented timepoints
+        all_cycles_timepoints = [
             t + (cycle_num * cycle_dur)
             for cycle_num in range(subprotocol["num_cycles"])
             for t in first_cycle_timepoints
         ]
-        all_cycles_amplitudes = [0] + list(first_cycle_amplitudes) * subprotocol["num_cycles"]
+        all_cycles_amplitudes = list(first_cycle_amplitudes) * subprotocol["num_cycles"]
+        # add initial pair if needed
+        if include_start_timepoint:
+            all_cycles_timepoints = [start_timepoint] + all_cycles_timepoints
+            all_cycles_amplitudes = [0] + all_cycles_amplitudes
         # convert to array
         interpolated_waveform_arr = np.array([all_cycles_timepoints, all_cycles_amplitudes], dtype=int)
+        print("!!! --------")
+        print(interpolated_waveform_arr[:, :5])
+        print(interpolated_waveform_arr[:, -5:])
 
     # truncate end of waveform at the stop timepoint
     interpolated_waveform_arr = truncate_interpolated_subprotocol_waveform(
         interpolated_waveform_arr, stop_timepoint, from_start=False
     )
+    print("!!!")
+    print(interpolated_waveform_arr[:, :5])
+    print(interpolated_waveform_arr[:, -5:])
 
     return interpolated_waveform_arr
 
@@ -118,8 +128,11 @@ def interpolate_stim_session(
             session_stop_timepoint if is_final_status_update else stim_status_updates[0, next_status_idx]
         )
 
+        # start point only needs to be included for the very first subprotocol
+        include_start_timepoint = next_status_idx == 1  # TODO unit test this
+
         subprotocol_waveform = create_interpolated_subprotocol_waveform(
-            subprotocols[subprotocol_idx], start_timepoint, stop_timepoint
+            subprotocols[subprotocol_idx], start_timepoint, stop_timepoint, include_start_timepoint
         )
         subprotocol_waveforms.append(subprotocol_waveform)
 

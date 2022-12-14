@@ -88,9 +88,6 @@ def add_peak_detection_series(
 
         continuous_waveform_sheet.write(f"{result_column}{row}", value)
 
-    if waveform_charts is None:  # Tanner (11/11/20): chart is None when skipping chart creation
-        return
-
     for chart in waveform_charts:
         chart.add_series(
             {
@@ -110,37 +107,28 @@ def add_peak_detection_series(
 
 def add_stim_data_series(
     waveform_charts,
-    continuous_waveform_sheet,
-    well_index: int,
+    col_offset: int,
     well_name: str,
-    stim_session_idx: int,
+    series_label: str,
     upper_x_bound_cell: int,
-    stim_data,
-    timepoints_aggregate,
 ) -> None:
     # TODO
+    print(well_name)
 
-    result_column = xl_col_to_name(STIM_DATA_COLUMN_START + well_index)
-    continuous_waveform_sheet.write(f"{result_column}1", f"{well_name} Stim Status Updates")
-
-    if waveform_charts is None:  # Tanner (11/11/20): chart is None when skipping chart creation
-        return
+    stim_timepoints_col = xl_col_to_name(STIM_DATA_COLUMN_START)
+    stim_session_col = xl_col_to_name(STIM_DATA_COLUMN_START + col_offset)
 
     for chart in waveform_charts:
         chart.add_series(
             {
-                "name": f"Stim Session {stim_session_idx}",
-                "categories": f"='continuous-waveforms'!$AA$2:$AA${upper_x_bound_cell}",
-                "values": f"='continuous-waveforms'!${result_column}$2:${result_column}${upper_x_bound_cell}",
-                # "marker": {
-                #     "type": "circle",
-                #     "size": 8,
-                #     "border": {"color": "#d1d128", "width": 1.5},
-                #     "fill": {"none": True},
-                # },
+                "name": series_label,
+                "categories": f"='continuous-waveforms'!${stim_timepoints_col}$2:${stim_timepoints_col}${upper_x_bound_cell}",
+                "values": f"='continuous-waveforms'!${stim_session_col}$2:${stim_session_col}${upper_x_bound_cell}",
                 "line": {"color": "#d1d128"},
+                "y2_axis": 1,
             }
         )
+        chart.show_blanks_as("span")
 
 
 def create_force_frequency_relationship_charts(
@@ -544,7 +532,8 @@ def write_xlsx(
                 int(start_time * MICRO_TO_BASE_CONVERSION),
                 int(end_time * MICRO_TO_BASE_CONVERSION),
             )
-            print(stim_sessions_waveforms)
+            print("@@@", stim_sessions_waveforms[0][:, 139:142])
+            # TODO use charge type to convert to correct unit
             for stim_session_idx, waveform in enumerate(stim_sessions_waveforms, 1):
                 stim_status_updates_dict[f"{well_name} - Stim Session {stim_session_idx}"] = waveform
 
@@ -558,6 +547,7 @@ def write_xlsx(
             if title == "Stim Time (seconds)":
                 new_arr = stim_status_timepoints_for_plotting_us / MICRO_TO_BASE_CONVERSION
             else:
+                # print("!!!", arr[1])
                 new_arr = realign_interpolated_stim_data(stim_status_timepoints_for_plotting_us, arr)
             stim_status_updates_dict[title] = pd.Series(new_arr)
     stim_status_df = pd.DataFrame(stim_status_updates_dict)
@@ -634,14 +624,15 @@ def _write_xlsx(
         continuous_waveforms_df.to_excel(writer, sheet_name="continuous-waveforms", index=False)
         continuous_waveforms_sheet = writer.sheets["continuous-waveforms"]
 
+        for iter_well_idx in range(1, 24):
+            continuous_waveforms_sheet.set_column(iter_well_idx, iter_well_idx, 13)
+
         # stim data
         if stim_waveform_format:
+            log.info("Writing stim data")
             stim_status_df.to_excel(
                 writer, sheet_name="continuous-waveforms", index=False, startcol=STIM_DATA_COLUMN_START
             )
-
-        for iter_well_idx in range(1, 24):
-            continuous_waveforms_sheet.set_column(iter_well_idx, iter_well_idx, 13)
 
         # waveform snapshot/full
         wb = writer.book
@@ -660,7 +651,8 @@ def _write_xlsx(
                 snapshot_sheet,
                 full_sheet,
                 is_optical_recording,
-                # TODO add param to add stim data to charts
+                stim_waveform_format,
+                stim_status_df,
             )
 
         # aggregate metrics sheet
@@ -718,6 +710,8 @@ def create_waveform_charts(
     snapshot_sheet,
     full_sheet,
     is_optical_recording,
+    stim_waveform_format,
+    stim_status_df,
 ):
     well_name = dm["well_name"]
 
@@ -737,6 +731,9 @@ def create_waveform_charts(
 
     # plot snapshot of waveform
     snapshot_plot_params = plotting_parameters(upper_x_bound - lower_x_bound)
+    if stim_waveform_format:
+        snapshot_plot_params["chart_width"] += 0  # TODO
+
     snapshot_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
 
     snapshot_chart.set_x_axis({"name": "Time (seconds)", "min": lower_x_bound, "max": upper_x_bound})
@@ -768,6 +765,8 @@ def create_waveform_charts(
 
     # plot full waveform
     full_plot_params = plotting_parameters(dm["end_time"] - dm["start_time"])
+    if stim_waveform_format:
+        full_plot_params["chart_width"] += 150  # TODO
 
     full_chart.set_x_axis({"name": "Time (seconds)", "min": dm["start_time"], "max": dm["end_time"]})
     full_chart.set_y_axis(
@@ -798,17 +797,19 @@ def create_waveform_charts(
 
     log.info(f'Adding stim data series for well {dm["well_name"]}')
 
-    # TODO
-    # timepoints_aggregate = stim_status_updates_df["Time (seconds)"]
-    # add_stim_data_series(
-    #     waveform_charts=[snapshot_chart, full_chart],
-    #     continuous_waveform_sheet=continuous_waveforms_sheet,
-    #     well_index=well_idx,
-    #     well_name=well_name,
-    #     upper_x_bound_cell=len(timepoints_aggregate),
-    #     stim_data=stim_status_updates_df[well_name],
-    #     timepoints_aggregate=timepoints_aggregate,
-    # )
+    if stim_waveform_format:
+        for col_idx, col_title in enumerate(stim_status_df):
+            if not col_title.startswith(well_name):
+                continue
+
+            series_label = col_title.split("-")[-1].strip()
+            add_stim_data_series(
+                waveform_charts=[snapshot_chart, full_chart],
+                col_offset=col_idx,
+                well_name=well_name,
+                series_label=series_label,
+                upper_x_bound_cell=len(stim_status_df["Stim Time (seconds)"]),
+            )
 
     peaks, valleys = dm["peaks_and_valleys"]
     log.info(f'Adding peak detection series for well {dm["well_name"]}')

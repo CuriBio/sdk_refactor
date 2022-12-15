@@ -87,17 +87,11 @@ def create_interpolated_subprotocol_waveform(
             all_cycles_amplitudes = [0] + all_cycles_amplitudes
         # convert to array
         interpolated_waveform_arr = np.array([all_cycles_timepoints, all_cycles_amplitudes], dtype=int)
-        print("!!! --------")
-        print(interpolated_waveform_arr[:, :5])
-        print(interpolated_waveform_arr[:, -5:])
 
     # truncate end of waveform at the stop timepoint
     interpolated_waveform_arr = truncate_interpolated_subprotocol_waveform(
         interpolated_waveform_arr, stop_timepoint, from_start=False
     )
-    print("!!!")
-    print(interpolated_waveform_arr[:, :5])
-    print(interpolated_waveform_arr[:, -5:])
 
     return interpolated_waveform_arr
 
@@ -152,7 +146,6 @@ def create_stim_session_waveforms(
     initial_timepoint: int,
     final_timepoint: int,
 ):
-    print(initial_timepoint, final_timepoint)
     stim_sessions = [
         session
         for session in np.split(stim_status_updates, np.where(stim_status_updates[1] == 255)[0] + 1, axis=1)

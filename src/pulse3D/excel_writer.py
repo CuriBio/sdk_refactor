@@ -105,6 +105,7 @@ def add_peak_detection_series(
         )
 
 
+# TODO
 def add_stim_data_series(
     waveform_charts,
     col_offset: int,
@@ -112,9 +113,6 @@ def add_stim_data_series(
     series_label: str,
     upper_x_bound_cell: int,
 ) -> None:
-    # TODO
-    print(well_name)
-
     stim_timepoints_col = xl_col_to_name(STIM_DATA_COLUMN_START)
     stim_session_col = xl_col_to_name(STIM_DATA_COLUMN_START + col_offset)
 
@@ -511,28 +509,20 @@ def write_xlsx(
     )
     continuous_waveforms_df = pd.DataFrame(continuous_waveforms)
 
-    print()
-    print(start_time * MICRO_TO_BASE_CONVERSION, end_time * MICRO_TO_BASE_CONVERSION)
-
     if stim_waveform_format:
         # insert this first since dict insertion order matters for the data frame creation
         stim_status_updates_dict = {"Stim Time (seconds)": None}
         for well_idx, wf in enumerate(plate_recording.wells):
             well_name = TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_idx)
 
-            stim_data = wf.stim_readings
-            print("---------------")
-            print(well_name)
-            print(stim_data)
-            if not stim_data.shape[-1]:
+            if not wf.stim_readings.shape[-1]:
                 continue
             stim_sessions_waveforms = create_stim_session_waveforms(
                 json.loads(wf[STIMULATION_PROTOCOL_UUID])["subprotocols"],
-                stim_data,
+                wf.stim_readings,
                 int(start_time * MICRO_TO_BASE_CONVERSION),
                 int(end_time * MICRO_TO_BASE_CONVERSION),
             )
-            print("@@@", stim_sessions_waveforms[0][:, 139:142])
             # TODO use charge type to convert to correct unit
             for stim_session_idx, waveform in enumerate(stim_sessions_waveforms, 1):
                 stim_status_updates_dict[f"{well_name} - Stim Session {stim_session_idx}"] = waveform
@@ -547,7 +537,6 @@ def write_xlsx(
             if title == "Stim Time (seconds)":
                 new_arr = stim_status_timepoints_for_plotting_us / MICRO_TO_BASE_CONVERSION
             else:
-                # print("!!!", arr[1])
                 new_arr = realign_interpolated_stim_data(stim_status_timepoints_for_plotting_us, arr)
             stim_status_updates_dict[title] = pd.Series(new_arr)
     stim_status_df = pd.DataFrame(stim_status_updates_dict)
@@ -795,7 +784,7 @@ def create_waveform_charts(
         }
     )
 
-    log.info(f'Adding stim data series for well {dm["well_name"]}')
+    log.info(f"Adding stim data series for well {well_name}")
 
     if stim_waveform_format:
         for col_idx, col_title in enumerate(stim_status_df):
@@ -812,7 +801,7 @@ def create_waveform_charts(
             )
 
     peaks, valleys = dm["peaks_and_valleys"]
-    log.info(f'Adding peak detection series for well {dm["well_name"]}')
+    log.info(f"Adding peak detection series for well {well_name}")
 
     add_peak_detection_series(
         waveform_charts=[snapshot_chart, full_chart],

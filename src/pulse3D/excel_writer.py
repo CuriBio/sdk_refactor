@@ -528,7 +528,7 @@ def write_xlsx(
                 stim_status_updates_dict[f"{well_name} - Stim Session {stim_session_idx}"] = waveform
 
         stim_status_timepoints_aggregate_us = aggregate_timepoints(
-            [waveform[0] for title, waveform in stim_status_updates_dict.items() if "Stim Session" in title]
+            [waveform[0] for title, waveform in stim_status_updates_dict.items() if "Stim Session" in title]  # type: ignore
         )
         stim_status_timepoints_for_plotting_us = np.repeat(stim_status_timepoints_aggregate_us, 2)
 
@@ -568,7 +568,7 @@ def _write_xlsx(
     stim_status_df: pd.DataFrame,
     data: List[Dict[Any, Any]],
     max_y: Optional[Union[float, int]],
-    stim_waveform_format: "TODO",
+    stim_waveform_format: Optional[Union[Literal["stacked"], Literal["overlayed"]]],
     include_stim_protocols: bool = False,
     is_optical_recording: bool = False,
     twitch_widths: Tuple[int, ...] = DEFAULT_TWITCH_WIDTHS,
@@ -793,7 +793,7 @@ def create_waveform_charts(
 
             series_label = col_title.split("-")[-1].strip()
             add_stim_data_series(
-                waveform_charts=[snapshot_chart, full_chart],
+                waveform_charts=[full_chart],
                 col_offset=col_idx,
                 well_name=well_name,
                 series_label=series_label,

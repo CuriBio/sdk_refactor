@@ -243,7 +243,7 @@ def test_stim_interpolation(mocker):
     )
 
     pr = PlateRecording(
-        "/Users/tannerpeterson/Documents/Github/pulse3d/tests/data_files/h5/stim/StimInterpolationTest-SingleSession.zip"
+        "/Users/tannerpeterson/Documents/Github/pulse3d/tests/data_files/h5/stim/StimInterpolationTest-TwoSessions.zip"
         # "/Users/tannerpeterson/Library/Application Support/Electron/recordings/SmallBeta2FileNoStim"
     )
     write_xlsx(pr, stim_waveform_format="overlayed", include_stim_protocols=True)

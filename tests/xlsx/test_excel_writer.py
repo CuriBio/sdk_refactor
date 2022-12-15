@@ -246,7 +246,7 @@ def test_stim_interpolation(mocker):
         "/Users/tannerpeterson/Documents/Github/pulse3d/tests/data_files/h5/stim/StimInterpolationTest-SingleSession.zip"
         # "/Users/tannerpeterson/Library/Application Support/Electron/recordings/SmallBeta2FileNoStim"
     )
-    write_xlsx(pr, stim_waveform_format="overlayed")
+    write_xlsx(pr, stim_waveform_format="overlayed", include_stim_protocols=True)
     # print(pr.wells[0][STIMULATION_READINGS])
     # print(pr.wells[1][STIMULATION_READINGS])
     # print(pr.wells[0][TIME_INDICES][0])

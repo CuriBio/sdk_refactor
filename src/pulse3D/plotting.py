@@ -77,7 +77,10 @@ def compute_plot_width(
 
 
 def plotting_parameters(
-    N: Union[int, float], alpha: Union[int, float] = CHART_ALPHA, gamma: Union[int, float] = CHART_GAMMA
+    N: Union[int, float],
+    alpha: Union[int, float] = CHART_ALPHA,
+    gamma: Union[int, float] = CHART_GAMMA,
+    include_y2_axis: bool = False,
 ) -> Dict[str, float]:
     """Estimate plotting parameters for a given number of time samples.
 
@@ -98,6 +101,9 @@ def plotting_parameters(
 
     chart_width = compute_chart_width(N, alpha=alpha, gamma=gamma)
     plot_width = compute_plot_width(chart_width, alpha=alpha, gamma=gamma)
+    if include_y2_axis:
+        chart_width += 50
+        plot_width -= 0.02
     x_coordinate = compute_x_coordinate(chart_width, alpha=alpha)
 
     return {"chart_width": chart_width, "plot_width": plot_width, "x": x_coordinate}

@@ -15,6 +15,7 @@ from typing import Union
 import numpy as np
 import pandas as pd
 from scipy import interpolate
+from semver import VersionInfo
 
 from .constants import *
 from .exceptions import *
@@ -105,11 +106,11 @@ def add_peak_detection_series(
         )
 
 
-# TODO
 def add_stim_data_series(
     waveform_charts,
+    format,
+    charge_unit,
     col_offset: int,
-    well_name: str,
     series_label: str,
     upper_x_bound_cell: int,
 ) -> None:
@@ -117,15 +118,19 @@ def add_stim_data_series(
     stim_session_col = xl_col_to_name(STIM_DATA_COLUMN_START + col_offset)
 
     for chart in waveform_charts:
-        chart.add_series(
-            {
-                "name": series_label,
-                "categories": f"='continuous-waveforms'!${stim_timepoints_col}$2:${stim_timepoints_col}${upper_x_bound_cell}",
-                "values": f"='continuous-waveforms'!${stim_session_col}$2:${stim_session_col}${upper_x_bound_cell}",
-                "line": {"color": "#d1d128"},
-                "y2_axis": 1,
-            }
-        )
+        if format == "overlayed":
+            chart.add_series(
+                {
+                    "name": series_label,
+                    "categories": f"='continuous-waveforms'!${stim_timepoints_col}$2:${stim_timepoints_col}${upper_x_bound_cell}",
+                    "values": f"='continuous-waveforms'!${stim_session_col}$2:${stim_session_col}${upper_x_bound_cell}",
+                    "line": {"color": "#d1d128"},
+                    "y2_axis": 1,
+                }
+            )
+            chart.set_y2_axis({"name": f"Stimulator Output ({charge_unit})"})
+        else:
+            pass  # TODO
         chart.show_blanks_as("span")
 
 
@@ -251,20 +256,22 @@ def write_xlsx(
         NotImplementedError: if peak finding algorithm fails for unexpected reason
         ValueError: if start and end times are outside of expected bounds, or do not ?
     """
+    # get metadata from first well file
+    w = [pw for pw in plate_recording if pw][0]
+
     # TODO unit test all this
     if stim_waveform_format is not None:
         if stim_waveform_format not in ("stacked", "overlayed"):
             raise ValueError(f"Invalid stim_waveform_format: {stim_waveform_format}")
 
-        # TODO check the file version and override this value if it the file version isn't supported. Use 999.999.999 as the version for now
-        # TODO override option to display protocols to True?
+        # TODO Use 999.999.999 as the version for now
+        if w.version <= VersionInfo.parse("1.0.0"):
+            stim_waveform_format = None
 
     # make sure windows bounds are floats
     start_time = float(start_time)
     end_time = float(end_time)
 
-    # get metadata from first well file
-    w = [pw for pw in plate_recording if pw][0]
     interpolated_data_period_us = (
         w[INTERPOLATION_VALUE_UUID] if plate_recording.is_optical_recording else INTERPOLATED_DATA_PERIOD_US
     )
@@ -365,7 +372,7 @@ def write_xlsx(
         ("", "Post Stiffness Factor", post_stiffness_factor),
         ("", "", ""),
         ("Device Information:", "", ""),
-        ("", "H5 File Layout Version", w[FILE_FORMAT_VERSION_METADATA_KEY]),
+        ("", "H5 File Layout Version", w.version),
         ("", "Mantarray Serial Number", w.get(MANTARRAY_SERIAL_NUMBER_UUID, "")),
         ("", "Software Release Version", w.get(SOFTWARE_RELEASE_VERSION_UUID, "")),
         ("", "Firmware Version (Main Controller)", w.get(MAIN_FIRMWARE_VERSION_UUID, "")),
@@ -509,7 +516,10 @@ def write_xlsx(
     )
     continuous_waveforms_df = pd.DataFrame(continuous_waveforms)
 
+    stim_plotting_info: Dict[str, Any] = {}
     if stim_waveform_format:
+        stim_plotting_info["charge_units"] = charge_units = {}
+
         # insert this first since dict insertion order matters for the data frame creation
         stim_status_updates_dict = {"Stim Time (seconds)": None}
         for well_idx, wf in enumerate(plate_recording.wells):
@@ -517,14 +527,31 @@ def write_xlsx(
 
             if not wf.stim_readings.shape[-1]:
                 continue
+
+            stim_protocol = json.loads(wf[STIMULATION_PROTOCOL_UUID])
+
+            if stim_protocol["stimulation_type"] == "C":
+                charge_unit = "mA"
+                charge_conversion_factor = MILLI_TO_BASE_CONVERSION
+            else:
+                charge_unit = "mV"
+                charge_conversion_factor = 1
+
+            charge_units[well_name] = charge_unit
+
             stim_sessions_waveforms = create_stim_session_waveforms(
-                json.loads(wf[STIMULATION_PROTOCOL_UUID])["subprotocols"],
+                stim_protocol["subprotocols"],
                 wf.stim_readings,
                 int(start_time * MICRO_TO_BASE_CONVERSION),
                 int(end_time * MICRO_TO_BASE_CONVERSION),
             )
-            # TODO use charge type to convert to correct unit
-            for stim_session_idx, waveform in enumerate(stim_sessions_waveforms, 1):
+
+            stim_session_idx = 0
+            for waveform in stim_sessions_waveforms:
+                if not waveform.shape[-1]:
+                    continue
+                stim_session_idx += 1
+                waveform[1] //= charge_conversion_factor
                 stim_status_updates_dict[f"{well_name} - Stim Session {stim_session_idx}"] = waveform
 
         stim_status_timepoints_aggregate_us = aggregate_timepoints(
@@ -532,24 +559,25 @@ def write_xlsx(
         )
         stim_status_timepoints_for_plotting_us = np.repeat(stim_status_timepoints_aggregate_us, 2)
 
-        # convert all to series, remove timepoints in stim sessions
+        # convert all to series, remove timepoints and convert to correct unit in stim sessions
         for title, arr in stim_status_updates_dict.items():
             if title == "Stim Time (seconds)":
                 new_arr = stim_status_timepoints_for_plotting_us / MICRO_TO_BASE_CONVERSION
             else:
                 new_arr = realign_interpolated_stim_data(stim_status_timepoints_for_plotting_us, arr)
             stim_status_updates_dict[title] = pd.Series(new_arr)
-    stim_status_df = pd.DataFrame(stim_status_updates_dict)
+
+        stim_plotting_info["chart_format"] = stim_waveform_format
+        stim_plotting_info["stim_status_df"] = pd.DataFrame(stim_status_updates_dict)
 
     _write_xlsx(
         output_file_name,
         metadata_df,
         continuous_waveforms_df,
         stim_protocols_df,
-        stim_status_df,  # TODO
+        stim_plotting_info,
         tissue_data,
         max_y,
-        stim_waveform_format,
         include_stim_protocols,
         is_optical_recording=plate_recording.is_optical_recording,
         twitch_widths=twitch_widths,
@@ -565,10 +593,9 @@ def _write_xlsx(
     metadata_df: pd.DataFrame,
     continuous_waveforms_df: pd.DataFrame,
     stim_protocols_df: pd.DataFrame,
-    stim_status_df: pd.DataFrame,
+    stim_plotting_info: Dict[str, Any],
     data: List[Dict[Any, Any]],
     max_y: Optional[Union[float, int]],
-    stim_waveform_format: Optional[Union[Literal["stacked"], Literal["overlayed"]]],
     include_stim_protocols: bool = False,
     is_optical_recording: bool = False,
     twitch_widths: Tuple[int, ...] = DEFAULT_TWITCH_WIDTHS,
@@ -617,9 +644,9 @@ def _write_xlsx(
             continuous_waveforms_sheet.set_column(iter_well_idx, iter_well_idx, 13)
 
         # stim data
-        if stim_waveform_format:
+        if stim_plotting_info:
             log.info("Writing stim data")
-            stim_status_df.to_excel(
+            stim_plotting_info["stim_status_df"].to_excel(
                 writer, sheet_name="continuous-waveforms", index=False, startcol=STIM_DATA_COLUMN_START
             )
 
@@ -640,8 +667,7 @@ def _write_xlsx(
                 snapshot_sheet,
                 full_sheet,
                 is_optical_recording,
-                stim_waveform_format,
-                stim_status_df,
+                stim_plotting_info,
             )
 
         # aggregate metrics sheet
@@ -699,8 +725,7 @@ def create_waveform_charts(
     snapshot_sheet,
     full_sheet,
     is_optical_recording,
-    stim_waveform_format,
-    stim_status_df,
+    stim_plotting_info,
 ):
     well_name = dm["well_name"]
 
@@ -720,8 +745,6 @@ def create_waveform_charts(
 
     # plot snapshot of waveform
     snapshot_plot_params = plotting_parameters(upper_x_bound - lower_x_bound)
-    if stim_waveform_format:
-        snapshot_plot_params["chart_width"] += 0  # TODO
 
     snapshot_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
 
@@ -752,14 +775,21 @@ def create_waveform_charts(
         }
     )
 
+    full_plot_include_y2_axis = stim_plotting_info.get("chart_format") == "overlayed"
+
     # plot full waveform
-    full_plot_params = plotting_parameters(dm["end_time"] - dm["start_time"])
-    if stim_waveform_format:
-        full_plot_params["chart_width"] += 150  # TODO
+    full_plot_params = plotting_parameters(
+        dm["end_time"] - dm["start_time"], include_y2_axis=full_plot_include_y2_axis
+    )
 
     full_chart.set_x_axis({"name": "Time (seconds)", "min": dm["start_time"], "max": dm["end_time"]})
     full_chart.set_y_axis(
-        {"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0}, "max": max_y}
+        {
+            "name": "Active Twitch Force (μN)",
+            "major_gridlines": {"visible": 0},
+            "max": max_y,
+            "min": 0,  # Tanner (12/15/22): setting this to zero right now since the tissue data will never be < 0. If this ever needs to change, may want to also take the new min into account when setting the y2 axis bounds for stim data
+        }
     )
     full_chart.set_title({"name": f"Well {well_name}"})
 
@@ -786,7 +816,8 @@ def create_waveform_charts(
 
     log.info(f"Adding stim data series for well {well_name}")
 
-    if stim_waveform_format:
+    if stim_plotting_info:
+        stim_status_df = stim_plotting_info["stim_status_df"]
         for col_idx, col_title in enumerate(stim_status_df):
             if not col_title.startswith(well_name):
                 continue
@@ -794,8 +825,9 @@ def create_waveform_charts(
             series_label = col_title.split("-")[-1].strip()
             add_stim_data_series(
                 waveform_charts=[full_chart],
+                format=stim_plotting_info["chart_format"],
+                charge_unit=stim_plotting_info["charge_units"][well_name],
                 col_offset=col_idx,
-                well_name=well_name,
                 series_label=series_label,
                 upper_x_bound_cell=len(stim_status_df["Stim Time (seconds)"]),
             )

@@ -235,16 +235,22 @@ def test_write_xlsx__correctly_handles_include_stim_protocols_param_without_stim
 
 
 def test_stim_interpolation(mocker):
-    mocker.patch.object(
-        magnet_finding,
-        "get_positions",
-        autospec=True,
-        side_effect=lambda x, **kwargs: {"X": np.zeros((x.shape[-1], 24))},
-    )
+    def se(x, **kwargs):
+        x_len = x.shape[-1]
+        test_data = np.zeros((x_len, 24))
+
+        for i in range(24):
+            test_data[:, i] = np.arange(x_len) * -((i % 4) + 1)
+        return {"X": test_data}
+
+    mocker.patch.object(magnet_finding, "get_positions", autospec=True, side_effect=se)
 
     pr = PlateRecording(
-        "/Users/tannerpeterson/Documents/Github/pulse3d/tests/data_files/h5/stim/StimInterpolationTest-TwoSessions.zip"
-        # "/Users/tannerpeterson/Library/Application Support/Electron/recordings/SmallBeta2FileNoStim"
+        # "/Users/tannerpeterson/Documents/Github/pulse3d/tests/data_files/h5/stim/StimInterpolationTest-SingleSession.zip"
+        # "/Users/tannerpeterson/Documents/Github/pulse3d/tests/data_files/h5/stim/StimInterpolationTest-TwoSessions.zip"
+        # "/Users/tannerpeterson/Library/Application Support/Electron/recordings/SmallBeta2File-NoStim"
+        # "/Users/tannerpeterson/Documents/Github/pulse3d/tests/data_files/h5/beta_1_flipped_waveforms/ML2210310101_D14_2022_10_31_152724.zip"
+        "/Users/tannerpeterson/Library/Application Support/Electron/recordings/StimInterpolationTest-VariableSessions"
     )
     write_xlsx(pr, stim_waveform_format="overlayed", include_stim_protocols=True)
     # print(pr.wells[0][STIMULATION_READINGS])

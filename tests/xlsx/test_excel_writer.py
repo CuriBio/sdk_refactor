@@ -247,10 +247,10 @@ def test_stim_interpolation(mocker):
 
     pr = PlateRecording(
         # "/Users/tannerpeterson/Documents/Github/pulse3d/tests/data_files/h5/stim/StimInterpolationTest-SingleSession.zip"
-        # "/Users/tannerpeterson/Documents/Github/pulse3d/tests/data_files/h5/stim/StimInterpolationTest-TwoSessions.zip"
+        "/Users/tannerpeterson/Documents/Github/pulse3d/tests/data_files/h5/stim/StimInterpolationTest-TwoSessions.zip"
         # "/Users/tannerpeterson/Library/Application Support/Electron/recordings/SmallBeta2File-NoStim"
         # "/Users/tannerpeterson/Documents/Github/pulse3d/tests/data_files/h5/beta_1_flipped_waveforms/ML2210310101_D14_2022_10_31_152724.zip"
-        "/Users/tannerpeterson/Library/Application Support/Electron/recordings/StimInterpolationTest-VariableSessions"
+        # "/Users/tannerpeterson/Library/Application Support/Electron/recordings/LongBeta2File-WithStim"
     )
     write_xlsx(pr, stim_waveform_format="overlayed", include_stim_protocols=True)
     # print(pr.wells[0][STIMULATION_READINGS])

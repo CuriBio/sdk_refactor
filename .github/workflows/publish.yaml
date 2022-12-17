@@ -5,13 +5,13 @@ on:
   workflow_dispatch:
     inputs:
       randomlyseed:
-        description: 'Pytest Randomly Seed'
+        description: "Pytest Randomly Seed"
         required: false
-        default: ''
+        default: ""
       dry_run:
-        description: 'Do a dry run and do not publish'
+        description: "Do a dry run and do not publish"
         required: false
-        default: '0'
+        default: "0"
   push:
     branches:
       - main
@@ -26,8 +26,8 @@ jobs:
           - "windows-2022"
           - "macos-11.0"
         python-version:
-            - 3.8
-            - 3.9
+          - 3.8
+          - 3.9
         include:
           # only enable coverage on the fastest job
           - os: "ubuntu-22.04"
@@ -38,7 +38,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           token: ${{ secrets.CI_TOKEN }}
           fetch-depth: 1
@@ -50,7 +50,7 @@ jobs:
           git submodule update
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
       - name: Display Python version
@@ -170,7 +170,6 @@ jobs:
           name: dist--${{ matrix.os }}--${{ matrix.python-version }}
           path: dist/*
 
-
   publish_to_test_pypi:
     needs: [test]
     strategy:
@@ -179,17 +178,17 @@ jobs:
         os:
           - "ubuntu-22.04"
         python-version:
-            - 3.9
+          - 3.9
     name: Publish to Test PyPI for Python ${{ matrix.python-version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 1
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
       - name: Display Python version
@@ -252,12 +251,12 @@ jobs:
   #   runs-on: ${{ matrix.os }}
   #   steps:
   #     - name: Checkout
-  #       uses: actions/checkout@v2
+  #       uses: actions/checkout@v3
   #       with:
   #         fetch-depth: 1
 
   #     - name: Set up Python
-  #       uses: actions/setup-python@v2
+  #       uses: actions/setup-python@v4
   #       with:
   #         python-version: ${{ matrix.python-version }}
   #     - name: Display Python version
@@ -326,18 +325,18 @@ jobs:
           - "windows-2022"
           - "macos-11.0"
         python-version:
-            - 3.8
-            - 3.9
+          - 3.8
+          - 3.9
     name: Publish to PyPI for Python ${{ matrix.python-version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 1
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
       - name: Display Python version
@@ -383,7 +382,6 @@ jobs:
   #       with:
   #         time: 360s
 
-
   # install_from_pypi:
   #   needs: [publish_to_pypi]
   #   strategy:
@@ -401,12 +399,12 @@ jobs:
   #   runs-on: ${{ matrix.os }}
   #   steps:
   #     - name: Checkout
-  #       uses: actions/checkout@v2
+  #       uses: actions/checkout@v3
   #       with:
   #         fetch-depth: 1
 
   #     - name: Set up Python
-  #       uses: actions/setup-python@v2
+  #       uses: actions/setup-python@v4
   #       with:
   #         python-version: ${{ matrix.python-version }}
   #     - name: Display Python version
@@ -476,7 +474,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 1
 

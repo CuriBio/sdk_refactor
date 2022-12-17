@@ -104,21 +104,25 @@ def test_PlateRecording__writes_time_force_csv_with_no_errors(mocker):
         assert "MA20223322__2020_09_02_173919.csv" in os.listdir(output_dir)
 
 
-def test_PlateRecording__well_data_loaded_from_dataframe_will_equal_original_well_data(mocker):
+def test_PlateRecording__beta_1_data_loaded_from_dataframe_will_equal_original_well_data(mocker):
+    pass  # TODO
+
+
+def test_PlateRecording__v1_data_loaded_from_dataframe_will_equal_original_well_data(mocker):
+    def se(x, *args, **kwargs):
+        x_len = x.shape[-1]
+        test_data = np.empty((x_len, 24))
+
+        for well_idx in range(24):
+            test_data[:, well_idx] = np.arange(x_len) * well_idx
+        return {"X": test_data}
+
     # mock so magnet finding alg doesn't run
-    mocker.patch.object(
-        plate_recording,
-        "find_magnet_positions",
-        autospec=True,
-        side_effect=lambda data, *args: {"X": np.zeros((data.shape[-1], 24))},
-    )
+    mocker.patch.object(plate_recording, "find_magnet_positions", autospec=True, side_effect=se)
 
-    rec_path = os.path.join(
-        PATH_TO_MAGNET_FINDING_FILES,
-        "MA00101011__2021_12_31_045823.zip",
-    )
+    rec_path = os.path.join(PATH_TO_H5_FILES, "stim", "StimInterpolationTest-TwoSessions.zip")
 
-    pr_created_from_h5 = PlateRecording(rec_path, start_time=3, end_time=5)
+    pr_created_from_h5 = PlateRecording(rec_path)
     existing_df = pr_created_from_h5.to_dataframe()
     pr_recreated_from_df = PlateRecording(rec_path, force_df=existing_df)
 
@@ -131,8 +135,5 @@ def test_PlateRecording__well_data_loaded_from_dataframe_will_equal_original_wel
         recreated_wf.force[0] /= MICRO_TO_BASE_CONVERSION
 
         np.testing.assert_array_almost_equal(
-            original_wf.force,
-            recreated_wf.force,
-            decimal=2,
-            err_msg=f"Well {well_idx} failed",
+            original_wf.force, recreated_wf.force, decimal=2, err_msg=f"Well {well_idx} failed"
         )

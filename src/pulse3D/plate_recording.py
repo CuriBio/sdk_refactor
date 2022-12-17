@@ -458,7 +458,7 @@ class PlateRecording:
             )
 
     def _load_dataframe(self, df: pd.DataFrame) -> None:
-        """Add time and force data to well files in PR.
+        """Add time and force data to well files in PlateRecording.
 
         Args:
             df: pd.Dataframe existing time force data to be added
@@ -504,9 +504,9 @@ class PlateRecording:
         >>> peak_detector(df[['time', 'A1']].transpose().values)
 
         The dataframe needs to be transposed before converting to NDArray because peak_detector
-        wants an ndarray of shape (2,N) while dataframe[['time', 'A1']] is in shape (N,2)
+        wants an ndarray of shape (2, N) while dataframe[['time', 'A1']] is in shape (N,2)
         """
-        data = {}
+        # TODO
 
         # get first valid well and set interpolation period
         first_well = [pw for pw in self.wells if pw][0]
@@ -523,7 +523,7 @@ class PlateRecording:
             min_time = min([w.force[0][0] for w in self.wells if w])
             time_steps = np.arange(min_time, max_time + interp_period, interp_period)
 
-        data["Time (s)"] = pd.Series(time_steps)
+        data = {"Time (s)": pd.Series(time_steps)}
 
         for i, w in enumerate(self.wells):
             if not from_dataframe:

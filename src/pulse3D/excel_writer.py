@@ -107,7 +107,7 @@ def add_peak_detection_series(
 
 
 def add_stim_data_series(
-    waveform_charts,
+    charts,
     format,
     charge_unit,
     col_offset: int,
@@ -117,20 +117,22 @@ def add_stim_data_series(
     stim_timepoints_col = xl_col_to_name(STIM_DATA_COLUMN_START)
     stim_session_col = xl_col_to_name(STIM_DATA_COLUMN_START + col_offset)
 
-    for chart in waveform_charts:
-        if format == "overlayed":
-            chart.add_series(
-                {
-                    "name": series_label,
-                    "categories": f"='continuous-waveforms'!${stim_timepoints_col}$2:${stim_timepoints_col}${upper_x_bound_cell}",
-                    "values": f"='continuous-waveforms'!${stim_session_col}$2:${stim_session_col}${upper_x_bound_cell}",
-                    "line": {"color": "#d1d128"},
-                    "y2_axis": 1,
-                }
-            )
-            chart.set_y2_axis({"name": f"Stimulator Output ({charge_unit})"})
-        else:
-            pass  # TODO
+    series_params: Dict[str, Any] = {
+        "name": series_label,
+        "categories": f"='continuous-waveforms'!${stim_timepoints_col}$2:${stim_timepoints_col}${upper_x_bound_cell}",
+        "values": f"='continuous-waveforms'!${stim_session_col}$2:${stim_session_col}${upper_x_bound_cell}",
+        "line": {"color": "#d1d128"},
+    }
+    y_axis_params: Dict[str, Any] = {"name": f"Stimulator Output ({charge_unit})"}
+
+    if format == "overlayed":
+        series_params["y2_axis"] = 1
+    else:
+        y_axis_params["major_gridlines"] = {"visible": 0}
+
+    for chart in charts:
+        chart.add_series(series_params)
+        (chart.set_y2_axis if format == "overlayed" else chart.set_y_axis)(y_axis_params)
         chart.show_blanks_as("span")
 
 
@@ -741,7 +743,6 @@ def create_waveform_charts(
     df_column = continuous_waveforms_df.columns.get_loc(f"{well_name} - Active Twitch Force (μN)")
 
     well_column = xl_col_to_name(df_column)
-    full_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
 
     # plot snapshot of waveform
     snapshot_plot_params = plotting_parameters(upper_x_bound - lower_x_bound)
@@ -775,12 +776,14 @@ def create_waveform_charts(
         }
     )
 
+    # plot full waveform
     full_plot_include_y2_axis = stim_plotting_info.get("chart_format") == "overlayed"
 
-    # plot full waveform
     full_plot_params = plotting_parameters(
         dm["end_time"] - dm["start_time"], include_y2_axis=full_plot_include_y2_axis
     )
+
+    full_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
 
     full_chart.set_x_axis({"name": "Time (seconds)", "min": dm["start_time"], "max": dm["end_time"]})
     full_chart.set_y_axis(
@@ -814,9 +817,30 @@ def create_waveform_charts(
         }
     )
 
-    log.info(f"Adding stim data series for well {well_name}")
+    stim_chart_format = stim_plotting_info.get("chart_format")
 
     if stim_plotting_info:
+        log.info(f"Adding stim data series for well {well_name}")
+
+        if stim_chart_format == "overlayed":
+            chart = full_chart
+        else:
+            chart = stim_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
+
+            chart.set_x_axis({"name": "Time (seconds)", "min": dm["start_time"], "max": dm["end_time"]})
+
+            chart.set_size({"width": full_plot_params["chart_width"], "height": STIM_CHART_HEIGHT})
+            chart.set_plotarea(
+                {
+                    "layout": {
+                        "x": full_plot_params["x"],
+                        "y": 0.1,
+                        "width": full_plot_params["plot_width"],
+                        "height": 0.7,
+                    }
+                }
+            )
+
         stim_status_df = stim_plotting_info["stim_status_df"]
         for col_idx, col_title in enumerate(stim_status_df):
             if not col_title.startswith(well_name):
@@ -824,8 +848,8 @@ def create_waveform_charts(
 
             series_label = col_title.split("-")[-1].strip()
             add_stim_data_series(
-                waveform_charts=[full_chart],
-                format=stim_plotting_info["chart_format"],
+                charts=[chart],
+                format=stim_chart_format,
                 charge_unit=stim_plotting_info["charge_units"][well_name],
                 col_offset=col_idx,
                 series_label=series_label,
@@ -869,7 +893,14 @@ def create_waveform_charts(
         well_col * (CHART_FIXED_WIDTH_CELLS + 1),
         snapshot_chart,
     )
-    full_sheet.insert_chart(1 + well_idx * (CHART_HEIGHT_CELLS + 1), 1, full_chart)
+
+    cells_per_well = CHART_HEIGHT_CELLS + 1
+    if stim_chart_format == "stacked":
+        cells_per_well += STIM_CHART_HEIGHT_CELLS
+        if stim_chart.series:
+            full_sheet.insert_chart(1 + CHART_HEIGHT_CELLS + well_idx * cells_per_well, 1, stim_chart)
+
+    full_sheet.insert_chart(1 + well_idx * cells_per_well, 1, full_chart)
 
 
 def aggregate_metrics_df(

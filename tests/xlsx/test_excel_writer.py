@@ -237,10 +237,10 @@ def test_write_xlsx__correctly_handles_include_stim_protocols_param_without_stim
 def test_stim_interpolation(mocker):
     def se(x, **kwargs):
         x_len = x.shape[-1]
-        test_data = np.zeros((x_len, 24))
+        test_data = np.empty((x_len, 24))
 
-        for i in range(24):
-            test_data[:, i] = np.arange(x_len) * -((i % 4) + 1)
+        for well_idx in range(24):
+            test_data[:, well_idx] = (np.arange(x_len) * -((well_idx % 4) + 1)) // 1000
         return {"X": test_data}
 
     mocker.patch.object(magnet_finding, "get_positions", autospec=True, side_effect=se)

@@ -135,5 +135,9 @@ def test_PlateRecording__v1_data_loaded_from_dataframe_will_equal_original_well_
         recreated_wf.force[0] /= MICRO_TO_BASE_CONVERSION
 
         np.testing.assert_array_almost_equal(
-            original_wf.force, recreated_wf.force, decimal=2, err_msg=f"Well {well_idx} failed"
+            original_wf.force, recreated_wf.force, decimal=2, err_msg=f"Well {well_idx} force"
         )
+
+        # np.testing.assert_array_almost_equal(
+        #     original_wf.stim_readings, recreated_wf.force, decimal=2, err_msg=f"Well {well_idx} stim"
+        # )

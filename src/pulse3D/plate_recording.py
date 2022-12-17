@@ -443,7 +443,7 @@ class PlateRecording:
 
         # create displacement and force arrays for each WellFile
         log.info("Create diplacement and force data for each well")
-        for well_idx, well_file in enumerate(self.wells):
+        for well_idx, well_file in enumerate(self):
             x = estimated_magnet_positions["X"][:, well_idx]
             if flip_data:
                 x *= -1
@@ -465,7 +465,7 @@ class PlateRecording:
         """
         time = df["Time (s)"].values
 
-        for well in self.wells:
+        for well in self:
             well_name = well[WELL_NAME_UUID]
             well_data = np.vstack((time, df[f"{well_name}__raw"])).astype(np.float64)
             well.force = well_data
@@ -482,7 +482,7 @@ class PlateRecording:
 
         force_data = dict({"Time (s)": pd.Series(truncated_time_sec)})
 
-        for well in self.wells:
+        for well in self:
             well_name = well.get(WELL_NAME_UUID, None)
             force_data[well_name] = pd.Series(well.force[1])
 
@@ -508,8 +508,8 @@ class PlateRecording:
         """
         # TODO
 
-        # get first valid well and set interpolation period
-        first_well = [pw for pw in self.wells if pw][0]
+        # get first valid well and set interpolation period. Creating new iter to be safe
+        first_well = next(iter(self))
 
         if self.is_optical_recording:
             interp_period = first_well[INTERPOLATION_VALUE_UUID]
@@ -519,31 +519,37 @@ class PlateRecording:
         if from_dataframe:
             time_steps = copy.deepcopy(first_well.force[0])
         else:
-            max_time = max([w.force[0][-1] for w in self.wells if w])
-            min_time = min([w.force[0][0] for w in self.wells if w])
+            min_time = min([wf.force[0][0] for wf in self])
+            max_time = max([wf.force[0][-1] for wf in self])
             time_steps = np.arange(min_time, max_time + interp_period, interp_period)
 
         data = {"Time (s)": pd.Series(time_steps)}
 
-        for i, w in enumerate(self.wells):
+        # iterating over self.wells instead of using __iter__ so well_idx is preserved
+        for well_idx, wf in enumerate(self.wells):
+            if not wf:
+                continue
+
+            well_name = wf.get(WELL_NAME_UUID, TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_idx))
+
             if not from_dataframe:
                 start_idx, end_idx = truncate(
-                    source_series=time_steps, lower_bound=w.force[0][0], upper_bound=w.force[0][-1]
+                    source_series=time_steps, lower_bound=wf.force[0][0], upper_bound=wf.force[0][-1]
                 )
 
-                interp_fn = interpolate.interp1d(w.force[0, :], w.force[1, :])
+                interp_fn = interpolate.interp1d(wf.force[0, :], wf.force[1, :])
                 interp_force = interp_fn(time_steps[start_idx : end_idx + 1])
 
             else:
-                interp_force = copy.deepcopy(w.force[1, 1:])
+                interp_force = copy.deepcopy(wf.force[1, 1:])
 
-            data[f"{w.get(WELL_NAME_UUID, str(i))}__raw"] = pd.Series(w.force[1, :])
+            data[f"{well_name}__raw"] = pd.Series(wf.force[1, :])
 
             min_value = min(interp_force)
             interp_force -= min_value
             interp_force *= MICRO_TO_BASE_CONVERSION
 
-            data[w.get(WELL_NAME_UUID, str(i))] = pd.Series(interp_force)
+            data[well_name] = pd.Series(interp_force)
 
         return pd.DataFrame(data).dropna()
 

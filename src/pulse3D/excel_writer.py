@@ -259,7 +259,7 @@ def write_xlsx(
         ValueError: if start and end times are outside of expected bounds, or do not ?
     """
     # get metadata from first well file
-    w = [pw for pw in plate_recording if pw][0]
+    first_wf = next(iter(plate_recording))
 
     # TODO unit test all this
     if stim_waveform_format is not None:
@@ -267,7 +267,7 @@ def write_xlsx(
             raise ValueError(f"Invalid stim_waveform_format: {stim_waveform_format}")
 
         # TODO Use 999.999.999 as the version for now
-        if w.version <= VersionInfo.parse("1.0.0"):
+        if first_wf.version <= VersionInfo.parse("1.0.0"):
             stim_waveform_format = None
 
     # make sure windows bounds are floats
@@ -275,7 +275,9 @@ def write_xlsx(
     end_time = float(end_time)
 
     interpolated_data_period_us = (
-        w[INTERPOLATION_VALUE_UUID] if plate_recording.is_optical_recording else INTERPOLATED_DATA_PERIOD_US
+        first_wf[INTERPOLATION_VALUE_UUID]
+        if plate_recording.is_optical_recording
+        else INTERPOLATED_DATA_PERIOD_US
     )
 
     # get stim meta data
@@ -292,7 +294,7 @@ def write_xlsx(
                 "Subprotocols": "Subprotocols:",
             }
         }
-        for well in plate_recording.wells:
+        for well in plate_recording:
             if well_data := json.loads(well[STIMULATION_PROTOCOL_UUID]):
                 protocol_id = well_data.get("protocol_id")
                 well_id = well[WELL_NAME_UUID]
@@ -355,29 +357,31 @@ def write_xlsx(
     file_suffix = "full" if is_full_analysis else f"{start_time}-{end_time}"
     output_file_name = f"{input_file_name_no_ext}_{file_suffix}.xlsx"
 
-    if w.stiffness_override:
+    if first_wf.stiffness_override:
         # reverse dict to use the stiffness factor as a key and get the label value
-        post_stiffness_factor = {v: k for k, v in POST_STIFFNESS_LABEL_TO_FACTOR.items()}[w.stiffness_factor]
+        post_stiffness_factor = {v: k for k, v in POST_STIFFNESS_LABEL_TO_FACTOR.items()}[
+            first_wf.stiffness_factor
+        ]
     else:
-        post_stiffness_factor = get_stiffness_label(get_experiment_id(w[PLATE_BARCODE_UUID]))
+        post_stiffness_factor = get_stiffness_label(get_experiment_id(first_wf[PLATE_BARCODE_UUID]))
 
     # create metadata sheet format as DataFrame
     metadata_rows = [
         ("Recording Information:", "", ""),
-        ("", "Plate Barcode", w[PLATE_BARCODE_UUID]),
-        ("", "Stimulation Lid Barcode", w[STIM_BARCODE_UUID]),
+        ("", "Plate Barcode", first_wf[PLATE_BARCODE_UUID]),
+        ("", "Stimulation Lid Barcode", first_wf[STIM_BARCODE_UUID]),
         (
             "",
             "UTC Timestamp of Beginning of Recording",
-            str(w[UTC_BEGINNING_RECORDING_UUID].replace(tzinfo=None)),
+            str(first_wf[UTC_BEGINNING_RECORDING_UUID].replace(tzinfo=None)),
         ),
         ("", "Post Stiffness Factor", post_stiffness_factor),
         ("", "", ""),
         ("Device Information:", "", ""),
-        ("", "H5 File Layout Version", w.version),
-        ("", "Mantarray Serial Number", w.get(MANTARRAY_SERIAL_NUMBER_UUID, "")),
-        ("", "Software Release Version", w.get(SOFTWARE_RELEASE_VERSION_UUID, "")),
-        ("", "Firmware Version (Main Controller)", w.get(MAIN_FIRMWARE_VERSION_UUID, "")),
+        ("", "H5 File Layout Version", first_wf.version),
+        ("", "Mantarray Serial Number", first_wf.get(MANTARRAY_SERIAL_NUMBER_UUID, "")),
+        ("", "Software Release Version", first_wf.get(SOFTWARE_RELEASE_VERSION_UUID, "")),
+        ("", "Firmware Version (Main Controller)", first_wf.get(MAIN_FIRMWARE_VERSION_UUID, "")),
         ("Output Format:", "", ""),
         ("", "Pulse3D Version", PACKAGE_VERSION),
         ("", "File Creation Timestamp", str(datetime.datetime.utcnow().replace(microsecond=0))),
@@ -524,7 +528,7 @@ def write_xlsx(
 
         # insert this first since dict insertion order matters for the data frame creation
         stim_status_updates_dict = {"Stim Time (seconds)": None}
-        for well_idx, wf in enumerate(plate_recording.wells):
+        for well_idx, wf in enumerate(plate_recording):
             well_name = TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_idx)
 
             if not wf.stim_readings.shape[-1]:

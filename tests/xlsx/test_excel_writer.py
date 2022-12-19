@@ -22,9 +22,7 @@ TEST_FILE_PATH = os.path.join(
     "v1.1.0",
     "ML2022126006_Position 1 Baseline_2022_06_15_004655.zip",
 )
-TEST_FILE_WITH_PROTOCOLS = os.path.join(
-    PATH_TO_H5_FILES, "stim_protocols", "ML22001000-2__2022_11_17_233136.zip"
-)
+TEST_FILE_WITH_PROTOCOLS = os.path.join(PATH_TO_H5_FILES, "stim", "ML22001000-2__2022_11_17_233136.zip")
 
 
 DEFAULT_TWITCH_WIDTH_LABELS = set(
@@ -50,6 +48,9 @@ def get_per_twitch_labels(df) -> Set[str]:
         if isinstance(metric_label := metric[0], str)
         and ("Time From Contraction" in metric_label or "Time From Peak" in metric_label)
     }
+
+
+# TODO add test to make sure a beta 1 file can be run without error
 
 
 @pytest.mark.slow
@@ -248,10 +249,12 @@ def test_stim_interpolation(mocker):
     pr = PlateRecording(
         # "/Users/tannerpeterson/Documents/Github/pulse3d/tests/data_files/h5/stim/StimInterpolationTest-SingleSession.zip"
         "/Users/tannerpeterson/Documents/Github/pulse3d/tests/data_files/h5/stim/StimInterpolationTest-TwoSessions.zip"
+        # "/Users/tannerpeterson/Documents/Github/pulse3d/tests/data_files/h5/stim/StimInterpolationTest-VariableSessions.zip"
         # "/Users/tannerpeterson/Library/Application Support/Electron/recordings/SmallBeta2File-NoStim"
         # "/Users/tannerpeterson/Documents/Github/pulse3d/tests/data_files/h5/beta_1_flipped_waveforms/ML2210310101_D14_2022_10_31_152724.zip"
         # "/Users/tannerpeterson/Library/Application Support/Electron/recordings/LongBeta2File-WithStim"
     )
+
     write_xlsx(pr, stim_waveform_format="overlayed", include_stim_protocols=True)
     # print(pr.wells[0][STIMULATION_READINGS])
     # print(pr.wells[1][STIMULATION_READINGS])

@@ -120,24 +120,38 @@ def test_PlateRecording__v1_data_loaded_from_dataframe_will_equal_original_well_
     # mock so magnet finding alg doesn't run
     mocker.patch.object(plate_recording, "find_magnet_positions", autospec=True, side_effect=se)
 
-    rec_path = os.path.join(PATH_TO_H5_FILES, "stim", "StimInterpolationTest-TwoSessions.zip")
+    # rec_path = os.path.join(PATH_TO_H5_FILES, "stim", "StimInterpolationTest-TwoSessions.zip")
+    rec_path = "/Users/tannerpeterson/Documents/Github/pulse3d/tests/data_files/h5/stim/StimInterpolationTest-VariableSessions.zip"
 
     pr_created_from_h5 = PlateRecording(rec_path)
-    existing_df = pr_created_from_h5.to_dataframe()
-    pr_recreated_from_df = PlateRecording(rec_path, force_df=existing_df)
+    existing_df = (
+        pr_created_from_h5.to_dataframe()
+    )  # TODO make assertion on at least shape of force and stim series in DF
+    pr_recreated_from_df = PlateRecording(rec_path, recording_df=existing_df)
 
     for well_idx, (original_wf, recreated_wf) in enumerate(zip(pr_created_from_h5, pr_recreated_from_df)):
-        # to_dataframe normalizes time points so platerecording sometimes has timepoints like
+        # to_dataframe normalizes time points so a PlateRecording sometimes has timepoints like
         # 0.0, 10000.0, 20003.0, 30000.0, 40001.0, 50000.0, 60001.0, 70001.0, 80001.0, 90001.0 and to_dataframe makes them
         # 0.0, 10000.0, 20000.0, 30000.0, 40000.0, 50000.0, 60000.0, 70000.0, 80000.0, 90000.0
+
         # convert to seconds and then only check two decimal places
         original_wf.force[0] /= MICRO_TO_BASE_CONVERSION
         recreated_wf.force[0] /= MICRO_TO_BASE_CONVERSION
 
         np.testing.assert_array_almost_equal(
-            original_wf.force, recreated_wf.force, decimal=2, err_msg=f"Well {well_idx} force"
+            recreated_wf.force, original_wf.force, decimal=2, err_msg=f"Well {well_idx} force"
         )
 
-        # np.testing.assert_array_almost_equal(
-        #     original_wf.stim_readings, recreated_wf.force, decimal=2, err_msg=f"Well {well_idx} stim"
-        # )
+        assert len(original_wf.stim_sessions) == len(recreated_wf.stim_sessions), f"Well {well_idx}"
+
+        for session_idx, (original_session_data, recreated_session_data) in enumerate(
+            zip(original_wf.stim_sessions, recreated_wf.stim_sessions)
+        ):
+            np.testing.assert_array_equal(
+                recreated_session_data,
+                original_session_data,
+                err_msg=f"Well {well_idx}, Stim Session {session_idx}",
+            )
+
+
+# TODO make sure to_dataframe output is the same whether or not PR loaded from DF or H5

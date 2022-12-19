@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 import itertools
+from random import choice
 from random import randint
 
 import numpy as np
 from pulse3D import stimulation
+from pulse3D.exceptions import SubprotocolFormatIncompatibleWithInterpolationError
 from pulse3D.stimulation import aggregate_timepoints
 from pulse3D.stimulation import create_interpolated_subprotocol_waveform
 from pulse3D.stimulation import create_stim_session_waveforms
@@ -99,7 +101,7 @@ def test_truncate_interpolated_subprotocol_waveform__returns_correctly_truncated
 
 
 def test_create_interpolated_subprotocol_waveform__raises_error_if_subprotocol_is_not_of_a_supported_format():
-    with pytest.raises(ValueError, match="This format of subprotocol is not supported, must have a 'type'"):
+    with pytest.raises(SubprotocolFormatIncompatibleWithInterpolationError, match="Must have a 'type'"):
         create_interpolated_subprotocol_waveform(
             {
                 "phase_one_duration": 1,
@@ -110,9 +112,10 @@ def test_create_interpolated_subprotocol_waveform__raises_error_if_subprotocol_i
                 "repeat_delay_interval": 6,
                 "total_active_duration": 1000,
             },
-            # start and stop timepoint don't matter here
+            # other args don't matter here
             randint(0, 100),
             randint(100, 200),
+            choice([True, False]),
         )
 
 
@@ -120,13 +123,15 @@ def test_create_interpolated_subprotocol_waveform__raises_error_if_loop_given():
     with pytest.raises(ValueError, match="Cannot interpolate loops"):
         create_interpolated_subprotocol_waveform(
             {"type": "loop"},
-            # start and stop timepoint don't matter here
+            # other args don't matter here
             randint(0, 100),
             randint(100, 200),
+            choice([True, False]),
         )
 
 
-def test_create_interpolated_subprotocol_waveform__creates_delay_correctly(mocker):
+@pytest.mark.parametrize("include_start_timepoint", [True, False])
+def test_create_interpolated_subprotocol_waveform__creates_delay_correctly(include_start_timepoint, mocker):
     mocked_truncate = mocker.patch.object(
         stimulation, "truncate_interpolated_subprotocol_waveform", autospec=True
     )
@@ -138,7 +143,7 @@ def test_create_interpolated_subprotocol_waveform__creates_delay_correctly(mocke
     test_stop_timepoint = randint(100, 200)
 
     actual_delay_arr = create_interpolated_subprotocol_waveform(
-        test_delay, test_start_timepoint, test_stop_timepoint
+        test_delay, test_start_timepoint, test_stop_timepoint, include_start_timepoint
     )
     assert actual_delay_arr == mocked_truncate.return_value
 
@@ -151,7 +156,10 @@ def test_create_interpolated_subprotocol_waveform__creates_delay_correctly(mocke
     assert mocked_truncate.call_args[0][1] == test_stop_timepoint
 
 
-def test_create_interpolate_subprotocol_waveform__creates_monophasic_waveform_correctly(mocker):
+@pytest.mark.parametrize("include_start_timepoint", [True, False])
+def test_create_interpolate_subprotocol_waveform__creates_monophasic_waveform_correctly(
+    include_start_timepoint, mocker
+):
     mocked_truncate = mocker.patch.object(
         stimulation, "truncate_interpolated_subprotocol_waveform", autospec=True
     )
@@ -172,25 +180,32 @@ def test_create_interpolate_subprotocol_waveform__creates_monophasic_waveform_co
     # this value won't have any impact on the output arr due to mocking
     test_stop_timepoint = randint(10000, 20000)
     actual_pulse_arr = create_interpolated_subprotocol_waveform(
-        test_biphasic_pulse, test_start_timepoint, test_stop_timepoint
+        test_biphasic_pulse, test_start_timepoint, test_stop_timepoint, include_start_timepoint
     )
     assert actual_pulse_arr == mocked_truncate.return_value
 
-    expected_timepoints = [test_start_timepoint] + [
+    expected_timepoints = [
         t + (cycle_num * test_cycle_dur)
         for cycle_num in range(test_num_cycles)
         for t in test_first_cycle_timepoints
     ]
-    expected_amplitudes = [0] + [test_phase_one_charge, test_phase_one_charge, 0, 0] * test_num_cycles
+    expected_amplitudes = [test_phase_one_charge, test_phase_one_charge, 0, 0] * test_num_cycles
+
+    if include_start_timepoint:
+        expected_timepoints = [test_start_timepoint] + expected_timepoints
+        expected_amplitudes = [0] + expected_amplitudes
+
+    expected_arr = np.array([expected_timepoints, expected_amplitudes])
 
     # need to make assertion on the array separately
     mocked_truncate.assert_called_once_with(mocker.ANY, test_stop_timepoint, from_start=False)
-    np.testing.assert_array_equal(
-        mocked_truncate.call_args[0][0], np.array([expected_timepoints, expected_amplitudes])
-    )
+    np.testing.assert_array_equal(mocked_truncate.call_args[0][0], expected_arr)
 
 
-def test_create_interpolate_subprotocol_waveform__creates_biphasic_waveform_correctly(mocker):
+@pytest.mark.parametrize("include_start_timepoint", [True, False])
+def test_create_interpolate_subprotocol_waveform__creates_biphasic_waveform_correctly(
+    include_start_timepoint, mocker
+):
     mocked_truncate = mocker.patch.object(
         stimulation, "truncate_interpolated_subprotocol_waveform", autospec=True
     )
@@ -225,16 +240,16 @@ def test_create_interpolate_subprotocol_waveform__creates_biphasic_waveform_corr
     # this value won't have any impact on the output arr due to mocking
     test_stop_timepoint = randint(10000, 20000)
     actual_pulse_arr = create_interpolated_subprotocol_waveform(
-        test_biphasic_pulse, test_start_timepoint, test_stop_timepoint
+        test_biphasic_pulse, test_start_timepoint, test_stop_timepoint, include_start_timepoint
     )
     assert actual_pulse_arr == mocked_truncate.return_value
 
-    expected_timepoints = [test_start_timepoint] + [
+    expected_timepoints = [
         t + (cycle_num * test_cycle_dur)
         for cycle_num in range(test_num_cycles)
         for t in test_first_cycle_timepoints
     ]
-    expected_amplitudes = [0] + [
+    expected_amplitudes = [
         test_phase_one_charge,
         test_phase_one_charge,
         0,
@@ -245,11 +260,15 @@ def test_create_interpolate_subprotocol_waveform__creates_biphasic_waveform_corr
         0,
     ] * test_num_cycles
 
+    if include_start_timepoint:
+        expected_timepoints = [test_start_timepoint] + expected_timepoints
+        expected_amplitudes = [0] + expected_amplitudes
+
+    expected_arr = np.array([expected_timepoints, expected_amplitudes])
+
     # need to make assertion on the array separately
     mocked_truncate.assert_called_once_with(mocker.ANY, test_stop_timepoint, from_start=False)
-    np.testing.assert_array_equal(
-        mocked_truncate.call_args[0][0], np.array([expected_timepoints, expected_amplitudes])
-    )
+    np.testing.assert_array_equal(mocked_truncate.call_args[0][0], expected_arr)
 
 
 def test_interpolate_stim_session__returns_empty_array_if_start_timepoint_is_greater_than_protocol_complete_status_of_stim_status_updates():
@@ -309,8 +328,18 @@ def test_interpolate_stim_session__creates_full_waveform_correctly(final_subprot
     assert actual_interpolated_session == mocked_truncate.return_value
 
     assert mocked_create.call_args_list == [
-        mocker.call(test_subprotocols[0], test_stim_status_updates[0, 0], test_stim_status_updates[0, 1]),
-        mocker.call(test_subprotocols[1], test_stim_status_updates[0, 1], test_stop_timepoint),
+        mocker.call(
+            test_subprotocols[0],
+            test_stim_status_updates[0, 0],
+            test_stim_status_updates[0, 1],
+            True,
+        ),
+        mocker.call(
+            test_subprotocols[1],
+            test_stim_status_updates[0, 1],
+            test_stop_timepoint,
+            False,
+        ),
     ]
 
     mocked_truncate.assert_called_once_with(mocker.ANY, test_start_timepoint, from_start=True)

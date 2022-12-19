@@ -59,3 +59,7 @@ class TwoPeaksInARowError(TwoFeaturesInARowError):
 
 class TooFewPeaksDetectedError(PeakDetectionError):
     pass
+
+
+class SubprotocolFormatIncompatibleWithInterpolationError(Exception):
+    pass

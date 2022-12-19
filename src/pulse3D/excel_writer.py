@@ -28,7 +28,6 @@ from .peak_detection import peak_detector
 from .plate_recording import PlateRecording
 from .plotting import plotting_parameters
 from .stimulation import aggregate_timepoints
-from .stimulation import create_stim_session_waveforms
 from .stimulation import realign_interpolated_stim_data
 from .utils import get_experiment_id
 from .utils import get_stiffness_label
@@ -78,7 +77,6 @@ def add_peak_detection_series(
                 interpolated_data_function(uninterpolated_time_seconds * MICRO_TO_BASE_CONVERSION)
                 - minimum_value
             ) * MICRO_TO_BASE_CONVERSION
-
         else:
             interpolated_data = interpolated_data_function(
                 uninterpolated_time_seconds * MICRO_TO_BASE_CONVERSION
@@ -369,7 +367,7 @@ def write_xlsx(
     metadata_rows = [
         ("Recording Information:", "", ""),
         ("", "Plate Barcode", first_wf[PLATE_BARCODE_UUID]),
-        ("", "Stimulation Lid Barcode", first_wf[STIM_BARCODE_UUID]),
+        ("", "Stimulation Lid Barcode", first_wf.get(STIM_BARCODE_UUID)),
         (
             "",
             "UTC Timestamp of Beginning of Recording",
@@ -526,39 +524,27 @@ def write_xlsx(
     if stim_waveform_format:
         stim_plotting_info["charge_units"] = charge_units = {}
 
+        start_time_us = int(start_time * MICRO_TO_BASE_CONVERSION)
+        end_time_us = int(end_time * MICRO_TO_BASE_CONVERSION)
+
         # insert this first since dict insertion order matters for the data frame creation
         stim_status_updates_dict = {"Stim Time (seconds)": None}
         for well_idx, wf in enumerate(plate_recording):
             well_name = TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_idx)
 
-            if not wf.stim_readings.shape[-1]:
+            if not wf.stim_sessions:
                 continue
 
             stim_protocol = json.loads(wf[STIMULATION_PROTOCOL_UUID])
 
-            if stim_protocol["stimulation_type"] == "C":
-                charge_unit = "mA"
-                charge_conversion_factor = MILLI_TO_BASE_CONVERSION
-            else:
-                charge_unit = "mV"
-                charge_conversion_factor = 1
-
-            charge_units[well_name] = charge_unit
-
-            stim_sessions_waveforms = create_stim_session_waveforms(
-                stim_protocol["subprotocols"],
-                wf.stim_readings,
-                int(start_time * MICRO_TO_BASE_CONVERSION),
-                int(end_time * MICRO_TO_BASE_CONVERSION),
-            )
+            charge_units[well_name] = "mA" if stim_protocol["stimulation_type"] == "C" else "mV"
 
             stim_session_idx = 0
-            for waveform in stim_sessions_waveforms:
-                if not waveform.shape[-1]:
-                    continue
+            for waveform in wf.stim_sessions:
                 stim_session_idx += 1
-                waveform[1] //= charge_conversion_factor
-                stim_status_updates_dict[f"{well_name} - Stim Session {stim_session_idx}"] = waveform
+                stim_status_updates_dict[f"{well_name} - Stim Session {stim_session_idx}"] = waveform[
+                    :, (start_time_us <= waveform[0]) & (waveform[0] <= end_time_us)
+                ]
 
         stim_status_timepoints_aggregate_us = aggregate_timepoints(
             [waveform[0] for title, waveform in stim_status_updates_dict.items() if "Stim Session" in title]  # type: ignore

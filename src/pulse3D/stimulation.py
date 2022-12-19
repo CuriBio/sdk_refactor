@@ -10,6 +10,7 @@ from typing import List
 
 from nptyping import NDArray
 import numpy as np
+from pulse3D.exceptions import SubprotocolFormatIncompatibleWithInterpolationError
 
 
 def truncate_interpolated_subprotocol_waveform(
@@ -46,7 +47,7 @@ def create_interpolated_subprotocol_waveform(
     try:
         subprotocol_type = subprotocol["type"]
     except KeyError:
-        raise ValueError("This format of subprotocol is not supported, must have a 'type'")
+        raise SubprotocolFormatIncompatibleWithInterpolationError("Must have a 'type'")
 
     if subprotocol_type == "loop":
         raise ValueError("Cannot interpolate loops")
@@ -61,10 +62,14 @@ def create_interpolated_subprotocol_waveform(
         time_components = ["phase_one_duration", "postphase_interval"]
         amplitude_components = ["phase_one_charge", "postphase_amplitude"]
         if subprotocol_type == "biphasic":
-            time_components[1:1] = ["interphase_interval", "phase_two_duration"]
-            amplitude_components[1:1] = ["interphase_amplitude", "phase_two_charge"]
+            time_components[1:1] = ["phase_two_duration"]
+            amplitude_components[1:1] = ["phase_two_charge"]
+            # only add interphase interval if it is non-zero
+            if subprotocol["interphase_interval"] > 0:
+                time_components[1:1] = ["interphase_interval"]
+                amplitude_components[1:1] = ["interphase_amplitude"]
 
-        # create first cycle except for initial pair which will be added later,
+        # create first cycle except for initial pair which may be added later,
         # and don't duplicate the pair at the end of the postphase interval
         first_cycle_timepoints = np.repeat(
             list(
@@ -115,7 +120,7 @@ def interpolate_stim_session(
         # 'protocol complete' is the final status update, which doesn't need a waveform created for it
         stim_status_updates = stim_status_updates[:, :-1]
 
-    subprotocol_waveforms = []
+    subprotocol_waveforms: List[NDArray[(2, Any), int]] = []
     for next_status_idx, (start_timepoint, subprotocol_idx) in enumerate(stim_status_updates.T, 1):
         is_final_status_update = next_status_idx == stim_status_updates.shape[-1]
         stop_timepoint = (
@@ -123,11 +128,22 @@ def interpolate_stim_session(
         )
 
         # start point only needs to be included for the very first subprotocol
-        include_start_timepoint = next_status_idx == 1  # TODO unit test this
+        include_start_timepoint = next_status_idx == 1
 
         subprotocol_waveform = create_interpolated_subprotocol_waveform(
             subprotocols[subprotocol_idx], start_timepoint, stop_timepoint, include_start_timepoint
         )
+
+        if not subprotocol_waveform.shape[-1]:
+            continue
+
+        # make sure no unnecessary timepoints added  # TODO unit test
+        if subprotocol_waveforms:
+            prev_subprotocol_waveform = subprotocol_waveforms[-1]
+            if prev_subprotocol_waveform[0, -1] == subprotocol_waveform[0, 0]:
+                prev_subprotocol_waveform = prev_subprotocol_waveform[:, :-1]
+                subprotocol_waveform = subprotocol_waveform[:, 1:]
+
         subprotocol_waveforms.append(subprotocol_waveform)
 
     session_waveform = np.concatenate(subprotocol_waveforms, axis=1)

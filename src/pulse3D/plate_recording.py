@@ -20,6 +20,7 @@ import numpy as np
 from openpyxl import load_workbook
 from openpyxl.worksheet.worksheet import Worksheet
 import pandas as pd
+from pulse3D.exceptions import SubprotocolFormatIncompatibleWithInterpolationError
 from scipy import interpolate
 from semver import VersionInfo
 from xlsxwriter.utility import xl_cell_to_rowcol
@@ -29,6 +30,9 @@ from .constants import *
 from .magnet_finding import find_magnet_positions
 from .magnet_finding import fix_dropped_samples
 from .magnet_finding import format_well_file_data
+from .stimulation import aggregate_timepoints
+from .stimulation import create_stim_session_waveforms
+from .stimulation import realign_interpolated_stim_data
 from .transforms import apply_empty_plate_calibration
 from .transforms import apply_noise_filtering
 from .transforms import apply_sensitivity_calibration
@@ -76,7 +80,7 @@ class WellFile:
     ):
         self.displacement: NDArray[(2, Any), np.float64]
         self.force: NDArray[(2, Any), np.float64]
-        self.stim_readings: NDArray[(2, Any), int]
+        self.stim_sessions: List[NDArray[(2, Any), int]] = []
 
         if stiffness_factor not in (*POST_STIFFNESS_OVERRIDE_OPTIONS, None):
             raise ValueError(
@@ -106,7 +110,7 @@ class WellFile:
                 else:
                     # calibration recordings do not have an associated barcode or post stiffness since they
                     # are creatd when a plate is not even on the istrument, so just set the stiffness factor to 1
-                    self.stiffness_factor = CALIBRATION_STIFFNESS_FACTOR  # TODO might want to make this None
+                    self.stiffness_factor = CALIBRATION_STIFFNESS_FACTOR
 
                 # extract datetimes
                 for uuid_ in (
@@ -137,16 +141,9 @@ class WellFile:
                         else None
                     )
 
-                    is_untrimmed = self.get(IS_FILE_ORIGINAL_UNTRIMMED_UUID, True)
-                    time_trimmed = None if is_untrimmed else self.attrs[TRIMMED_TIME_FROM_ORIGINAL_START_UUID]
-
                     # load sensor data. This is only possible to do here for Beta 1 data files
-                    self[TISSUE_SENSOR_READINGS] = self._load_reading(
-                        h5_file, TISSUE_SENSOR_READINGS, time_trimmed
-                    )
-                    self[REFERENCE_SENSOR_READINGS] = self._load_reading(
-                        h5_file, REFERENCE_SENSOR_READINGS, time_trimmed
-                    )
+                    self[TISSUE_SENSOR_READINGS] = self._load_reading(h5_file, TISSUE_SENSOR_READINGS)
+                    self[REFERENCE_SENSOR_READINGS] = self._load_reading(h5_file, REFERENCE_SENSOR_READINGS)
                     self._load_magnetic_data()
                 else:
                     if self.has_inverted_post_magnet:
@@ -164,9 +161,6 @@ class WellFile:
                         STIMULATION_READINGS,  # TODO unit test, might need to add handling for if this isn't present
                     ):
                         self[dataset] = h5_file[dataset][:]
-
-                    self.stim_readings = self[STIMULATION_READINGS]
-                    self.stim_readings[0] -= self[TIME_INDICES][0]
 
         elif file_path.endswith(".xlsx"):
             self._excel_sheet = _get_single_sheet(file_path)
@@ -193,8 +187,11 @@ class WellFile:
 
     def _load_magnetic_data(self):
         adj_raw_tissue_reading = self[TISSUE_SENSOR_READINGS].copy()
-        f = MICROSECONDS_PER_CENTIMILLISECOND if self.is_magnetic_data else MICRO_TO_BASE_CONVERSION
-        adj_raw_tissue_reading[0] *= f
+
+        time_conversion = (
+            MICROSECONDS_PER_CENTIMILLISECOND if self.is_magnetic_data else MICRO_TO_BASE_CONVERSION
+        )
+        adj_raw_tissue_reading[0] *= time_conversion
 
         # magnetic data is flipped
         if self.is_magnetic_data:
@@ -223,10 +220,11 @@ class WellFile:
             self.noise_cancelled_magnetic_data
         )
 
+        self.noise_filtered_magnetic_data: NDArray[(2, Any), int]
         if self.noise_filter_uuid is None:
-            self.noise_filtered_magnetic_data: NDArray[(2, Any), int] = self.fully_calibrated_magnetic_data
+            self.noise_filtered_magnetic_data = self.fully_calibrated_magnetic_data
         else:
-            self.noise_filtered_magnetic_data: NDArray[(2, Any), int] = apply_noise_filtering(
+            self.noise_filtered_magnetic_data = apply_noise_filtering(
                 self.fully_calibrated_magnetic_data, self.filter_coefficients
             )
 
@@ -251,7 +249,7 @@ class WellFile:
             self.displacement, stiffness_factor=self.stiffness_factor, in_mm=False
         )
 
-    def get(self, key, default):
+    def get(self, key, default=None):
         try:
             return self[key]
         except Exception:
@@ -306,52 +304,28 @@ class WellFile:
             tzinfo=datetime.timezone.utc
         )
 
-    def _load_reading(self, h5_file, reading_type: str, time_trimmed) -> NDArray[(Any, Any), int]:
-        recording_start_index = self[START_RECORDING_TIME_INDEX_UUID]
-        beginning_data_acquisition_ts = self[UTC_BEGINNING_DATA_ACQUISTION_UUID]
-
-        if reading_type == REFERENCE_SENSOR_READINGS:
-            initial_timestamp = self[UTC_FIRST_REF_DATA_POINT_UUID]
-            sampling_period = self[REF_SAMPLING_PERIOD_UUID]
-        else:
-            initial_timestamp = self[UTC_FIRST_TISSUE_DATA_POINT_UUID]
-            sampling_period = self[TISSUE_SAMPLING_PERIOD_UUID]
-
-        recording_start_index_useconds = int(recording_start_index) * MICROSECONDS_PER_CENTIMILLISECOND
-        timestamp_of_start_index = beginning_data_acquisition_ts + datetime.timedelta(
-            microseconds=recording_start_index_useconds
-        )
-
-        time_delta = initial_timestamp - timestamp_of_start_index
-        time_delta_centimilliseconds = int(
-            time_delta / datetime.timedelta(microseconds=MICROSECONDS_PER_CENTIMILLISECOND)
-        )
-
+    def _load_reading(self, h5_file, reading_type: str) -> NDArray[(Any, Any), int]:
+        sampling_period = self[
+            REF_SAMPLING_PERIOD_UUID
+            if reading_type == REFERENCE_SENSOR_READINGS
+            else TISSUE_SAMPLING_PERIOD_UUID
+        ]
         time_step = int(sampling_period / MICROSECONDS_PER_CENTIMILLISECOND)
 
-        # adding `[:]` loads the data as a numpy array giving us more flexibility of multi-dimensional arrays
-        data = h5_file[reading_type][:]
-        if len(data.shape) == 1:
-            data = data.reshape(1, data.shape[0])
+        tissue_contraction_amplitudes = h5_file[reading_type][:]
+        num_data_points = tissue_contraction_amplitudes.shape[-1]
 
-        # fmt: off
-        # black reformatted this into a few very ugly lines of code
-        times = np.mgrid[: data.shape[1],] * time_step
-        # fmt: on
+        # TODO add unit test asserting that beta 1 data is loaded with a first timepoint of 0
+        timepoints = np.arange(num_data_points) * time_step
 
-        if time_trimmed:
-            new_times = times + time_delta_centimilliseconds
-            start_index = _find_start_index(time_trimmed, new_times)
-            time_delta_centimilliseconds = int(new_times[start_index])
-
-        return np.concatenate((times + time_delta_centimilliseconds, data), dtype=np.int32)
+        return np.array([timepoints, tissue_contraction_amplitudes], dtype=np.int32)
 
 
 class PlateRecording:
     def __init__(
         self,
         path,
-        force_df: pd.DataFrame = None,
+        recording_df: pd.DataFrame = None,
         start_time: Union[float, int] = 0,
         end_time: Optional[Union[float, int]] = None,
         # TODO unit test the stiffness factor, auto and override
@@ -373,6 +347,8 @@ class PlateRecording:
         self.start_time_secs = start_time
         self.end_time_secs = end_time
 
+        self._created_from_dataframe = recording_df is not None
+
         if self.path.endswith(".zip"):
             with tempfile.TemporaryDirectory() as tmpdir:
                 zf = zipfile.ZipFile(path)
@@ -390,17 +366,18 @@ class PlateRecording:
                 self.path, stiffness_factor, inverted_post_magnet_wells
             )
 
-        if not self.wells:
-            # might not be any well files in the path
-            # TODO should probably raise an error here
-            return
+        # make sure at least one WellFile was loaded
+        if not any(self.wells):
+            # TODO unit test and make custom error type
+            raise Exception()
 
         # currently file versions 1.0.0 and above must have all their data processed together
         if not self.is_optical_recording and self.wells[0].version >= VersionInfo.parse("1.0.0"):
-            if force_df is None:
-                self._process_plate_data(calibration_recordings)
+            if self._created_from_dataframe:
+                self._load_dataframe(recording_df)
             else:
-                self._load_dataframe(force_df)
+                self._process_plate_data(calibration_recordings)
+                self._process_stim_data()
 
     def _process_plate_data(self, calibration_recordings):
         if not all(isinstance(well_file, WellFile) for well_file in self.wells) or len(self.wells) != 24:
@@ -448,7 +425,7 @@ class PlateRecording:
             if flip_data:
                 x *= -1
 
-            # have time indices start at 0
+            # have time indices start at 0  # TODO add unit test asserting that beta 2 data is loaded with a first timepoint of 0
             time_indices = well_file[TIME_INDICES]
             adjusted_time_indices = time_indices[analysis_window] - time_indices[start_idx]
 
@@ -457,18 +434,68 @@ class PlateRecording:
                 well_file.displacement, stiffness_factor=well_file.stiffness_factor
             )
 
+    def _process_stim_data(self) -> None:
+        log.info("Interpolating stim sessions")
+
+        start_time_us = int(self.start_time_secs * MICRO_TO_BASE_CONVERSION)
+        end_time_us = (
+            int(self.end_time_secs * MICRO_TO_BASE_CONVERSION)
+            if self.end_time_secs
+            else self.wells[0][TIME_INDICES][-1]
+        )
+
+        for wf in self:
+            if not wf[STIMULATION_READINGS].shape[-1]:
+                continue
+
+            stim_protocol = json.loads(wf[STIMULATION_PROTOCOL_UUID])
+
+            try:
+                stim_sessions_waveforms = create_stim_session_waveforms(
+                    stim_protocol["subprotocols"], wf[STIMULATION_READINGS], start_time_us, end_time_us
+                )
+            except SubprotocolFormatIncompatibleWithInterpolationError:
+                log.info("Subprotocol format not supported by intperpolation")
+                return
+
+            charge_conversion_factor = (
+                MILLI_TO_BASE_CONVERSION if stim_protocol["stimulation_type"] == "C" else 1
+            )
+
+            for waveform in stim_sessions_waveforms:
+                if not waveform.shape[-1]:
+                    continue
+                waveform[0] -= wf[TIME_INDICES][0]
+                waveform[1] //= charge_conversion_factor
+                wf.stim_sessions.append(waveform)
+
     def _load_dataframe(self, df: pd.DataFrame) -> None:
         """Add time and force data to well files in PlateRecording.
 
         Args:
             df: pd.Dataframe existing time force data to be added
         """
-        time = df["Time (s)"].values
+        force_timepoints = df["Time (s)"].values
 
-        for well in self:
-            well_name = well[WELL_NAME_UUID]
-            well_data = np.vstack((time, df[f"{well_name}__raw"])).astype(np.float64)
-            well.force = well_data
+        try:
+            stim_timepoints = df["Stim Time (µs)"].values
+        except KeyError:
+            stim_timepoints = None
+
+        for wf in self.wells:
+            well_name = wf[WELL_NAME_UUID]
+            raw_force_amplitudes = df[f"{well_name}__raw"]
+            wf.force = np.vstack((force_timepoints, raw_force_amplitudes)).astype(np.float64)
+
+            if stim_timepoints is None:
+                continue
+
+            stim_col_titles = sorted([col for col in df if f"{well_name}__stim" in col])
+
+            for col_title in stim_col_titles:
+                stim_session_raw = np.array([stim_timepoints, df[col_title]])
+                stim_session = stim_session_raw[:, ~np.isnan(stim_session_raw[1])].astype(int)
+                wf.stim_sessions.append(stim_session)
 
     def write_time_force_csv(self, output_dir: str):
         # get recording name
@@ -486,12 +513,12 @@ class PlateRecording:
             well_name = well.get(WELL_NAME_UUID, None)
             force_data[well_name] = pd.Series(well.force[1])
 
-        time_force_df = pd.DataFrame(force_data)
-        time_force_df.to_csv(output_path, index=False)
+        time_recording_df = pd.DataFrame(force_data)
+        time_recording_df.to_csv(output_path, index=False)
 
-        return time_force_df, output_path
+        return time_recording_df, output_path
 
-    def to_dataframe(self, from_dataframe: bool = False) -> pd.DataFrame:
+    def to_dataframe(self) -> pd.DataFrame:
         """Creates DataFrame from PlateRecording with all the data
         interpolated, normalized, and scaled. The returned dataframe contains
         one column for time in ms and one column for each well.
@@ -506,24 +533,33 @@ class PlateRecording:
         The dataframe needs to be transposed before converting to NDArray because peak_detector
         wants an ndarray of shape (2, N) while dataframe[['time', 'A1']] is in shape (N,2)
         """
-        # TODO
-
         # get first valid well and set interpolation period. Creating new iter to be safe
         first_well = next(iter(self))
 
-        if self.is_optical_recording:
-            interp_period = first_well[INTERPOLATION_VALUE_UUID]
-        else:
-            interp_period = INTERPOLATED_DATA_PERIOD_US
-
-        if from_dataframe:
-            time_steps = copy.deepcopy(first_well.force[0])
+        # add interpolated force timepoints
+        if self._created_from_dataframe:
+            interp_timepoints = copy.deepcopy(first_well.force[0])
         else:
             min_time = min([wf.force[0][0] for wf in self])
             max_time = max([wf.force[0][-1] for wf in self])
-            time_steps = np.arange(min_time, max_time + interp_period, interp_period)
+            interp_period = (
+                first_well[INTERPOLATION_VALUE_UUID]
+                if self.is_optical_recording
+                else INTERPOLATED_DATA_PERIOD_US
+            )
+            interp_timepoints = np.arange(min_time, max_time + interp_period, interp_period)
 
-        data = {"Time (s)": pd.Series(time_steps)}
+        data = {"Time (s)": pd.Series(interp_timepoints)}
+
+        output_stim_data = first_well.version >= VersionInfo.parse("1.0.0")
+
+        # add stim timepoints
+        if output_stim_data:
+            aggregate_stim_timepoints_us = aggregate_timepoints(
+                [session_data[0] for wf in self for session_data in wf.stim_sessions]
+            )
+            aggregate_stim_timepoints_us_for_plotting = np.repeat(aggregate_stim_timepoints_us, 2)
+            data["Stim Time (µs)"] = pd.Series(aggregate_stim_timepoints_us_for_plotting)
 
         # iterating over self.wells instead of using __iter__ so well_idx is preserved
         for well_idx, wf in enumerate(self.wells):
@@ -532,33 +568,46 @@ class PlateRecording:
 
             well_name = wf.get(WELL_NAME_UUID, TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_idx))
 
-            if not from_dataframe:
+            # add raw force data
+            data[f"{well_name}__raw"] = pd.Series(wf.force[1, :])
+
+            # add unit adjusted + normalized force data
+            if self._created_from_dataframe:
+                # TODO figure out why this is chopping off a value and add a comment
+                interp_force_unewtons = copy.deepcopy(wf.force[1, 1:])
+            else:
                 start_idx, end_idx = truncate(
-                    source_series=time_steps, lower_bound=wf.force[0][0], upper_bound=wf.force[0][-1]
+                    source_series=interp_timepoints, lower_bound=wf.force[0, 0], upper_bound=wf.force[0, -1]
                 )
 
                 interp_fn = interpolate.interp1d(wf.force[0, :], wf.force[1, :])
-                interp_force = interp_fn(time_steps[start_idx : end_idx + 1])
+                interp_force_unewtons = interp_fn(interp_timepoints[start_idx : end_idx + 1])
 
-            else:
-                interp_force = copy.deepcopy(wf.force[1, 1:])
+            min_value = min(interp_force_unewtons)
 
-            data[f"{well_name}__raw"] = pd.Series(wf.force[1, :])
+            interp_force_newtons_normalized = (interp_force_unewtons - min_value) * MICRO_TO_BASE_CONVERSION
+            data[well_name] = pd.Series(interp_force_newtons_normalized)
 
-            min_value = min(interp_force)
-            interp_force -= min_value
-            interp_force *= MICRO_TO_BASE_CONVERSION
+            # add stim data
+            if output_stim_data:
+                for i, session_data in enumerate(wf.stim_sessions):
+                    data[f"{well_name}__stim_{i}"] = pd.Series(
+                        realign_interpolated_stim_data(
+                            aggregate_stim_timepoints_us_for_plotting, session_data
+                        )
+                    )
 
-            data[well_name] = pd.Series(interp_force)
+        df = pd.DataFrame(data)
+        if not output_stim_data:
+            df.dropna(inplace=True)
 
-        return pd.DataFrame(data).dropna()
+        return df
 
     @staticmethod
     def from_dataframe(path, df: pd.DataFrame):
-        # multi zip files
         # only allowed for one recording at a time assuming a user would only ever pass a dataframe to one recording
         log.info(f"Loading recording from file {os.path.basename(path)}")
-        yield PlateRecording(path, force_df=df)
+        yield PlateRecording(path, recording_df=df)
 
     @staticmethod
     def from_directory(path, **kwargs):

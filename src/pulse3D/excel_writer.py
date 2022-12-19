@@ -105,12 +105,7 @@ def add_peak_detection_series(
 
 
 def add_stim_data_series(
-    charts,
-    format,
-    charge_unit,
-    col_offset: int,
-    series_label: str,
-    upper_x_bound_cell: int,
+    charts, format, charge_unit, col_offset: int, series_label: str, upper_x_bound_cell: int, y_axis_bounds
 ) -> None:
     stim_timepoints_col = xl_col_to_name(STIM_DATA_COLUMN_START)
     stim_session_col = xl_col_to_name(STIM_DATA_COLUMN_START + col_offset)
@@ -121,7 +116,7 @@ def add_stim_data_series(
         "values": f"='continuous-waveforms'!${stim_session_col}$2:${stim_session_col}${upper_x_bound_cell}",
         "line": {"color": "#d1d128"},
     }
-    y_axis_params: Dict[str, Any] = {"name": f"Stimulator Output ({charge_unit})"}
+    y_axis_params: Dict[str, Any] = {"name": f"Stimulator Output ({charge_unit})", **y_axis_bounds}
 
     if format == "overlayed":
         series_params["y2_axis"] = 1
@@ -507,9 +502,16 @@ def write_xlsx(
                 "end_time": np.min([interpolated_timepoints_us[-1] / MICRO_TO_BASE_CONVERSION, end_time]),
             }
         )
-    # if max_y was not set by user and normalize_y_axis was not disabled by user, then set max_y to be the max twitch force between all wells
-    if max_y is None and normalize_y_axis:
+
+    if not normalize_y_axis:
+        # override given value since y-axis normalization is disabled
+        max_y = None
+    elif max_y is None:
+        # if y-axis normalization enabled but no max Y given, then set it to the max twitch force across all wells
         max_y = int(max_force_of_recording)
+
+    # Tanner (12/15/22): setting min to zero right now since the tissue data will never be < 0. If this ever needs to change, may want to also take the new min into account when setting the y2 axis bounds for stim data
+    y_axis_bounds = {"tissue": {"max": max_y, "min": 0}}
 
     # waveform table
     continuous_waveforms = {
@@ -529,6 +531,7 @@ def write_xlsx(
 
         # insert this first since dict insertion order matters for the data frame creation
         stim_status_updates_dict = {"Stim Time (seconds)": None}
+
         for well_idx, wf in enumerate(plate_recording):
             well_name = TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_idx)
 
@@ -551,13 +554,22 @@ def write_xlsx(
         )
         stim_status_timepoints_for_plotting_us = np.repeat(stim_status_timepoints_aggregate_us, 2)
 
+        max_stim_amplitude = 0
+        min_stim_amplitude = 0
+
         # convert all to series, remove timepoints and convert to correct unit in stim sessions
         for title, arr in stim_status_updates_dict.items():
             if title == "Stim Time (seconds)":
                 new_arr = stim_status_timepoints_for_plotting_us / MICRO_TO_BASE_CONVERSION
             else:
+                max_stim_amplitude = max(max_stim_amplitude, max(arr[1]))  # type: ignore
+                min_stim_amplitude = min(min_stim_amplitude, min(arr[1]))  # type: ignore
                 new_arr = realign_interpolated_stim_data(stim_status_timepoints_for_plotting_us, arr)
             stim_status_updates_dict[title] = pd.Series(new_arr)
+
+        y_axis_bounds["stim"] = {"max": None, "min": None}
+        if normalize_y_axis:
+            y_axis_bounds["stim"] = {"max": max_stim_amplitude, "min": min_stim_amplitude}
 
         stim_plotting_info["chart_format"] = stim_waveform_format
         stim_plotting_info["stim_status_df"] = pd.DataFrame(stim_status_updates_dict)
@@ -569,7 +581,7 @@ def write_xlsx(
         stim_protocols_df,
         stim_plotting_info,
         tissue_data,
-        max_y,
+        y_axis_bounds,
         include_stim_protocols,
         is_optical_recording=plate_recording.is_optical_recording,
         twitch_widths=twitch_widths,
@@ -587,7 +599,7 @@ def _write_xlsx(
     stim_protocols_df: pd.DataFrame,
     stim_plotting_info: Dict[str, Any],
     data: List[Dict[Any, Any]],
-    max_y: Optional[Union[float, int]],
+    y_axis_bounds: Dict[str, Dict[str, Any]],
     include_stim_protocols: bool = False,
     is_optical_recording: bool = False,
     twitch_widths: Tuple[int, ...] = DEFAULT_TWITCH_WIDTHS,
@@ -650,7 +662,7 @@ def _write_xlsx(
         for well_idx, dm in enumerate(data):
             log.info(f'Creating waveform charts for well {dm["well_name"]}')
             create_waveform_charts(
-                max_y,
+                y_axis_bounds,
                 well_idx,
                 dm,
                 continuous_waveforms_df,
@@ -708,7 +720,7 @@ def _write_xlsx(
 
 
 def create_waveform_charts(
-    max_y,
+    y_axis_bounds,
     well_idx,
     dm,
     continuous_waveforms_df,
@@ -741,7 +753,7 @@ def create_waveform_charts(
 
     snapshot_chart.set_x_axis({"name": "Time (seconds)", "min": lower_x_bound, "max": upper_x_bound})
     snapshot_chart.set_y_axis(
-        {"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0}, "max": max_y}
+        {"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0}, **y_axis_bounds["tissue"]}
     )
     snapshot_chart.set_title({"name": f"Well {well_name}"})
 
@@ -777,12 +789,7 @@ def create_waveform_charts(
 
     full_chart.set_x_axis({"name": "Time (seconds)", "min": dm["start_time"], "max": dm["end_time"]})
     full_chart.set_y_axis(
-        {
-            "name": "Active Twitch Force (μN)",
-            "major_gridlines": {"visible": 0},
-            "max": max_y,
-            "min": 0,  # Tanner (12/15/22): setting this to zero right now since the tissue data will never be < 0. If this ever needs to change, may want to also take the new min into account when setting the y2 axis bounds for stim data
-        }
+        {"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0}, **y_axis_bounds["tissue"]}
     )
     full_chart.set_title({"name": f"Well {well_name}"})
 
@@ -844,6 +851,7 @@ def create_waveform_charts(
                 col_offset=col_idx,
                 series_label=series_label,
                 upper_x_bound_cell=len(stim_status_df["Stim Time (seconds)"]),
+                y_axis_bounds=y_axis_bounds["stim"],
             )
 
     peaks, valleys = dm["peaks_and_valleys"]

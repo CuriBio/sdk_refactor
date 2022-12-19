@@ -255,7 +255,9 @@ def test_stim_interpolation(mocker):
         # "/Users/tannerpeterson/Library/Application Support/Electron/recordings/LongBeta2File-WithStim"
     )
 
-    write_xlsx(pr, stim_waveform_format="overlayed", include_stim_protocols=True)
+    write_xlsx(
+        pr, stim_waveform_format="overlayed", include_stim_protocols=True, normalize_y_axis=False, max_y=700
+    )
     # print(pr.wells[0][STIMULATION_READINGS])
     # print(pr.wells[1][STIMULATION_READINGS])
     # print(pr.wells[0][TIME_INDICES][0])

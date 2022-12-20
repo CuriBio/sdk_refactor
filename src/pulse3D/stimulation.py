@@ -43,6 +43,16 @@ def truncate_interpolated_subprotocol_waveform(
     return waveform
 
 
+def remove_intermediate_interpolation_data(
+    stim_waveform: NDArray[(2, Any), int], timepoint: int
+) -> NDArray[(2, Any), int]:
+    if not stim_waveform.shape[-1]:
+        return stim_waveform
+
+    idxs = np.nonzero(stim_waveform[0] == timepoint)[0]
+    return np.delete(stim_waveform, idxs[1:-1], axis=1)
+
+
 def create_interpolated_subprotocol_waveform(
     subprotocol: Dict[str, int], start_timepoint: int, stop_timepoint: int, include_start_timepoint: bool
 ) -> NDArray[(2, Any), int]:
@@ -118,9 +128,10 @@ def interpolate_stim_session(
         # 'protocol complete' is the final status update, which doesn't need a waveform created for it
         stim_status_updates = stim_status_updates[:, :-1]
 
-    subprotocol_waveforms: List[NDArray[(2, Any), int]] = []
+    session_waveform = np.empty((2, 0))
     for next_status_idx, (start_timepoint, subprotocol_idx) in enumerate(stim_status_updates.T, 1):
         is_final_status_update = next_status_idx == stim_status_updates.shape[-1]
+
         stop_timepoint = (
             session_stop_timepoint if is_final_status_update else stim_status_updates[0, next_status_idx]
         )
@@ -132,14 +143,13 @@ def interpolate_stim_session(
             subprotocols[subprotocol_idx], start_timepoint, stop_timepoint, include_start_timepoint
         )
 
-        # TODO fix duplicates here, make a function to do this
-
         if not subprotocol_waveform.shape[-1]:
             continue
 
-        subprotocol_waveforms.append(subprotocol_waveform)
+        session_waveform = np.concatenate([session_waveform, subprotocol_waveform], axis=1)
 
-    session_waveform = np.concatenate(subprotocol_waveforms, axis=1)
+        # remove unnecessary data points, if any
+        session_waveform = remove_intermediate_interpolation_data(session_waveform, start_timepoint)
 
     # truncate beginning of waveform at the initial timepoint
     session_waveform = truncate_interpolated_subprotocol_waveform(

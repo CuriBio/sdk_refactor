@@ -12,6 +12,7 @@ from pulse3D.stimulation import create_interpolated_subprotocol_waveform
 from pulse3D.stimulation import create_stim_session_waveforms
 from pulse3D.stimulation import interpolate_stim_session
 from pulse3D.stimulation import realign_interpolated_stim_data
+from pulse3D.stimulation import remove_intermediate_interpolation_data
 from pulse3D.stimulation import truncate_interpolated_subprotocol_waveform
 import pytest
 
@@ -99,6 +100,36 @@ def test_truncate_interpolated_subprotocol_waveform__returns_correctly_truncated
         test_biphasic_arr, test_cutoff_timepoint, from_start=True
     )
     np.testing.assert_array_equal(actual_truncated_arr, expected_truncated_arr)
+
+
+def test_remove_intermediate_interpolation_data__handles_empty_array_correctly():
+    empty_array = np.array([])
+    actual = remove_intermediate_interpolation_data(empty_array, randint(1, 10))
+    np.testing.assert_array_equal(actual, empty_array)
+
+
+@pytest.mark.parametrize("test_num_occurences", list(range(3)))
+def test_remove_intermediate_interpolation_data__does_not_modify_array_if_no_data_needs_to_be_removed(
+    test_num_occurences,
+):
+    test_timepoints = np.array([1] + ([2] * test_num_occurences) + [3])
+    test_array = np.array([test_timepoints, np.zeros(test_timepoints.shape)])
+
+    actual = remove_intermediate_interpolation_data(test_array, 2)
+    np.testing.assert_array_equal(actual, test_array)
+
+
+@pytest.mark.parametrize("test_num_occurences", list(range(3, 6)))
+def test_remove_intermediate_interpolation_data__removes_correct_amount_of_data_when_necessary(
+    test_num_occurences,
+):
+    test_timepoints = np.array([1] + ([2] * test_num_occurences) + [3])
+    test_array = np.array([test_timepoints, np.zeros(test_timepoints.shape)])
+
+    actual = remove_intermediate_interpolation_data(test_array, 2)
+
+    expected_array = np.array([[1, 2, 2, 3], [0] * 4])
+    np.testing.assert_array_equal(actual, expected_array)
 
 
 def test_create_interpolated_subprotocol_waveform__raises_error_if_subprotocol_is_not_of_a_supported_format():
@@ -375,14 +406,22 @@ def test_interpolate_stim_session__returns_empty_array_if_stop_timepoint_is_less
 
 
 @pytest.mark.parametrize("final_subprotocol_completes", [True, False])
-def test_interpolate_stim_session__creates_full_waveform_correctl(final_subprotocol_completes, mocker):
+def test_interpolate_stim_session__creates_full_waveform_correctly(final_subprotocol_completes, mocker):
+    # arbitrary values in these arrays
     test_waveforms = [np.arange(0, 10).reshape((2, 5)), np.arange(10, 20).reshape((2, 5))]
+    test_cleaned_waveforms = [np.arange(20, 26).reshape((2, 3)), np.arange(26, 32).reshape((2, 3))]
 
     mocked_create = mocker.patch.object(
         stimulation,
         "create_interpolated_subprotocol_waveform",
         autospec=True,
         side_effect=test_waveforms,
+    )
+    mocked_remove = mocker.patch.object(
+        stimulation,
+        "remove_intermediate_interpolation_data",
+        autospec=True,
+        side_effect=test_cleaned_waveforms,
     )
     mocked_truncate = mocker.patch.object(
         stimulation, "truncate_interpolated_subprotocol_waveform", autospec=True
@@ -419,8 +458,17 @@ def test_interpolate_stim_session__creates_full_waveform_correctl(final_subproto
         ),
     ]
 
+    expected_waveforms_in_remove_calls = [
+        test_waveforms[0],
+        np.concatenate([test_cleaned_waveforms[0], test_waveforms[1]], axis=1),
+    ]
+    for i, call_args in enumerate(mocked_remove.call_args_list):
+        np.testing.assert_array_equal(
+            call_args[0][0], expected_waveforms_in_remove_calls[i], err_msg=f"Call {i}"
+        )
+
     mocked_truncate.assert_called_once_with(mocker.ANY, test_start_timepoint, from_start=True)
-    np.testing.assert_array_equal(mocked_truncate.call_args[0][0], np.concatenate(test_waveforms, axis=1))
+    np.testing.assert_array_equal(mocked_truncate.call_args[0][0], test_cleaned_waveforms[1])
 
 
 @pytest.mark.parametrize("final_protocol_completes", [True, False])

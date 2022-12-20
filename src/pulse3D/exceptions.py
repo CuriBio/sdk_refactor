@@ -61,5 +61,9 @@ class TooFewPeaksDetectedError(PeakDetectionError):
     pass
 
 
+class NoRecordingFilesLoadedError(Exception):
+    pass
+
+
 class SubprotocolFormatIncompatibleWithInterpolationError(Exception):
     pass

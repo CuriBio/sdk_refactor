@@ -53,8 +53,7 @@ def peak_detector(
     max_time = time_signal[-1]
     start_time = np.max([0, start_time])
     end_time = np.min([end_time, max_time / MICRO_TO_BASE_CONVERSION])
-    # TODO how should we handle this?
-    # if provided end time is less than or equal to start time, reset
+    # if provided end time is less than or equal to start time, reset  # TODO figure out how to handle this
     if end_time <= start_time:
         end_time = np.inf
 

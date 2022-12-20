@@ -8,9 +8,55 @@ from pulse3D.constants import MICRO_TO_BASE_CONVERSION
 from pulse3D.constants import TISSUE_SAMPLING_PERIOD_UUID
 from pulse3D.magnet_finding import format_well_file_data
 from pulse3D.plate_recording import PlateRecording
+import pytest
 
 from ..fixtures_utils import PATH_TO_H5_FILES
 from ..fixtures_utils import PATH_TO_MAGNET_FINDING_FILES
+from ..fixtures_utils import TEST_SMALL_BETA_1_FILE_PATH
+from ..fixtures_utils import TEST_SMALL_BETA_2_FILE_PATH
+
+TEST_TWO_STIM_SESSIONS_FILE_PATH = os.path.join(
+    PATH_TO_H5_FILES, "stim", "StimInterpolationTest-TwoSessions.zip"
+)
+
+TEST_VAR_STIM_SESSIONS_FILE_PATH = os.path.join(
+    PATH_TO_H5_FILES, "stim", "StimInterpolationTest-VariableSessions.zip"
+)
+
+
+@pytest.mark.parametrize("test_file_path", [TEST_SMALL_BETA_1_FILE_PATH, TEST_SMALL_BETA_2_FILE_PATH])
+def test_PlateRecording__force_timepoints_start_at_zero(test_file_path, mocker):
+    # mock so magnet finding alg doesn't run
+    mocker.patch.object(
+        plate_recording,
+        "find_magnet_positions",
+        autospec=True,
+        side_effect=lambda x, *args, **kwargs: {"X": np.empty((x.shape[-1], 24))},
+    )
+
+    pr = PlateRecording(test_file_path)
+
+    for well_idx, wf in enumerate(pr):
+        assert wf.force[0, 0] == 0, well_idx
+
+
+def test_PlateRecording__stim_timepoints_start_at_zero_or_earlier(mocker):
+    # mock so magnet finding alg doesn't run
+    mocker.patch.object(
+        plate_recording,
+        "find_magnet_positions",
+        autospec=True,
+        side_effect=lambda x, *args, **kwargs: {"X": np.empty((x.shape[-1], 24))},
+    )
+
+    pr = PlateRecording(TEST_TWO_STIM_SESSIONS_FILE_PATH)
+
+    for well_idx, wf in enumerate(pr):
+        if not wf.stim_sessions:
+            continue
+
+        first_session = wf.stim_sessions[0]
+        assert first_session[0, 0] <= 0, well_idx
 
 
 def test_PlateRecording__removes_dropped_samples_from_raw_tissue_signal_before_converting_to_mfd(mocker):
@@ -104,10 +150,6 @@ def test_PlateRecording__writes_time_force_csv_with_no_errors(mocker):
         assert "MA20223322__2020_09_02_173919.csv" in os.listdir(output_dir)
 
 
-def test_PlateRecording__beta_1_data_loaded_from_dataframe_will_equal_original_well_data(mocker):
-    pass  # TODO
-
-
 def test_PlateRecording__v1_data_loaded_from_dataframe_will_equal_original_well_data(mocker):
     def se(x, *args, **kwargs):
         x_len = x.shape[-1]
@@ -120,13 +162,15 @@ def test_PlateRecording__v1_data_loaded_from_dataframe_will_equal_original_well_
     # mock so magnet finding alg doesn't run
     mocker.patch.object(plate_recording, "find_magnet_positions", autospec=True, side_effect=se)
 
-    # rec_path = os.path.join(PATH_TO_H5_FILES, "stim", "StimInterpolationTest-TwoSessions.zip")
-    rec_path = "/Users/tannerpeterson/Documents/Github/pulse3d/tests/data_files/h5/stim/StimInterpolationTest-VariableSessions.zip"
+    rec_path = TEST_VAR_STIM_SESSIONS_FILE_PATH
 
     pr_created_from_h5 = PlateRecording(rec_path)
-    existing_df = (
-        pr_created_from_h5.to_dataframe()
-    )  # TODO make assertion on at least shape of force and stim series in DF
+
+    existing_df = pr_created_from_h5.to_dataframe()
+    # make sure data was actually written to the dataframe
+    for col in existing_df:
+        assert existing_df[col].shape > (2, 0), existing_df
+
     pr_recreated_from_df = PlateRecording(rec_path, recording_df=existing_df)
 
     for well_idx, (original_wf, recreated_wf) in enumerate(zip(pr_created_from_h5, pr_recreated_from_df)):
@@ -152,6 +196,3 @@ def test_PlateRecording__v1_data_loaded_from_dataframe_will_equal_original_well_
                 original_session_data,
                 err_msg=f"Well {well_idx}, Stim Session {session_idx}",
             )
-
-
-# TODO make sure to_dataframe output is the same whether or not PR loaded from DF or H5

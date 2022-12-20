@@ -10,7 +10,9 @@ from typing import List
 
 from nptyping import NDArray
 import numpy as np
-from pulse3D.exceptions import SubprotocolFormatIncompatibleWithInterpolationError
+
+from .constants import STIM_COMPLETE_SUBPROTOCOL_IDX
+from .exceptions import SubprotocolFormatIncompatibleWithInterpolationError
 
 
 def truncate_interpolated_subprotocol_waveform(
@@ -53,10 +55,8 @@ def create_interpolated_subprotocol_waveform(
         raise ValueError("Cannot interpolate loops")
 
     if subprotocol_type == "delay":
-        # don't need to take stop_timepoint into account here
-        interpolated_waveform_arr = np.array(
-            [[start_timepoint, start_timepoint + subprotocol["duration"]], [0, 0]], dtype=int
-        )
+        # duration ignored here since stop timepoint is when the next subprotocol starts
+        interpolated_waveform_arr = np.array([[start_timepoint, stop_timepoint], [0, 0]], dtype=int)
     else:
         # postphase_amplitude and interphase_amplitude will never be present in the subprotocol dict, so 0 will be returned for them below
         time_components = ["phase_one_duration", "postphase_interval"]
@@ -111,9 +111,7 @@ def interpolate_stim_session(
     if session_stop_timepoint <= stim_status_updates[0, 0]:
         return np.empty((2, 0))
 
-    protocol_complete_idx = 255  # TODO make a constant for this
-
-    if stim_status_updates[1, -1] == protocol_complete_idx:
+    if stim_status_updates[1, -1] == STIM_COMPLETE_SUBPROTOCOL_IDX:
         # if protocol completes before the session starts, return empty array
         if session_start_timepoint >= stim_status_updates[0, -1]:
             return np.empty((2, 0))
@@ -134,15 +132,10 @@ def interpolate_stim_session(
             subprotocols[subprotocol_idx], start_timepoint, stop_timepoint, include_start_timepoint
         )
 
+        # TODO fix duplicates here, make a function to do this
+
         if not subprotocol_waveform.shape[-1]:
             continue
-
-        # make sure no unnecessary timepoints added  # TODO unit test
-        if subprotocol_waveforms:
-            prev_subprotocol_waveform = subprotocol_waveforms[-1]
-            if prev_subprotocol_waveform[0, -1] == subprotocol_waveform[0, 0]:
-                prev_subprotocol_waveform = prev_subprotocol_waveform[:, :-1]
-                subprotocol_waveform = subprotocol_waveform[:, 1:]
 
         subprotocol_waveforms.append(subprotocol_waveform)
 
@@ -164,12 +157,18 @@ def create_stim_session_waveforms(
 ):
     stim_sessions = [
         session
-        for session in np.split(stim_status_updates, np.where(stim_status_updates[1] == 255)[0] + 1, axis=1)
+        for session in np.split(
+            stim_status_updates,
+            np.where(stim_status_updates[1] == STIM_COMPLETE_SUBPROTOCOL_IDX)[0] + 1,
+            axis=1,
+        )
         if session.shape[-1]
     ]
 
     stop_timepoints_of_each_session = [session[0, -1] for session in stim_sessions[:-1]] + [
-        stim_sessions[-1][0, -1] if stim_sessions[-1][1, -1] == 255 else final_timepoint
+        stim_sessions[-1][0, -1]
+        if stim_sessions[-1][1, -1] == STIM_COMPLETE_SUBPROTOCOL_IDX
+        else final_timepoint
     ]
 
     interpolated_stim_sessions = [

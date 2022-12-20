@@ -15,7 +15,6 @@ from typing import Union
 import numpy as np
 import pandas as pd
 from scipy import interpolate
-from semver import VersionInfo
 
 from .constants import *
 from .exceptions import *
@@ -229,7 +228,6 @@ def write_xlsx(
     width_factors: Tuple[Union[int, float], Union[int, float]] = DEFAULT_WIDTH_FACTORS,
     peaks_valleys: Dict[str, List[List[int]]] = None,
     include_stim_protocols: bool = False,
-    # TODO unit test
     stim_waveform_format: Optional[Union[Literal["stacked"], Literal["overlayed"]]] = None,
 ):
     """Write plate recording waveform and computed metrics to Excel spredsheet.
@@ -254,14 +252,9 @@ def write_xlsx(
     # get metadata from first well file
     first_wf = next(iter(plate_recording))
 
-    # TODO unit test all this
     if stim_waveform_format is not None:
         if stim_waveform_format not in ("stacked", "overlayed"):
             raise ValueError(f"Invalid stim_waveform_format: {stim_waveform_format}")
-
-        # TODO Use 999.999.999 as the version for now
-        if first_wf.version <= VersionInfo.parse("1.0.0"):
-            stim_waveform_format = None
 
     # make sure windows bounds are floats
     start_time = float(start_time)
@@ -273,52 +266,8 @@ def write_xlsx(
         else INTERPOLATED_DATA_PERIOD_US
     )
 
-    # get stim meta data
-    if include_stim_protocols:
-        unassigned_wells = []
-        stim_protocols_dict = {
-            "Title": {
-                "Unassigned Wells": "Unassigned Wells:",
-                "title_break": "",
-                "Protocol ID": "Protocol ID:",
-                "Stimulation Type": "Stimulation Type:",
-                "Run Until Stopped": "Run Until Stopped:",
-                "Wells": "Wells:",
-                "Subprotocols": "Subprotocols:",
-            }
-        }
-        for well in plate_recording:
-            if well_data := json.loads(well[STIMULATION_PROTOCOL_UUID]):
-                protocol_id = well_data.get("protocol_id")
-                well_id = well[WELL_NAME_UUID]
-                if protocol_id not in stim_protocols_dict:
-                    # functions as the scheme for entering data into this sheet
-                    stim_protocols_dict[protocol_id] = {
-                        "Protocol ID": protocol_id,
-                        "Stimulation Type": "Current"
-                        if well_data.get("stimulation_type") == "C"
-                        else "Voltage"
-                        if well_data.get("stimulation_type") == "V"
-                        else well_data.get("stimulation_type"),
-                        "Run Until Stopped": "Active" if well_data.get("run_until_stopped") else "Disabled",
-                        "Wells": f"{well_id}, ",
-                        "Subprotocols": "",
-                    }
-                    stim_protocols_dict[protocol_id]["Subprotocols"] = well_data.get("subprotocols")
-                else:
-                    stim_protocols_dict[protocol_id]["Wells"] += f"{well_id}, "
-            else:
-                unassigned_wells.append(f"{well[WELL_NAME_UUID]}, ")
-        if len(unassigned_wells) == 24:  # if all wells are unassigned
-            stim_protocols_dict["Title"] = {"message": "No stimulation protocols applied"}
-        elif len(unassigned_wells) > 0:  # if some of the wells are unassigned
-            stim_protocols_dict[list(stim_protocols_dict.keys())[1]]["Unassigned Wells"] = "".join(
-                unassigned_wells
-            )
-        stim_protocols_df = pd.DataFrame(stim_protocols_dict)
-    # if toggle is false
-    else:
-        stim_protocols_df = None
+    # get stim metadata
+    stim_protocols_df = _create_stim_protocols_df(plate_recording) if include_stim_protocols else None
 
     # get max and min of final timepoints across each well
     raw_timepoints = [w.force[0, -1] for w in plate_recording if w]
@@ -338,9 +287,7 @@ def write_xlsx(
             f"Window start time ({start_time}s) greater than the max timepoint of this recording ({min_final_time_secs:.1f}s)"
         )
     if end_time <= start_time:
-        raise ValueError(
-            f"Window end time ({end_time}s) must be greater than window start time ({start_time}s)"
-        )
+        raise ValueError("Window end time must be greater than window start time")
 
     end_time = min(end_time, max_final_time_secs)
     is_full_analysis = start_time == 0 and end_time == max_final_time_secs
@@ -503,6 +450,10 @@ def write_xlsx(
             }
         )
 
+    continuous_waveforms_df = _create_continuous_waveforms_df(
+        interpolated_timepoints_us, tissue_data, start_idx, end_idx
+    )
+
     if not normalize_y_axis:
         # override given value since y-axis normalization is disabled
         max_y = None
@@ -513,76 +464,19 @@ def write_xlsx(
     # Tanner (12/15/22): setting min to zero right now since the tissue data will never be < 0. If this ever needs to change, may want to also take the new min into account when setting the y2 axis bounds for stim data
     y_axis_bounds = {"tissue": {"max": max_y, "min": 0}}
 
-    # waveform table
-    continuous_waveforms = {
-        "Time (seconds)": pd.Series(interpolated_timepoints_us[start_idx:end_idx] / MICRO_TO_BASE_CONVERSION)
-    }
-    continuous_waveforms.update(
-        {f"{d['well_name']} - Active Twitch Force (μN)": pd.Series(d["interp_data"]) for d in tissue_data}
+    stim_plotting_info: Dict[str, Any] = _get_stim_plotting_data(
+        plate_recording, start_time, end_time, stim_waveform_format, normalize_y_axis, y_axis_bounds
     )
-    continuous_waveforms_df = pd.DataFrame(continuous_waveforms)
-
-    stim_plotting_info: Dict[str, Any] = {}
-    if stim_waveform_format:
-        stim_plotting_info["charge_units"] = charge_units = {}
-
-        start_time_us = int(start_time * MICRO_TO_BASE_CONVERSION)
-        end_time_us = int(end_time * MICRO_TO_BASE_CONVERSION)
-
-        # insert this first since dict insertion order matters for the data frame creation
-        stim_status_updates_dict = {"Stim Time (seconds)": None}
-
-        for well_idx, wf in enumerate(plate_recording):
-            well_name = TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_idx)
-
-            if not wf.stim_sessions:
-                continue
-
-            stim_protocol = json.loads(wf[STIMULATION_PROTOCOL_UUID])
-
-            charge_units[well_name] = "mA" if stim_protocol["stimulation_type"] == "C" else "mV"
-
-            stim_session_idx = 0
-            for waveform in wf.stim_sessions:
-                stim_session_idx += 1
-                stim_status_updates_dict[f"{well_name} - Stim Session {stim_session_idx}"] = waveform[
-                    :, (start_time_us <= waveform[0]) & (waveform[0] <= end_time_us)
-                ]
-
-        stim_status_timepoints_aggregate_us = aggregate_timepoints(
-            [waveform[0] for title, waveform in stim_status_updates_dict.items() if "Stim Session" in title]  # type: ignore
-        )
-        stim_status_timepoints_for_plotting_us = np.repeat(stim_status_timepoints_aggregate_us, 2)
-
-        max_stim_amplitude = 0
-        min_stim_amplitude = 0
-
-        # convert all to series, remove timepoints and convert to correct unit in stim sessions
-        for title, arr in stim_status_updates_dict.items():
-            if title == "Stim Time (seconds)":
-                new_arr = stim_status_timepoints_for_plotting_us / MICRO_TO_BASE_CONVERSION
-            else:
-                max_stim_amplitude = max(max_stim_amplitude, max(arr[1]))  # type: ignore
-                min_stim_amplitude = min(min_stim_amplitude, min(arr[1]))  # type: ignore
-                new_arr = realign_interpolated_stim_data(stim_status_timepoints_for_plotting_us, arr)
-            stim_status_updates_dict[title] = pd.Series(new_arr)
-
-        y_axis_bounds["stim"] = {"max": None, "min": None}
-        if normalize_y_axis:
-            y_axis_bounds["stim"] = {"max": max_stim_amplitude, "min": min_stim_amplitude}
-
-        stim_plotting_info["chart_format"] = stim_waveform_format
-        stim_plotting_info["stim_status_df"] = pd.DataFrame(stim_status_updates_dict)
 
     _write_xlsx(
-        output_file_name,
-        metadata_df,
-        continuous_waveforms_df,
-        stim_protocols_df,
-        stim_plotting_info,
-        tissue_data,
-        y_axis_bounds,
-        include_stim_protocols,
+        output_file_name=output_file_name,
+        metadata_df=metadata_df,
+        continuous_waveforms_df=continuous_waveforms_df,
+        stim_protocols_df=stim_protocols_df,
+        stim_plotting_info=stim_plotting_info,
+        data=tissue_data,
+        y_axis_bounds=y_axis_bounds,
+        include_stim_protocols=include_stim_protocols,
         is_optical_recording=plate_recording.is_optical_recording,
         twitch_widths=twitch_widths,
         baseline_widths_to_use=baseline_widths_to_use,
@@ -590,6 +484,127 @@ def write_xlsx(
 
     log.info("Done")
     return output_file_name
+
+
+def _create_stim_protocols_df(plate_recording):
+    unassigned_wells = []
+    stim_protocols_dict = {
+        "Title": {
+            "Unassigned Wells": "Unassigned Wells:",
+            "title_break": "",
+            "Protocol ID": "Protocol ID:",
+            "Stimulation Type": "Stimulation Type:",
+            "Run Until Stopped": "Run Until Stopped:",
+            "Wells": "Wells:",
+            "Subprotocols": "Subprotocols:",
+        }
+    }
+
+    for well in plate_recording:
+        if well_data := json.loads(well[STIMULATION_PROTOCOL_UUID]):
+            protocol_id = well_data.get("protocol_id")
+            well_id = well[WELL_NAME_UUID]
+            if protocol_id not in stim_protocols_dict:
+                # functions as the scheme for entering data into this sheet
+                stim_protocols_dict[protocol_id] = {
+                    "Protocol ID": protocol_id,
+                    "Stimulation Type": "Current"
+                    if well_data.get("stimulation_type") == "C"
+                    else "Voltage"
+                    if well_data.get("stimulation_type") == "V"
+                    else well_data.get("stimulation_type"),
+                    "Run Until Stopped": "Active" if well_data.get("run_until_stopped") else "Disabled",
+                    "Wells": f"{well_id}, ",
+                    "Subprotocols": "",
+                }
+                stim_protocols_dict[protocol_id]["Subprotocols"] = well_data.get("subprotocols")
+            else:
+                stim_protocols_dict[protocol_id]["Wells"] += f"{well_id}, "
+        else:
+            unassigned_wells.append(f"{well[WELL_NAME_UUID]}, ")
+
+    if len(unassigned_wells) == 24:  # if all wells are unassigned
+        stim_protocols_dict["Title"] = {"message": "No stimulation protocols applied"}
+    elif len(unassigned_wells) > 0:  # if some of the wells are unassigned
+        stim_protocols_dict[list(stim_protocols_dict.keys())[1]]["Unassigned Wells"] = "".join(
+            unassigned_wells
+        )
+
+    return pd.DataFrame(stim_protocols_dict)
+
+
+def _create_continuous_waveforms_df(interpolated_timepoints_us, tissue_data, start_idx, end_idx):
+    continuous_waveforms = {
+        "Time (seconds)": pd.Series(interpolated_timepoints_us[start_idx:end_idx] / MICRO_TO_BASE_CONVERSION)
+    }
+    continuous_waveforms.update(
+        {f"{d['well_name']} - Active Twitch Force (μN)": pd.Series(d["interp_data"]) for d in tissue_data}
+    )
+    return pd.DataFrame(continuous_waveforms)
+
+
+def _get_stim_plotting_data(
+    plate_recording, start_time, end_time, stim_waveform_format, normalize_y_axis, y_axis_bounds
+):
+    if not stim_waveform_format:
+        return {}
+
+    charge_units = {}
+
+    start_time_us = int(start_time * MICRO_TO_BASE_CONVERSION)
+    end_time_us = int(end_time * MICRO_TO_BASE_CONVERSION)
+
+    # insert this first since dict insertion order matters for the data frame creation
+    stim_waveforms_dict = {"Stim Time (seconds)": None}
+
+    for well_idx, wf in enumerate(plate_recording):
+        well_name = TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_idx)
+
+        if not wf.stim_sessions:
+            continue
+
+        stim_protocol = json.loads(wf[STIMULATION_PROTOCOL_UUID])
+
+        charge_units[well_name] = "mA" if stim_protocol["stimulation_type"] == "C" else "mV"
+
+        stim_session_idx = 0
+        for waveform in wf.stim_sessions:
+            stim_session_idx += 1
+            stim_waveforms_dict[f"{well_name} - Stim Session {stim_session_idx}"] = waveform[
+                :, (start_time_us <= waveform[0]) & (waveform[0] <= end_time_us)
+            ]
+
+    stim_timepoints_aggregate_us = aggregate_timepoints(
+        [waveform[0] for title, waveform in stim_waveforms_dict.items() if "Stim Session" in title]  # type: ignore
+    )
+    stim_timepoints_for_plotting_us = np.repeat(stim_timepoints_aggregate_us, 2)
+
+    max_stim_amplitude = 0
+    min_stim_amplitude = 0
+
+    # convert all to series, remove timepoints and convert to correct unit in stim sessions
+    for title, arr in stim_waveforms_dict.items():
+        if title == "Stim Time (seconds)":
+            new_arr = stim_timepoints_for_plotting_us / MICRO_TO_BASE_CONVERSION
+        else:
+            max_stim_amplitude = max(max_stim_amplitude, max(arr[1]))  # type: ignore
+            min_stim_amplitude = min(min_stim_amplitude, min(arr[1]))  # type: ignore
+            new_arr = realign_interpolated_stim_data(stim_timepoints_for_plotting_us, arr)
+        stim_waveforms_dict[title] = pd.Series(new_arr)
+
+    stim_waveform_df = pd.DataFrame(stim_waveforms_dict)
+    if stim_waveform_df.empty:
+        return {}
+
+    y_axis_bounds["stim"] = {"max": None, "min": None}
+    if normalize_y_axis:
+        y_axis_bounds["stim"] = {"max": max_stim_amplitude, "min": min_stim_amplitude}
+
+    return {
+        "chart_format": stim_waveform_format,
+        "charge_units": charge_units,
+        "stim_waveform_df": stim_waveform_df,
+    }
 
 
 def _write_xlsx(
@@ -605,54 +620,17 @@ def _write_xlsx(
     twitch_widths: Tuple[int, ...] = DEFAULT_TWITCH_WIDTHS,
     baseline_widths_to_use: Tuple[int, ...] = DEFAULT_BASELINE_WIDTHS,
 ):
+    log.info(f"Writing {output_file_name}")
     with pd.ExcelWriter(output_file_name) as writer:
-        log.info("Writing H5 file metadata")
-        metadata_df.to_excel(writer, sheet_name="metadata", index=False, header=False)
-        ws = writer.sheets["metadata"]
+        _write_metadata(writer, metadata_df)
 
-        for i_col_idx, i_col_width in ((0, 25), (1, 40), (2, 25)):
-            ws.set_column(i_col_idx, i_col_idx, i_col_width)
-
-        # stimulation protocols
         if include_stim_protocols:
-            log.info("Writing stimulation protocols.")
-            stim_protocols_df.to_excel(writer, sheet_name="stimulation-protocols", index=False, header=False)
-            stim_protocols_sheet = writer.sheets["stimulation-protocols"]
-            stim_protocols_sheet.set_column(0, 0, 18)
-            stim_protocols_sheet.set_column(1, stim_protocols_df.shape[1] - 1, 45)
-            # if the length is one then protocols sheet was requested but no protocols have been used
-            # add each subprotocols to each column with formats
-            if len(stim_protocols_df) > 1:
-                column_counter = 0
-                for _, protocol_data in stim_protocols_df.iteritems():
-                    if column_counter != 0:
-                        stim_protocols_sheet.merge_range(
-                            6, column_counter, len(protocol_data["Subprotocols"]) * 10 + 6, column_counter, ""
-                        )
-                    subprotocols = protocol_data["Subprotocols"]
-                    subprotocols_format = writer.book.add_format()
-                    subprotocols_format.set_text_wrap()
-                    subprotocols_format.set_align("top")
-                    stim_protocols_sheet.write(
-                        f"{string.ascii_uppercase[column_counter]}7",
-                        json.dumps(subprotocols, indent=4),
-                        subprotocols_format,
-                    )
-                    column_counter += 1
-        # continuous waveforms
-        log.info("Writing continuous waveforms.")
-        continuous_waveforms_df.to_excel(writer, sheet_name="continuous-waveforms", index=False)
-        continuous_waveforms_sheet = writer.sheets["continuous-waveforms"]
+            _write_stim_protocols(writer, stim_protocols_df)
 
-        for iter_well_idx in range(1, 24):
-            continuous_waveforms_sheet.set_column(iter_well_idx, iter_well_idx, 13)
+        continuous_waveforms_sheet = _write_continuous_waveforms(writer, continuous_waveforms_df)
 
-        # stim data
         if stim_plotting_info:
-            log.info("Writing stim data")
-            stim_plotting_info["stim_status_df"].to_excel(
-                writer, sheet_name="continuous-waveforms", index=False, startcol=STIM_DATA_COLUMN_START
-            )
+            _write_stim_waveforms(writer, stim_plotting_info["stim_waveform_df"])
 
         # waveform snapshot/full
         wb = writer.book
@@ -674,15 +652,9 @@ def _write_xlsx(
                 stim_plotting_info,
             )
 
-        # aggregate metrics sheet
-        log.info("Writing aggregate metrics.")
-        aggregate_df = aggregate_metrics_df(data, twitch_widths, baseline_widths_to_use)
-        aggregate_df.to_excel(writer, sheet_name="aggregate-metrics", index=False, header=False)
+        _write_aggregate_metrics(writer, data, twitch_widths, baseline_widths_to_use)
 
-        # per twitch metrics sheet
-        log.info("Writing per-twitch metrics.")
-        pdf, num_metrics = per_twitch_df(data, twitch_widths, baseline_widths_to_use)
-        pdf.to_excel(writer, sheet_name="per-twitch-metrics", index=False, header=False)
+        num_metrics = _write_per_twitch_metrics(writer, data, twitch_widths, baseline_widths_to_use)
 
         # freq/force charts
         force_freq_sheet = wb.add_worksheet(FORCE_FREQUENCY_RELATIONSHIP_SHEET)
@@ -716,7 +688,73 @@ def _write_xlsx(
                     num_data_points,  # number of twitches
                     num_metrics,
                 )
-        log.info(f"Writing {output_file_name}")
+
+
+def _write_metadata(writer, metadata_df):
+    log.info("Writing H5 file metadata")
+    metadata_df.to_excel(writer, sheet_name="metadata", index=False, header=False)
+    metadata_sheet = writer.sheets["metadata"]
+
+    for i_col_idx, i_col_width in ((0, 25), (1, 40), (2, 25)):
+        metadata_sheet.set_column(i_col_idx, i_col_idx, i_col_width)
+
+
+def _write_stim_protocols(writer, stim_protocols_df):
+    log.info("Writing stimulation protocols.")
+    stim_protocols_df.to_excel(writer, sheet_name="stimulation-protocols", index=False, header=False)
+    stim_protocols_sheet = writer.sheets["stimulation-protocols"]
+    stim_protocols_sheet.set_column(0, 0, 18)
+    stim_protocols_sheet.set_column(1, stim_protocols_df.shape[1] - 1, 45)
+    # if the length is one then protocols sheet was requested but no protocols have been used
+    # add each subprotocols to each column with formats
+    if len(stim_protocols_df) > 1:
+        column_counter = 0
+        for _, protocol_data in stim_protocols_df.iteritems():
+            if column_counter != 0:
+                stim_protocols_sheet.merge_range(
+                    6, column_counter, len(protocol_data["Subprotocols"]) * 10 + 6, column_counter, ""
+                )
+            subprotocols = protocol_data["Subprotocols"]
+            subprotocols_format = writer.book.add_format()
+            subprotocols_format.set_text_wrap()
+            subprotocols_format.set_align("top")
+            stim_protocols_sheet.write(
+                f"{string.ascii_uppercase[column_counter]}7",
+                json.dumps(subprotocols, indent=4),
+                subprotocols_format,
+            )
+            column_counter += 1
+
+
+def _write_continuous_waveforms(writer, continuous_waveforms_df):
+    log.info("Writing continuous waveforms.")
+    continuous_waveforms_df.to_excel(writer, sheet_name="continuous-waveforms", index=False)
+    continuous_waveforms_sheet = writer.sheets["continuous-waveforms"]
+
+    for iter_well_idx in range(1, 24):
+        continuous_waveforms_sheet.set_column(iter_well_idx, iter_well_idx, 13)
+
+    return continuous_waveforms_sheet
+
+
+def _write_stim_waveforms(writer, stim_waveform_df):
+    log.info("Writing stim data")
+    stim_waveform_df.to_excel(
+        writer, sheet_name="continuous-waveforms", index=False, startcol=STIM_DATA_COLUMN_START
+    )
+
+
+def _write_aggregate_metrics(writer, data, twitch_widths, baseline_widths_to_use):
+    log.info("Writing aggregate metrics.")
+    aggregate_df = aggregate_metrics_df(data, twitch_widths, baseline_widths_to_use)
+    aggregate_df.to_excel(writer, sheet_name="aggregate-metrics", index=False, header=False)
+
+
+def _write_per_twitch_metrics(writer, data, twitch_widths, baseline_widths_to_use):
+    log.info("Writing per-twitch metrics.")
+    pdf, num_metrics = per_twitch_df(data, twitch_widths, baseline_widths_to_use)
+    pdf.to_excel(writer, sheet_name="per-twitch-metrics", index=False, header=False)
+    return num_metrics
 
 
 def create_waveform_charts(
@@ -838,8 +876,8 @@ def create_waveform_charts(
                 }
             )
 
-        stim_status_df = stim_plotting_info["stim_status_df"]
-        for col_idx, col_title in enumerate(stim_status_df):
+        stim_waveform_df = stim_plotting_info["stim_waveform_df"]
+        for col_idx, col_title in enumerate(stim_waveform_df):
             if not col_title.startswith(well_name):
                 continue
 
@@ -850,7 +888,7 @@ def create_waveform_charts(
                 charge_unit=stim_plotting_info["charge_units"][well_name],
                 col_offset=col_idx,
                 series_label=series_label,
-                upper_x_bound_cell=len(stim_status_df["Stim Time (seconds)"]),
+                upper_x_bound_cell=len(stim_waveform_df["Stim Time (seconds)"]),
                 y_axis_bounds=y_axis_bounds["stim"],
             )
 

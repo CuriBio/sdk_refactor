@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import copy
 import datetime
 import glob
 import json
@@ -20,13 +19,14 @@ import numpy as np
 from openpyxl import load_workbook
 from openpyxl.worksheet.worksheet import Worksheet
 import pandas as pd
-from pulse3D.exceptions import SubprotocolFormatIncompatibleWithInterpolationError
 from scipy import interpolate
 from semver import VersionInfo
 from xlsxwriter.utility import xl_cell_to_rowcol
 
 from .compression_cy import compress_filtered_magnetic_data
 from .constants import *
+from .exceptions import NoRecordingFilesLoadedError
+from .exceptions import SubprotocolFormatIncompatibleWithInterpolationError
 from .magnet_finding import find_magnet_positions
 from .magnet_finding import fix_dropped_samples
 from .magnet_finding import format_well_file_data
@@ -74,7 +74,7 @@ class WellFile:
         self,
         file_path: str,
         sampling_period: Optional[Union[int, float]] = None,
-        # TODO unit test the stiffness factor, auto and override
+        # TODO unit test the stiffness factor (auto and override) and has_inverted_post_magnet?
         stiffness_factor: Optional[int] = None,
         has_inverted_post_magnet: bool = False,
     ):
@@ -158,7 +158,7 @@ class WellFile:
                         TIME_OFFSETS,
                         TISSUE_SENSOR_READINGS,
                         REFERENCE_SENSOR_READINGS,
-                        STIMULATION_READINGS,  # TODO unit test, might need to add handling for if this isn't present
+                        STIMULATION_READINGS,
                     ):
                         self[dataset] = h5_file[dataset][:]
 
@@ -315,7 +315,6 @@ class WellFile:
         tissue_contraction_amplitudes = h5_file[reading_type][:]
         num_data_points = tissue_contraction_amplitudes.shape[-1]
 
-        # TODO add unit test asserting that beta 1 data is loaded with a first timepoint of 0
         timepoints = np.arange(num_data_points) * time_step
 
         return np.array([timepoints, tissue_contraction_amplitudes], dtype=np.int32)
@@ -328,7 +327,7 @@ class PlateRecording:
         recording_df: pd.DataFrame = None,
         start_time: Union[float, int] = 0,
         end_time: Optional[Union[float, int]] = None,
-        # TODO unit test the stiffness factor, auto and override
+        # TODO unit test the stiffness factor (auto and override), inverted_post_magnet_wells
         stiffness_factor: Optional[int] = None,
         inverted_post_magnet_wells: Optional[List[str]] = None,
     ):
@@ -368,8 +367,7 @@ class PlateRecording:
 
         # make sure at least one WellFile was loaded
         if not any(self.wells):
-            # TODO unit test and make custom error type
-            raise Exception()
+            raise NoRecordingFilesLoadedError()
 
         # currently file versions 1.0.0 and above must have all their data processed together
         if not self.is_optical_recording and self.wells[0].version >= VersionInfo.parse("1.0.0"):
@@ -377,7 +375,12 @@ class PlateRecording:
                 self._load_dataframe(recording_df)
             else:
                 self._process_plate_data(calibration_recordings)
-                self._process_stim_data()
+
+                # TODO Tanner (12/19/22): might make more sense to check the FW versions instead
+                if self.wells[0][FILE_FORMAT_VERSION_METADATA_KEY] >= VersionInfo.parse(
+                    MIN_FILE_VERSION_FOR_STIM_INTERPOLATION
+                ):
+                    self._process_stim_data()
 
     def _process_plate_data(self, calibration_recordings):
         if not all(isinstance(well_file, WellFile) for well_file in self.wells) or len(self.wells) != 24:
@@ -425,7 +428,7 @@ class PlateRecording:
             if flip_data:
                 x *= -1
 
-            # have time indices start at 0  # TODO add unit test asserting that beta 2 data is loaded with a first timepoint of 0
+            # have time indices start at 0
             time_indices = well_file[TIME_INDICES]
             adjusted_time_indices = time_indices[analysis_window] - time_indices[start_idx]
 
@@ -538,16 +541,14 @@ class PlateRecording:
 
         # add interpolated force timepoints
         if self._created_from_dataframe:
-            interp_timepoints = copy.deepcopy(first_well.force[0])
-        else:
-            min_time = min([wf.force[0][0] for wf in self])
-            max_time = max([wf.force[0][-1] for wf in self])
-            interp_period = (
-                first_well[INTERPOLATION_VALUE_UUID]
-                if self.is_optical_recording
-                else INTERPOLATED_DATA_PERIOD_US
-            )
-            interp_timepoints = np.arange(min_time, max_time + interp_period, interp_period)
+            raise NotImplementedError("Cannot export a DF if created from a DF. Just use the original")
+
+        min_time = min([wf.force[0][0] for wf in self])
+        max_time = max([wf.force[0][-1] for wf in self])
+        interp_period = (
+            first_well[INTERPOLATION_VALUE_UUID] if self.is_optical_recording else INTERPOLATED_DATA_PERIOD_US
+        )
+        interp_timepoints = np.arange(min_time, max_time + interp_period, interp_period)
 
         data = {"Time (s)": pd.Series(interp_timepoints)}
 
@@ -572,16 +573,12 @@ class PlateRecording:
             data[f"{well_name}__raw"] = pd.Series(wf.force[1, :])
 
             # add unit adjusted + normalized force data
-            if self._created_from_dataframe:
-                # TODO figure out why this is chopping off a value and add a comment
-                interp_force_unewtons = copy.deepcopy(wf.force[1, 1:])
-            else:
-                start_idx, end_idx = truncate(
-                    source_series=interp_timepoints, lower_bound=wf.force[0, 0], upper_bound=wf.force[0, -1]
-                )
+            start_idx, end_idx = truncate(
+                source_series=interp_timepoints, lower_bound=wf.force[0, 0], upper_bound=wf.force[0, -1]
+            )
 
-                interp_fn = interpolate.interp1d(wf.force[0, :], wf.force[1, :])
-                interp_force_unewtons = interp_fn(interp_timepoints[start_idx : end_idx + 1])
+            interp_fn = interpolate.interp1d(wf.force[0, :], wf.force[1, :])
+            interp_force_unewtons = interp_fn(interp_timepoints[start_idx : end_idx + 1])
 
             min_value = min(interp_force_unewtons)
 

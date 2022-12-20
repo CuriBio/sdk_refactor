@@ -17,6 +17,9 @@ PATH_TO_MAGNET_FINDING_FILES = os.path.join(PATH_OF_CURRENT_FILE, "data_files", 
 PATH_TO_H5_FILES = os.path.join(PATH_OF_CURRENT_FILE, "data_files", "h5")
 PATH_TO_DATA_METRIC_FILES = os.path.join(PATH_OF_CURRENT_FILE, "data_files", "data_metrics")
 
+TEST_SMALL_BETA_1_FILE_PATH = os.path.join(PATH_TO_H5_FILES, "v0.4.2", "SmallBeta1File.zip")
+TEST_SMALL_BETA_2_FILE_PATH = os.path.join(PATH_TO_H5_FILES, "stim", "SmallBeta2File-NoStim.zip")
+
 
 def _load_file(file_path: str) -> Tuple[List[str], List[str]]:
     time = []

@@ -376,7 +376,6 @@ class PlateRecording:
             else:
                 self._process_plate_data(calibration_recordings)
 
-                # TODO Tanner (12/19/22): might make more sense to check the FW versions instead
                 if self.wells[0][FILE_FORMAT_VERSION_METADATA_KEY] >= VersionInfo.parse(
                     MIN_FILE_VERSION_FOR_STIM_INTERPOLATION
                 ):

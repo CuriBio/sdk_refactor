@@ -809,7 +809,7 @@ def _append_aggregate_measures_df(main_df: pd.DataFrame, metrics: pd.DataFrame, 
     main_df = main_df.append(metrics, ignore_index=True)
     # empty row
     main_df = main_df.append(pd.Series([""]), ignore_index=True)
-    
+
     return main_df
 
 

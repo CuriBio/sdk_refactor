@@ -1,6 +1,10 @@
 Changelog for Pulse3D
 =====================
 
+0.28.4 (2022-12-21)
+-------------------
+- Fix dataframe format in excel_writer
+
 0.28.3 (2022-12-08)
 -------------------
 - Fix ``to_dataframe`` to include minimum timepoint

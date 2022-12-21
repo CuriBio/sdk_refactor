@@ -750,22 +750,19 @@ def aggregate_metrics_df(
         df (DataFrame): aggregate data frame of all metric aggregate measures
     """
     df = pd.DataFrame()
-    df = pd.concat([df, pd.Series(["", "", *[d["well_name"] for d in data]])], ignore_index=True)
-    df = pd.concat([df, pd.Series(["", "Treatment Description"])], ignore_index=True)
-    df = pd.concat(
-        [
-            df,
-            pd.Series(
-                [
-                    "",
-                    "n (twitches)",
-                    *[(len(d["metrics"][0]) if not d["error_msg"] else d["error_msg"]) for d in data],
-                ]
-            ),
-        ],
+    df = df.append(pd.Series(["", "", *[d["well_name"] for d in data]]), ignore_index=True)
+    df = df.append(pd.Series(["", "Treatment Description"]), ignore_index=True)
+    df = df.append(
+        pd.Series(
+            [
+                "",
+                "n (twitches)",
+                *[(len(d["metrics"][0]) if not d["error_msg"] else d["error_msg"]) for d in data],
+            ]
+        ),
         ignore_index=True,
     )
-    df = pd.concat([df, pd.Series([""])], ignore_index=True)  # empty row
+    df = df.append(pd.Series([""]), ignore_index=True)  # empty row
 
     combined = pd.concat([d["metrics"][1] for d in data])
 
@@ -809,11 +806,10 @@ def _append_aggregate_measures_df(main_df: pd.DataFrame, metrics: pd.DataFrame, 
     metrics.insert(0, "level_0", [name] + [""] * 5)
     metrics.columns = np.arange(metrics.shape[1])
 
-    main_df = pd.concat([main_df, metrics], ignore_index=True)
-
+    main_df = main_df.append(metrics, ignore_index=True)
     # empty row
-    main_df = pd.concat([main_df, pd.Series([""])], ignore_index=True)
-
+    main_df = main_df.append(pd.Series([""]), ignore_index=True)
+    
     return main_df
 
 

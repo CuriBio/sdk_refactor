@@ -717,9 +717,10 @@ class TwitchAUC(BaseMetric):
             interpolate_y_for_x_between_two_points, x_1=rising_x, y_1=rising_y, x_2=falling_x, y_2=falling_y
         )
 
-        trapezoid_h = right_x - left_x
         trapezoid_left_side = abs(left_y - interp_y_for_lower_bound(left_x))
         trapezoid_right_side = abs(right_y - interp_y_for_lower_bound(right_x))
+
+        trapezoid_h = right_x - left_x
         auc_total = (trapezoid_left_side + trapezoid_right_side) / 2 * trapezoid_h
 
         return auc_total
@@ -968,11 +969,12 @@ def interpolate_x_for_y_between_two_points(
 
     Uses linear interpolation, based on point-slope formula.
     """
-    if x_2 - x_1 == 0:
-        # custom ZeroDivisionError message
+    denominator = x_2 - x_1
+
+    if denominator == 0:
         raise ZeroDivisionError("Denominator cannot be 0.")
 
-    slope = (y_2 - y_1) / (x_2 - x_1)
+    slope = (y_2 - y_1) / denominator
     return (desired_y - y_1) / slope + x_1
 
 
@@ -987,11 +989,12 @@ def interpolate_y_for_x_between_two_points(
 
     Uses linear interpolation, based on point-slope formula.
     """
-    if x_2 - x_1 == 0:
-        # custom ZeroDivisionError message
+    denominator = x_2 - x_1
+
+    if denominator == 0:
         raise ZeroDivisionError("Denominator cannot be 0.")
 
-    slope = (y_2 - y_1) / (x_2 - x_1)
+    slope = (y_2 - y_1) / denominator
     return slope * (desired_x - x_1) + y_1
 
 

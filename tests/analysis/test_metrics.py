@@ -76,7 +76,7 @@ def test_metrics__TwitchAmplitude():
     metric = metrics.TwitchAmplitude()
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    assert np.all(expected == estimate)
+    np.testing.assert_array_almost_equal(estimate, expected)
 
 
 def test_metrics__TwitchAUC():
@@ -103,7 +103,7 @@ def test_metrics__TwitchAUC():
 
     metric = metrics.TwitchAUC()
     estimate = metric.fit(pv, w.force, twitch_indices)
-    assert np.all(expected == estimate)
+    np.testing.assert_array_almost_equal(estimate, expected)
 
 
 def test_metrics__TwitchBaselineToPeak():
@@ -193,7 +193,7 @@ def test_metrics__TwitchFracAmp():
     metric = metrics.TwitchFractionAmplitude()
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    assert np.all(expected == estimate)
+    np.testing.assert_array_almost_equal(estimate, expected)
 
 
 def test_metrics__TwitchFreq():
@@ -223,7 +223,7 @@ def test_metrics__TwitchFreq():
     metric = metrics.TwitchFrequency()
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    assert np.all(expected == estimate)
+    np.testing.assert_array_almost_equal(estimate, expected)
 
 
 def test_metrics__TwitchIrregularity():
@@ -253,7 +253,7 @@ def test_metrics__TwitchIrregularity():
     metric = metrics.TwitchIrregularity()
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    assert np.all((expected == estimate)[1:-1])
+    np.testing.assert_array_almost_equal(estimate[1:-1], expected[1:-1])
 
 
 def test_metrics__TwitchPeriod():
@@ -283,7 +283,7 @@ def test_metrics__TwitchPeriod():
     metric = metrics.TwitchPeriod()
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    assert np.all(expected == estimate)
+    np.testing.assert_array_almost_equal(estimate, expected)
 
 
 def test_metrics__TwitchContractionVelocity():
@@ -313,7 +313,7 @@ def test_metrics__TwitchContractionVelocity():
     metric = metrics.TwitchVelocity(rounded=False, is_contraction=True)
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    assert np.all(expected == estimate)
+    np.testing.assert_array_almost_equal(estimate, expected)
 
 
 def test_metrics__TwitchRelaxationVelocity():
@@ -343,7 +343,7 @@ def test_metrics__TwitchRelaxationVelocity():
     metric = metrics.TwitchVelocity(rounded=False, is_contraction=False)
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    assert np.all(expected == estimate)
+    np.testing.assert_array_almost_equal(estimate, expected)
 
 
 ##### TESTS FOR BY-WIDTH METRICS #####
@@ -373,7 +373,7 @@ def test_metrics__TwitchWidth():
     metric = metrics.TwitchWidth()
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    assert np.all(expected == estimate)
+    np.testing.assert_array_almost_equal(estimate, expected)
 
 
 def test_metrics__TwitchContractionTime():
@@ -403,7 +403,7 @@ def test_metrics__TwitchContractionTime():
     metric = metrics.TwitchPeakTime(is_contraction=True)
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    assert np.all(expected == estimate)
+    np.testing.assert_array_almost_equal(estimate, expected)
 
 
 def test_metrics__TwitchRelaxationTime():
@@ -433,7 +433,7 @@ def test_metrics__TwitchRelaxationTime():
     metric = metrics.TwitchPeakTime(is_contraction=False)
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    assert np.all(expected == estimate)
+    np.testing.assert_array_almost_equal(estimate, expected)
 
 
 def test_metrics__x_interpolation():

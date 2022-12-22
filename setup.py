@@ -22,7 +22,7 @@ if USE_CYTHON:
 
 setup(
     name="Pulse3D",
-    version="0.28.3",
+    version="0.29.0",
     description="Pulse3D Analysis Platform",
     url="https://github.com/CuriBio/Pulse3D",
     project_urls={"Documentation": "https://pulse3D.readthedocs.io/en/latest/"},
@@ -34,7 +34,7 @@ setup(
     packages=find_packages("src"),
     install_requires=[
         "h5py>=3.7.0",
-        "nptyping==1.4.4",  # Tanner (4/7/22): pinning for now, can upgrade 2.0.0 once there is time to refactor
+        "nptyping==1.4.4",  # Tanner (4/7/22): pinning for now, can upgrade to 2.0.0 once there is time to refactor
         "numpy>=1.23.4",
         "scipy>=1.9.3",
         "numba==0.56.4",

@@ -953,26 +953,17 @@ def aggregate_metrics_df(
     Returns:
         df (DataFrame): aggregate data frame of all metric aggregate measures
     """
-    df = pd.DataFrame()
-    df = pd.concat([df, pd.Series(["", "", *[d["well_name"] for d in data]])], ignore_index=True)
-    df = pd.concat([df, pd.Series(["", "Treatment Description"])], ignore_index=True)
-    df = pd.concat(
-        [
-            df,
-            pd.Series(
-                [
-                    "",
-                    "n (twitches)",
-                    *[(len(d["metrics"][0]) if not d["error_msg"] else d["error_msg"]) for d in data],
-                ]
-            ),
-        ],
-        ignore_index=True,
-    )
-    df = pd.concat([df, pd.Series([""])], ignore_index=True)  # empty row
+    well_names_row = ["", "", *[d["well_name"] for d in data]]
+    description_row = ["", "Treatment Description", *["" for _ in data]]
+    error_row = [
+        "",
+        "n (twitches)",
+        *[(len(d["metrics"][0]) if not d["error_msg"] else d["error_msg"]) for d in data],
+    ]
+
+    df = pd.DataFrame(data=[well_names_row, description_row, error_row, [""]])
 
     combined = pd.concat([d["metrics"][1] for d in data])
-
     for metric_id in ALL_METRICS:
         if metric_id in (WIDTH_UUID, RELAXATION_TIME_UUID, CONTRACTION_TIME_UUID):
             for width in widths:
@@ -1009,14 +1000,13 @@ def _append_aggregate_measures_df(main_df: pd.DataFrame, metrics: pd.DataFrame, 
     Returns:
         main_df (DataFrame): aggregate data frame
     """
+    # add empty row
+    metrics = pd.concat([metrics, pd.Series({"": ""})], axis=1)
+
     metrics.reset_index(inplace=True)
-    metrics.insert(0, "level_0", [name] + [""] * 5)
+    metrics.insert(0, "level_0", [name] + [""] * 6)
     metrics.columns = np.arange(metrics.shape[1])
-
     main_df = pd.concat([main_df, metrics], ignore_index=True)
-
-    # empty row
-    main_df = pd.concat([main_df, pd.Series([""])], ignore_index=True)
 
     return main_df
 

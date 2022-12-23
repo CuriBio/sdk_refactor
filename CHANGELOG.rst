@@ -1,6 +1,19 @@
 Changelog for Pulse3D
 =====================
 
+0.29.0 (unreleased)
+-------------------
+
+Added:
+^^^^^^
+- Graphing of stimulator output waveforms:
+
+  - "Overlayed" display option which graphs stim waveforms in the same chart as the tissue waveforms
+  - "Stacked" display which graphs stim waveforms in a separate chart beneath the tissue waveforms chart
+
+- Ability to interpolate stimulator output waveforms from start timepoints of each subprotocol
+
+
 0.28.3 (2022-12-08)
 -------------------
 - Fix ``to_dataframe`` to include minimum timepoint

@@ -59,7 +59,7 @@ pipeline_outputs/
 *.gz
 *.tsv
 *.csv
-./*.xlsx
+*.xlsx
 tests/*.xlsx
 tmp/
 

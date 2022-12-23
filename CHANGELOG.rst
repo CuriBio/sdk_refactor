@@ -13,6 +13,10 @@ Added:
 
 - Ability to interpolate stimulator output waveforms from start timepoints of each subprotocol
 
+Changed:
+^^^^^^
+- Update use of ``pd.DataFrame.append`` to ``pd.DataFrame.concat``
+
 
 0.28.3 (2022-12-08)
 -------------------

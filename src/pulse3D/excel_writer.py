@@ -749,31 +749,24 @@ def aggregate_metrics_df(
     Returns:
         df (DataFrame): aggregate data frame of all metric aggregate measures
     """
-    df = pd.DataFrame()
-    df = pd.concat([df, pd.Series(["", "", *[d["well_name"] for d in data]])], ignore_index=True)
-    df = pd.concat([df, pd.Series(["", "Treatment Description"])], ignore_index=True)
-    df = pd.concat(
-        [
-            df,
-            pd.Series(
-                [
-                    "",
-                    "n (twitches)",
-                    *[(len(d["metrics"][0]) if not d["error_msg"] else d["error_msg"]) for d in data],
-                ]
-            ),
-        ],
-        ignore_index=True,
-    )
-    df = pd.concat([df, pd.Series([""])], ignore_index=True)  # empty row
+    well_row = ["", "", *[d["well_name"] for d in data]]
+    empty_row = ["" for _ in well_row]
+    description_row = ["", "Treatment Description", *["" for _ in data]]
+    error_row = [
+        "",
+        "n (twitches)",
+        *[(len(d["metrics"][0]) if not d["error_msg"] else d["error_msg"]) for d in data],
+    ]
+
+    df = pd.DataFrame(data=[well_row, description_row, error_row, empty_row])
 
     combined = pd.concat([d["metrics"][1] for d in data])
-
     for metric_id in ALL_METRICS:
         if metric_id in (WIDTH_UUID, RELAXATION_TIME_UUID, CONTRACTION_TIME_UUID):
             for width in widths:
                 name = CALCULATED_METRIC_DISPLAY_NAMES[metric_id].format(width)
                 metric_df = combined[metric_id][width].drop(columns=["n"]).T
+                metric_df = pd.concat([metric_df, pd.Series([""])], axis=1)
                 df = _append_aggregate_measures_df(df, metric_df, name)
 
         elif metric_id in (BASELINE_TO_PEAK_UUID, PEAK_TO_BASELINE_UUID):
@@ -784,10 +777,13 @@ def aggregate_metrics_df(
             if baseline_width not in widths:
                 name = CALCULATED_METRIC_DISPLAY_NAMES[metric_id].format(baseline_width)
                 metric_df = combined[metric_id].drop(columns=["n"]).T.droplevel(level=-1, axis=0)
+                metric_df = pd.concat([metric_df, pd.Series([""])], axis=1)
                 df = _append_aggregate_measures_df(df, metric_df, name)
         else:
             name = CALCULATED_METRIC_DISPLAY_NAMES[metric_id]
             metric_df = combined[metric_id].drop(columns=["n"]).T.droplevel(level=-1, axis=0)
+            metric_df = pd.concat([metric_df, pd.Series([""])], ignore_index=True, axis=1)
+            print(metric_df.keys, metric_df.columns)
             df = _append_aggregate_measures_df(df, metric_df, name)
 
     return df
@@ -806,13 +802,9 @@ def _append_aggregate_measures_df(main_df: pd.DataFrame, metrics: pd.DataFrame, 
         main_df (DataFrame): aggregate data frame
     """
     metrics.reset_index(inplace=True)
-    metrics.insert(0, "level_0", [name] + [""] * 5)
+    metrics.insert(0, "level_0", [name] + [""] * 6)
     metrics.columns = np.arange(metrics.shape[1])
-
     main_df = pd.concat([main_df, metrics], ignore_index=True)
-
-    # empty row
-    main_df = pd.concat([main_df, pd.Series([""])], ignore_index=True)
 
     return main_df
 

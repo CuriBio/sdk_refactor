@@ -13,6 +13,10 @@ Added:
 
 - Ability to interpolate stimulator output waveforms from start timepoints of each subprotocol
 
+Changed:
+^^^^^^^^
+- Calculation of twitch amplitude is now done via method described in docs
+
 
 0.28.3 (2022-12-08)
 -------------------

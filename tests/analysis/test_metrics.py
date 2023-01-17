@@ -26,7 +26,7 @@ WIDTH_FACTORS = (2, 2)
 
 def create_new_parquet_for_testing(filename_of_file_to_replace):
     """Function for creating new parquet files with new data for tests.
-    The new file will show up in the root of the pulse3D repo and can then be replaced in the data_metrics folder. files
+    The new file will show up in the root of the pulse3D repo and can then be replaced in the data_metrics folder.
 
     Args:
         string: name of file in data_files/data_metrics/v0.3.1 to replace

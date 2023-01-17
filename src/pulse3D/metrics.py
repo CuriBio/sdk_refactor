@@ -153,7 +153,6 @@ class TwitchAmplitude(BaseMetric):
         Returns:
             Pandas Series of float values representing the amplitude of each twitch
         """
-
         twitch_indices_hashable = HashableDataFrame(DataFrame.from_dict(twitch_indices).T)
         filtered_data_hashable = tuple(tuple(d) for d in filtered_data)
         _, coordinates = TwitchWidth.calculate_twitch_widths(

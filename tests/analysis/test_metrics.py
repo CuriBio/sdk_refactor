@@ -5,6 +5,7 @@ import os
 import uuid
 
 import numpy as np
+import pandas as pd
 import pulse3D.metrics as metrics
 from pulse3D.peak_detection import find_twitch_indices
 from pulse3D.peak_detection import peak_detector
@@ -21,6 +22,32 @@ PATH_OF_CURRENT_FILE = get_current_file_abs_directory()
 # prominence and width scaling factors for peak detection
 PROMINENCE_FACTORS = (4, 4)
 WIDTH_FACTORS = (2, 2)
+
+
+def create_new_parquet_for_testing(filename_of_file_to_replace):
+    """Function for creating new parquet files with new data for tests.
+    The new file will show up in the root of the pulse3D repo and can then be replaced in the data_metrics folder. files
+
+    Args:
+        string: name of file in data_files/data_metrics/v0.3.1 to replace
+
+    Returns:
+        nothing
+    """
+    file_path = os.path.join(
+        PATH_TO_DATA_METRIC_FILES,
+        "v0.3.1",
+        filename_of_file_to_replace,
+    )
+    try:
+        table = pq.read_table(file_path)
+    except Exception as e:
+        raise FileNotFoundError("Parquet file for full twitch relaxation time not found.") from e
+    else:
+        expected = table.to_pandas().squeeze()
+
+    f = pd.DataFrame({"0": expected.values})
+    f.to_parquet(f"NEW_{filename_of_file_to_replace}")
 
 
 def encode_dict(d):

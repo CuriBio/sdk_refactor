@@ -15,7 +15,7 @@ Added:
 
 Changed:
 ^^^^^^^^
-- Calculation of twitch amplitude is now done via method described in docs
+- Calculation of twitch amplitude now uses Contaction 10% and Relaxation 90% points for baseline.
 
 
 0.28.3 (2022-12-08)

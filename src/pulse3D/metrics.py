@@ -165,16 +165,16 @@ class TwitchAmplitude(BaseMetric):
 
         estimates_dict: Dict[int, float] = dict()
 
-        for twitchPeakX, twitchData in coordinates.iterrows():
-            CONVERSION = 100000000
-            C10X = twitchData.loc["time", "contraction", 10] * CONVERSION
-            C10Y = twitchData.loc["force", "contraction", 10]
-            R90X = twitchData.loc["time", "relaxation", 90] * CONVERSION
-            R90Y = twitchData.loc["force", "relaxation", 90]
-            slope = (R90Y - C10Y) / (C10X - R90X)
-            twitchBaseY = slope * twitchPeakX
-            amplitude_value = data_series[twitchPeakX] - twitchBaseY
-            estimates_dict[twitchPeakX] = amplitude_value
+        for twitch_peak_x, twitch_data in coordinates.iterrows():
+            base_to_seconds = 100 * MICRO_TO_BASE_CONVERSION
+            c10x = twitch_data.loc["time", "contraction", 10] * base_to_seconds
+            c10y = twitch_data.loc["force", "contraction", 10]
+            r90x = twitch_data.loc["time", "relaxation", 90] * base_to_seconds
+            r90y = twitch_data.loc["force", "relaxation", 90]
+            slope = (r90y - c10y) / (c10x - r90x)
+            twitch_base_y = c10y + slope * (twitch_peak_x - c10x)
+            amplitude_value = data_series[twitch_peak_x] - twitch_base_y
+            estimates_dict[twitch_peak_x] = amplitude_value
 
         estimates = pd.Series(estimates_dict) * MICRO_TO_BASE_CONVERSION
         return estimates

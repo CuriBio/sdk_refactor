@@ -1,7 +1,16 @@
 Changelog for Pulse3D
 =====================
 
-0.29.0 (2023-01-23)
+0.29.1 (2023-01-23)
+-------------------
+
+Fixed:
+^^^^^^
+- Calculation of twitch amplitude now uses Contraction 10% and Relaxation 90% points for baseline.
+
+
+
+0.29.0 (2023-01-05)
 -------------------
 
 Added:

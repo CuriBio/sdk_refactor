@@ -171,8 +171,8 @@ class TwitchAmplitude(BaseMetric):
             c10y = twitch_data.loc["force", "contraction", 10]
             r90x = twitch_data.loc["time", "relaxation", 90]
             r90y = twitch_data.loc["force", "relaxation", 90]
-            slope = (r90y - c10y) / (c10x - r90x)
-            twitch_base_y = c10y + slope * (twitch_peak_x - c10x)
+            slope = (r90y - c10y) / (r90x - c10x)
+            twitch_base_y = slope * (twitch_peak_x - c10x)
             amplitude_value = data_series[twitch_peak_x] - twitch_base_y
             estimates_dict[twitch_peak_x] = amplitude_value
 

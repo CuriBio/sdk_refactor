@@ -5,6 +5,7 @@ import os
 import uuid
 
 import numpy as np
+import pandas as pd
 import pulse3D.metrics as metrics
 from pulse3D.peak_detection import find_twitch_indices
 from pulse3D.peak_detection import peak_detector
@@ -21,6 +22,20 @@ PATH_OF_CURRENT_FILE = get_current_file_abs_directory()
 # prominence and width scaling factors for peak detection
 PROMINENCE_FACTORS = (4, 4)
 WIDTH_FACTORS = (2, 2)
+
+
+def create_new_parquet_for_testing(estimate, filename):
+    """Function for creating new parquet files with new data for tests.
+    The new file will show up in the root of the pulse3D repo and can then be replaced in the data_metrics folder.
+
+    Args:
+        estimate (DataFrame): computed data object used in tests below
+        filename (str): name of file to replace
+    Returns:
+        nothing
+    """
+    f = pd.DataFrame({"0": estimate.values})
+    f.to_parquet(f"NEW_{filename}")
 
 
 def encode_dict(d):

@@ -154,24 +154,29 @@ class TwitchAmplitude(BaseMetric):
         Returns:
             Pandas Series of float values representing the amplitude of each twitch
         """
+        twitch_indices_hashable = HashableDataFrame(DataFrame.from_dict(twitch_indices).T)
+        filtered_data_hashable = tuple(tuple(d) for d in filtered_data)
+        _, coordinates = TwitchWidth.calculate_twitch_widths(
+            twitch_indices=twitch_indices_hashable,
+            filtered_data=filtered_data_hashable,
+            rounded=rounded,
+            twitch_width_percents=(10, 90),
+        )
         data_series = filtered_data[1, :]
 
         estimates_dict: Dict[int, float] = dict()
-        for iter_twitch_idx, iter_twitch_info in twitch_indices.items():
-            peak_amplitude = data_series[iter_twitch_idx]
-            prior_amplitude = data_series[iter_twitch_info[PRIOR_VALLEY_INDEX_UUID]]
-            subsequent_amplitude = data_series[iter_twitch_info[SUBSEQUENT_VALLEY_INDEX_UUID]]
 
-            amplitude_value = (
-                (peak_amplitude - prior_amplitude) + (peak_amplitude - subsequent_amplitude)
-            ) / 2
+        for twitch_peak_x, twitch_data in coordinates.iterrows():
+            c10x = twitch_data.loc["time", "contraction", 10] / MICRO_TO_BASE_CONVERSION
+            c10y = twitch_data.loc["force", "contraction", 10]
+            r90x = twitch_data.loc["time", "relaxation", 90] / MICRO_TO_BASE_CONVERSION
+            r90y = twitch_data.loc["force", "relaxation", 90]
+            slope = (r90y - c10y) / (r90x - c10x)
+            twitch_base_y = c10y + slope * (twitch_peak_x - c10x)
+            amplitude_value = data_series[twitch_peak_x] - twitch_base_y
+            estimates_dict[twitch_peak_x] = amplitude_value
 
-            if rounded:
-                amplitude_value = round(amplitude_value, 0)
-
-            estimates_dict[iter_twitch_idx] = amplitude_value
-
-        estimates = pd.Series(estimates_dict) * MICRO_TO_BASE_CONVERSION
+        estimates = pd.Series(estimates_dict)
         return estimates
 
 

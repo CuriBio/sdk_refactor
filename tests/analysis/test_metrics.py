@@ -24,30 +24,18 @@ PROMINENCE_FACTORS = (4, 4)
 WIDTH_FACTORS = (2, 2)
 
 
-def create_new_parquet_for_testing(filename_of_file_to_replace):
+def create_new_parquet_for_testing(estimate, filename):
     """Function for creating new parquet files with new data for tests.
     The new file will show up in the root of the pulse3D repo and can then be replaced in the data_metrics folder.
 
     Args:
-        string: name of file in data_files/data_metrics/v0.3.1 to replace
-
+        estimate (DataFrame): computed data object used in tests below
+        filename (str): name of file to replace
     Returns:
         nothing
     """
-    file_path = os.path.join(
-        PATH_TO_DATA_METRIC_FILES,
-        "v0.3.1",
-        filename_of_file_to_replace,
-    )
-    try:
-        table = pq.read_table(file_path)
-    except Exception as e:
-        raise FileNotFoundError("Parquet file for full twitch relaxation time not found.") from e
-    else:
-        expected = table.to_pandas().squeeze()
-
-    f = pd.DataFrame({"0": expected.values})
-    f.to_parquet(f"NEW_{filename_of_file_to_replace}")
+    f = pd.DataFrame({"0": estimate.values})
+    f.to_parquet(f"NEW_{filename}")
 
 
 def encode_dict(d):

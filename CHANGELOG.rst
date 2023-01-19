@@ -13,8 +13,8 @@ Added:
 
 - Ability to interpolate stimulator output waveforms from start timepoints of each subprotocol
 
-Changed:
-^^^^^^^^
+Fixed:
+^^^^^^
 - Calculation of twitch amplitude now uses Contraction 10% and Relaxation 90% points for baseline.
 
 

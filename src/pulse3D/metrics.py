@@ -4,6 +4,7 @@
 If a new metric is requested, you must implement `fit`,
 `add_per_twitch_metrics`, and `add_aggregate_metrics`.
 """
+
 # for hashing dataframes
 import abc
 from functools import lru_cache
@@ -166,10 +167,9 @@ class TwitchAmplitude(BaseMetric):
         estimates_dict: Dict[int, float] = dict()
 
         for twitch_peak_x, twitch_data in coordinates.iterrows():
-            base_to_seconds = 100 * MICRO_TO_BASE_CONVERSION
-            c10x = twitch_data.loc["time", "contraction", 10] * base_to_seconds
+            c10x = twitch_data.loc["time", "contraction", 10]
             c10y = twitch_data.loc["force", "contraction", 10]
-            r90x = twitch_data.loc["time", "relaxation", 90] * base_to_seconds
+            r90x = twitch_data.loc["time", "relaxation", 90]
             r90y = twitch_data.loc["force", "relaxation", 90]
             slope = (r90y - c10y) / (c10x - r90x)
             twitch_base_y = c10y + slope * (twitch_peak_x - c10x)

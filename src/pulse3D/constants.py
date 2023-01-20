@@ -77,6 +77,8 @@ IS_CALIBRATION_FILE_UUID = uuid.UUID("9a6f90eb-fe34-423b-bfed-fb441d6d9e5f")
 CHANNEL_FIRMWARE_VERSION_UUID = uuid.UUID("d9694cfe-824c-41f8-915e-91e41ce7af32")
 BOOT_FLAGS_UUID = uuid.UUID("762f6715-ffcd-4e8d-b707-638dd5777841")
 INITIAL_MAGNET_FINDING_PARAMS_UUID = uuid.UUID("da5f2f6d-6874-4e53-be10-90c4bfbd3d45")
+PLATEMAP_NAME_UUID = uuid.UUID("2663ebdb-dce8-4fa1-8ec6-383db1ed1dbb")
+PLATEMAP_LABEL_UUID = uuid.UUID("f4c1a517-4c0b-4970-9253-a5b4aa64362f")
 METADATA_UUID_DESCRIPTIONS = immutabledict(
     {
         # General values
@@ -115,6 +117,8 @@ METADATA_UUID_DESCRIPTIONS = immutabledict(
         ORIGINAL_FILE_VERSION_UUID: "The original version of the file when recorded, prior to any migrations to newer versions/formats.",
         UTC_TIMESTAMP_OF_FILE_VERSION_MIGRATION_UUID: "Timestamp when this file was migrated from an earlier version.",
         FILE_VERSION_PRIOR_TO_MIGRATION_UUID: "File format version that this file was migrated from",
+        PLATEMAP_NAME_UUID: "The name of the Platemap Well Grouping",
+        PLATEMAP_LABEL_UUID: "The name of a label in the Platemap Well Grouping",
         # Beta 1 specific values
         XEM_SERIAL_NUMBER_UUID: "XEM Serial Number",
         # Beta 2 specific values

@@ -9,7 +9,7 @@ Fixed:
 - Calculation of twitch amplitude now uses Contraction 10% and Relaxation 90% points for baseline.
 
 
-0.29.0 (2023-01-05)
+0.29.0 (2022-12-22)
 -------------------
 
 Added:

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from collections import defaultdict
 import datetime
 import glob
 import json
@@ -368,6 +369,15 @@ class PlateRecording:
         # make sure at least one WellFile was loaded
         if not any(self.wells):
             raise NoRecordingFilesLoadedError()
+
+        # set up platemap info  # TODO unit test this
+        self.platemap_name = self.wells[0].get(PLATEMAP_NAME_UUID)
+
+        platemap_labels = defaultdict(list)
+        for well_file in self:
+            label = well_file.get(PLATEMAP_LABEL_UUID, "No label assigned")
+            platemap_labels[label].append(well_file[WELL_NAME_UUID])
+        self.platemap_labels = dict(platemap_labels)
 
         # currently file versions 1.0.0 and above must have all their data processed together
         if not self.is_optical_recording and self.wells[0].version >= VersionInfo.parse("1.0.0"):

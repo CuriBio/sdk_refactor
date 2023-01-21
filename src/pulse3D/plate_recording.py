@@ -100,7 +100,13 @@ class WellFile:
 
                 self.attrs = {attr: h5_file.attrs[attr] for attr in list(h5_file.attrs)}
                 self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
-                self.stimulation_protocol = self.get(STIMULATION_PROTOCOL_UUID, "null")
+
+                for uuid_, default_val in (
+                    (PLATEMAP_NAME_UUID, "No PlateMap assigned"),
+                    (PLATEMAP_LABEL_UUID, "No label assigned"),
+                ):
+                    if not self.get(uuid_):
+                        self[uuid_] = default_val
 
                 if self.stiffness_override:
                     self.stiffness_factor = stiffness_factor
@@ -371,11 +377,11 @@ class PlateRecording:
             raise NoRecordingFilesLoadedError()
 
         # set up platemap info  # TODO unit test this
-        self.platemap_name = self.wells[0].get(PLATEMAP_NAME_UUID)
+        self.platemap_name = self.wells[0][PLATEMAP_NAME_UUID]
 
         platemap_labels = defaultdict(list)
         for well_file in self:
-            label = well_file.get(PLATEMAP_LABEL_UUID, "No label assigned")
+            label = well_file[PLATEMAP_LABEL_UUID]
             platemap_labels[label].append(well_file[WELL_NAME_UUID])
         self.platemap_labels = dict(platemap_labels)
 

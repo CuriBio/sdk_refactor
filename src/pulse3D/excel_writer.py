@@ -445,6 +445,7 @@ def write_xlsx(
                 "metrics": metrics,
                 "well_index": well_index,
                 "well_name": TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_index),
+                "platemap_label": well_file[PLATEMAP_LABEL_UUID],
                 "min_value": min_value,
                 "interp_data": interpolated_force,
                 "interp_data_fn": interp_data_fn,
@@ -958,12 +959,10 @@ def aggregate_metrics_df(
     Returns:
         df (DataFrame): aggregate data frame of all metric aggregate measures
     """
-    well_names_row = ["", "", *[d["well_name"] for d in data]]
-    description_row = ["", "Treatment Description", *["" for _ in data]]
-    error_row = [
-        "",
-        "n (twitches)",
-        *[(len(d["metrics"][0]) if not d["error_msg"] else d["error_msg"]) for d in data],
+    well_names_row = ["", ""] + [d["well_name"] for d in data]
+    description_row = ["", "PlateMap Labels"] + [d["platemap_label"] for d in data]
+    error_row = ["", "n (twitches)"] + [
+        d["error_msg"] if d["error_msg"] else len(d["metrics"][0]) for d in data
     ]
 
     df = pd.DataFrame(data=[well_names_row, description_row, error_row, [""]])

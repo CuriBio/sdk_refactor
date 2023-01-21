@@ -316,7 +316,12 @@ def write_xlsx(
             str(first_wf[UTC_BEGINNING_RECORDING_UUID].replace(tzinfo=None)),
         ),
         ("", "Post Stiffness Factor", post_stiffness_factor),
-        ("", "", ""),
+        ("Well Grouping Information:", "", ""),
+        ("", "PlateMap Name", plate_recording.platemap_name),
+        *[
+            ("", label, ", ".join(well_names))
+            for label, well_names in plate_recording.platemap_labels.items()
+        ],
         ("Device Information:", "", ""),
         ("", "H5 File Layout Version", first_wf.version),
         ("", "Mantarray Serial Number", first_wf.get(MANTARRAY_SERIAL_NUMBER_UUID, "")),

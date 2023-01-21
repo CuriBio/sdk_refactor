@@ -36,7 +36,7 @@ setup(
         "h5py>=3.7.0",
         "nptyping==1.4.4",  # Tanner (4/7/22): pinning for now, can upgrade to 2.0.0 once there is time to refactor
         "numpy>=1.23.4",
-        "scipy>=1.9.3",
+        "scipy==1.9.3",
         "numba==0.56.4",
         "immutabledict>=1.2.0",
         "XlsxWriter>=1.3.8",

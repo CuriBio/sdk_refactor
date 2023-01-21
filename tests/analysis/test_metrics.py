@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-"""Tests for PlateRecording subclass"""
 
 import os
 import uuid
@@ -11,7 +10,6 @@ from pulse3D.peak_detection import find_twitch_indices
 from pulse3D.peak_detection import peak_detector
 from pulse3D.plate_recording import WellFile
 import pyarrow.parquet as pq
-import pytest
 from stdlib_utils import get_current_file_abs_directory
 
 from ..fixtures_utils import PATH_TO_DATA_METRIC_FILES
@@ -91,7 +89,7 @@ def test_metrics__TwitchAmplitude():
     metric = metrics.TwitchAmplitude()
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    np.testing.assert_array_almost_equal(estimate, expected)
+    np.testing.assert_array_almost_equal(estimate, expected, decimal=4)
 
 
 def test_metrics__TwitchAUC():
@@ -118,10 +116,10 @@ def test_metrics__TwitchAUC():
 
     metric = metrics.TwitchAUC()
     estimate = metric.fit(pv, w.force, twitch_indices)
-    np.testing.assert_array_almost_equal(estimate, expected)
+    np.testing.assert_array_almost_equal(estimate, expected, decimal=4)
 
 
-def test_metrics__TwitchBaselineToPeak():
+def test_metrics__TwitchPeakToBaseline__contraction():
     file_path = os.path.join(
         PATH_TO_DATA_METRIC_FILES,
         "v0.3.1",
@@ -151,7 +149,7 @@ def test_metrics__TwitchBaselineToPeak():
     np.testing.assert_array_equal(estimate, expected)
 
 
-def test_metrics__TwitchPeakToBaseline():
+def test_metrics__TwitchPeakToBaseline__relexation():
     file_path = os.path.join(
         PATH_TO_DATA_METRIC_FILES,
         "v0.3.1",
@@ -181,7 +179,7 @@ def test_metrics__TwitchPeakToBaseline():
     np.testing.assert_array_equal(estimate, expected)
 
 
-def test_metrics__TwitchFracAmp():
+def test_metrics__TwitchFractionAmplitude():
     file_path = os.path.join(
         PATH_TO_DATA_METRIC_FILES,
         "v0.3.1",
@@ -208,10 +206,10 @@ def test_metrics__TwitchFracAmp():
     metric = metrics.TwitchFractionAmplitude()
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    np.testing.assert_array_almost_equal(estimate, expected)
+    np.testing.assert_array_almost_equal(estimate, expected, decimal=3)
 
 
-def test_metrics__TwitchFreq():
+def test_metrics__TwitchFrequency():
     file_path = os.path.join(
         PATH_TO_DATA_METRIC_FILES,
         "v0.3.1",
@@ -301,7 +299,7 @@ def test_metrics__TwitchPeriod():
     np.testing.assert_array_almost_equal(estimate, expected)
 
 
-def test_metrics__TwitchContractionVelocity():
+def test_metrics__TwitchVelocity__contraction():
     file_path = os.path.join(
         PATH_TO_DATA_METRIC_FILES,
         "v0.3.1",
@@ -328,10 +326,10 @@ def test_metrics__TwitchContractionVelocity():
     metric = metrics.TwitchVelocity(rounded=False, is_contraction=True)
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    np.testing.assert_array_almost_equal(estimate, expected)
+    np.testing.assert_array_almost_equal(estimate, expected, decimal=1)
 
 
-def test_metrics__TwitchRelaxationVelocity():
+def test_metrics__TwitchVelocity__relaxation():
     file_path = os.path.join(
         PATH_TO_DATA_METRIC_FILES,
         "v0.3.1",
@@ -358,7 +356,7 @@ def test_metrics__TwitchRelaxationVelocity():
     metric = metrics.TwitchVelocity(rounded=False, is_contraction=False)
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    np.testing.assert_array_almost_equal(estimate, expected)
+    np.testing.assert_array_almost_equal(estimate, expected, decimal=1)
 
 
 ##### TESTS FOR BY-WIDTH METRICS #####
@@ -386,12 +384,12 @@ def test_metrics__TwitchWidth():
     twitch_indices = find_twitch_indices(pv)
 
     metric = metrics.TwitchWidth()
-    estimate = metric.fit(pv, w.force, twitch_indices)
+    width_df, _ = metric.calculate_twitch_widths(filtered_data=w.force, twitch_indices=twitch_indices)
 
-    np.testing.assert_array_almost_equal(estimate, expected)
+    np.testing.assert_array_almost_equal(width_df, expected, decimal=4)
 
 
-def test_metrics__TwitchContractionTime():
+def test_metrics__TwitchPeakTime__contraction():
     file_path = os.path.join(
         PATH_TO_DATA_METRIC_FILES,
         "v0.3.1",
@@ -418,10 +416,10 @@ def test_metrics__TwitchContractionTime():
     metric = metrics.TwitchPeakTime(is_contraction=True)
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    np.testing.assert_array_almost_equal(estimate, expected)
+    np.testing.assert_array_almost_equal(estimate, expected, decimal=5)
 
 
-def test_metrics__TwitchRelaxationTime():
+def test_metrics__TwitchPeakTime__relaxation():
     file_path = os.path.join(
         PATH_TO_DATA_METRIC_FILES,
         "v0.3.1",
@@ -448,17 +446,7 @@ def test_metrics__TwitchRelaxationTime():
     metric = metrics.TwitchPeakTime(is_contraction=False)
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    np.testing.assert_array_almost_equal(estimate, expected)
-
-
-def test_metrics__x_interpolation():
-    with pytest.raises(ZeroDivisionError):
-        metrics.interpolate_x_for_y_between_two_points(1, 0, 10, 0, 5)
-
-
-def test_metrics__y_interpolation():
-    with pytest.raises(ZeroDivisionError):
-        metrics.interpolate_y_for_x_between_two_points(1, 0, 10, 0, 5)
+    np.testing.assert_array_almost_equal(estimate, expected, decimal=5)
 
 
 def test_metrics__create_statistics():

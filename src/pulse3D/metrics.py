@@ -154,27 +154,36 @@ class TwitchAmplitude(BaseMetric):
         Returns:
             Pandas Series of float values representing the amplitude of each twitch
         """
+        twitch_width = 90
+
         twitch_indices_hashable = HashableDataFrame(DataFrame.from_dict(twitch_indices).T)
         filtered_data_hashable = tuple(tuple(d) for d in filtered_data)
         _, coordinates = TwitchWidth.calculate_twitch_widths(
             twitch_indices=twitch_indices_hashable,
             filtered_data=filtered_data_hashable,
             rounded=rounded,
-            twitch_width_percents=(10, 90),
+            twitch_width_percents=(twitch_width,),
         )
-        data_series = filtered_data[1, :]
+
+        time_series = filtered_data[0]
+        data_series = filtered_data[1]
 
         estimates_dict: Dict[int, float] = dict()
 
-        for twitch_peak_x, twitch_data in coordinates.iterrows():
-            c10x = twitch_data.loc["time", "contraction", 10] / MICRO_TO_BASE_CONVERSION
-            c10y = twitch_data.loc["force", "contraction", 10]
-            r90x = twitch_data.loc["time", "relaxation", 90] / MICRO_TO_BASE_CONVERSION
-            r90y = twitch_data.loc["force", "relaxation", 90]
+        for twitch_peak_idx, twitch_data in coordinates.iterrows():
+            twitch_peak_x = time_series[twitch_peak_idx]
+
+            # C10 in the metric definition diagram is the C point at 90% twitch width
+            c10x = twitch_data.loc["time", "contraction", twitch_width]
+            c10y = twitch_data.loc["force", "contraction", twitch_width]
+            r90x = twitch_data.loc["time", "relaxation", twitch_width]
+            r90y = twitch_data.loc["force", "relaxation", twitch_width]
+
             slope = (r90y - c10y) / (r90x - c10x)
             twitch_base_y = c10y + slope * (twitch_peak_x - c10x)
-            amplitude_value = data_series[twitch_peak_x] - twitch_base_y
-            estimates_dict[twitch_peak_x] = amplitude_value
+            amplitude_y = (data_series[twitch_peak_idx] - twitch_base_y) * MICRO_TO_BASE_CONVERSION
+
+            estimates_dict[twitch_peak_idx] = amplitude_y
 
         estimates = pd.Series(estimates_dict)
         return estimates

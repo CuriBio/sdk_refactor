@@ -271,14 +271,15 @@ def data_metrics(
         aggregate_df.sort_index(inplace=True)
 
         for metric_id in metrics:
-            if metric_id in metrics_to_create:
-                metric = metric_mapper[metric_id]
-                try:
-                    estimate = metric.fit(**metric_parameters)
-                except Exception:  # nosec B110
-                    continue
-                metric.add_per_twitch_metrics(per_twitch_df, metric_id, estimate)
-                metric.add_aggregate_metrics(aggregate_df, metric_id, estimate)
+            if metric_id not in metrics_to_create:
+                continue
+            metric = metric_mapper[metric_id]
+            try:
+                estimate = metric.fit(**metric_parameters)
+            except Exception:  # nosec B110
+                continue
+            metric.add_per_twitch_metrics(per_twitch_df, metric_id, estimate)
+            metric.add_aggregate_metrics(aggregate_df, metric_id, estimate)
 
     per_twitch_df = concat([dfs["per_twitch"][j] for j in dfs["per_twitch"].keys()], axis=1)
     aggregate_df = concat([dfs["aggregate"][j] for j in dfs["aggregate"].keys()], axis=1)

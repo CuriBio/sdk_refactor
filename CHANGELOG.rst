@@ -1,6 +1,15 @@
 Changelog for Pulse3D
 =====================
 
+0.29.2 (2023-01-24)
+-------------------
+
+Fixed:
+^^^^^^
+- Calculation of twitch amplitude now correctly interpolates the baseline linearly between the
+  Contraction 10% and Relaxation 90% points.
+
+
 0.29.1 (2023-01-23)
 -------------------
 

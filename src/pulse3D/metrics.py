@@ -151,26 +151,31 @@ class TwitchAmplitude(BaseMetric):
         Returns:
             Pandas Series of float values representing the amplitude of each twitch
         """
+        twitch_width = 90
+
         _, coordinates = TwitchWidth.calculate_twitch_widths(
             filtered_data=filtered_data,
             twitch_indices=twitch_indices,
-            twitch_width_percents=(10, 90),
+            twitch_width_percents=(twitch_width,),
             rounded=rounded,
             as_dict=True,  # Tanner (1/20/23): using as_dict=True here to speed this up. This calculation is performed in the MA Controller, so it must be as fast as possible
         )
-        data_series = filtered_data[1, :]
 
         estimates_dict: Dict[int, float] = dict()
 
-        for twitch_peak_x, twitch_data in coordinates.items():
-            c10x = twitch_data["time"]["contraction"][10] / MICRO_TO_BASE_CONVERSION
-            c10y = twitch_data["force"]["contraction"][10]
-            r90x = twitch_data["time"]["relaxation"][90] / MICRO_TO_BASE_CONVERSION
-            r90y = twitch_data["force"]["relaxation"][90]
+        for twitch_peak_idx, twitch_data in coordinates.items():
+            twitch_peak_x, twitch_peak_y = filtered_data[:, twitch_peak_idx]
+
+            # C10 in the metric definition diagram is the C point at 90% twitch width
+            c10x = twitch_data["time"]["contraction"][twitch_width]
+            c10y = twitch_data["force"]["contraction"][twitch_width]
+            r90x = twitch_data["time"]["relaxation"][twitch_width]
+            r90y = twitch_data["force"]["relaxation"][twitch_width]
 
             twitch_base_y = interpolate_y_for_x_between_two_points(twitch_peak_x, c10x, c10y, r90x, r90y)
-            amplitude_value = data_series[twitch_peak_x] - twitch_base_y
-            estimates_dict[twitch_peak_x] = amplitude_value
+            amplitude_y = (twitch_peak_y - twitch_base_y) * MICRO_TO_BASE_CONVERSION
+
+            estimates_dict[twitch_peak_idx] = amplitude_y
 
         estimates = pd.Series(estimates_dict)
         return estimates

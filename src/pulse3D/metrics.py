@@ -165,13 +165,10 @@ class TwitchAmplitude(BaseMetric):
             twitch_width_percents=(twitch_width,),
         )
 
-        time_series = filtered_data[0]
-        data_series = filtered_data[1]
-
         estimates_dict: Dict[int, float] = dict()
 
         for twitch_peak_idx, twitch_data in coordinates.iterrows():
-            twitch_peak_x = time_series[twitch_peak_idx]
+            twitch_peak_x, twitch_peak_y = filtered_data[:, twitch_peak_idx]
 
             # C10 in the metric definition diagram is the C point at 90% twitch width
             c10x = twitch_data.loc["time", "contraction", twitch_width]
@@ -179,9 +176,8 @@ class TwitchAmplitude(BaseMetric):
             r90x = twitch_data.loc["time", "relaxation", twitch_width]
             r90y = twitch_data.loc["force", "relaxation", twitch_width]
 
-            slope = (r90y - c10y) / (r90x - c10x)
-            twitch_base_y = c10y + slope * (twitch_peak_x - c10x)
-            amplitude_y = (data_series[twitch_peak_idx] - twitch_base_y) * MICRO_TO_BASE_CONVERSION
+            twitch_base_y = interpolate_y_for_x_between_two_points(twitch_peak_x, c10x, c10y, r90x, r90y)
+            amplitude_y = (twitch_peak_y - twitch_base_y) * MICRO_TO_BASE_CONVERSION
 
             estimates_dict[twitch_peak_idx] = amplitude_y
 

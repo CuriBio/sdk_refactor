@@ -101,12 +101,12 @@ class WellFile:
                 self.attrs = {attr: h5_file.attrs[attr] for attr in list(h5_file.attrs)}
                 self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
 
-                for uuid_, default_val in (
-                    (PLATEMAP_NAME_UUID, "No PlateMap assigned"),
-                    (PLATEMAP_LABEL_UUID, "No label assigned"),
-                ):
-                    if not self.get(uuid_):
-                        self[uuid_] = default_val
+                # TODO unit test
+                for uuid_ in (PLATEMAP_NAME_UUID, PLATEMAP_LABEL_UUID):
+                    val = self.get(uuid_, NOT_APPLICABLE_LABEL)
+                    if val == str(NOT_APPLICABLE_H5_METADATA):
+                        val = NOT_APPLICABLE_LABEL
+                    self[uuid_] = val
 
                 if self.stiffness_override:
                     self.stiffness_factor = stiffness_factor
@@ -762,7 +762,7 @@ def _load_optical_file_attrs(sheet: Worksheet):
     well_name = _get_excel_metadata_value(sheet, WELL_NAME_UUID)
 
     attrs = {
-        FILE_FORMAT_VERSION_METADATA_KEY: "N/A",
+        FILE_FORMAT_VERSION_METADATA_KEY: NOT_APPLICABLE_LABEL,
         TISSUE_SENSOR_READINGS: raw_tissue_reading,
         REFERENCE_SENSOR_READINGS: np.zeros(raw_tissue_reading.shape),
         str(INTERPOLATION_VALUE_UUID): interpolation_value,

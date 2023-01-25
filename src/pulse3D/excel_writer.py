@@ -305,11 +305,21 @@ def write_xlsx(
     else:
         post_stiffness_factor = get_stiffness_label(get_experiment_id(first_wf[PLATE_BARCODE_UUID]))
 
+    stim_barcode_display = first_wf.get(STIM_BARCODE_UUID)
+    if stim_barcode_display is None or stim_barcode_display == str(NOT_APPLICABLE_H5_METADATA):
+        stim_barcode_display = NOT_APPLICABLE_LABEL
+
+    platemap_label_display_rows = [
+        ("", label, ", ".join(well_names))
+        for label, well_names in plate_recording.platemap_labels.items()
+        if label != NOT_APPLICABLE_LABEL
+    ]
+
     # create metadata sheet format as DataFrame
     metadata_rows = [
         ("Recording Information:", "", ""),
         ("", "Plate Barcode", first_wf[PLATE_BARCODE_UUID]),
-        ("", "Stimulation Lid Barcode", first_wf.get(STIM_BARCODE_UUID)),
+        ("", "Stimulation Lid Barcode", stim_barcode_display),
         (
             "",
             "UTC Timestamp of Beginning of Recording",
@@ -318,10 +328,7 @@ def write_xlsx(
         ("", "Post Stiffness Factor", post_stiffness_factor),
         ("Well Grouping Information:", "", ""),
         ("", "PlateMap Name", plate_recording.platemap_name),
-        *[
-            ("", label, ", ".join(well_names))
-            for label, well_names in plate_recording.platemap_labels.items()
-        ],
+        *platemap_label_display_rows,
         ("Device Information:", "", ""),
         ("", "H5 File Layout Version", first_wf.version),
         ("", "Mantarray Serial Number", first_wf.get(MANTARRAY_SERIAL_NUMBER_UUID, "")),
@@ -960,7 +967,7 @@ def aggregate_metrics_df(
         df (DataFrame): aggregate data frame of all metric aggregate measures
     """
     well_names_row = ["", ""] + [d["well_name"] for d in data]
-    description_row = ["", "PlateMap Labels"] + [d["platemap_label"] for d in data]
+    description_row = ["", "PlateMap Label"] + [d["platemap_label"] for d in data]
     error_row = ["", "n (twitches)"] + [
         d["error_msg"] if d["error_msg"] else len(d["metrics"][0]) for d in data
     ]

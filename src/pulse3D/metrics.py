@@ -141,8 +141,7 @@ class TwitchAmplitude(BaseMetric):
         is calculated as the mean distance from peak to both valleys.
 
         Args:
-            twitch_indices: a dictionary in which the key is an integer representing the time points
-                of all the peaks of interest and the value is an inner dictionary with various UUID
+            twitch_indices: a dictionary in which the key is an integer representing (TODO fix this for every metric) of interest and the value is an inner dictionary with various UUID
                 of prior/subsequent peaks and valleys and their index values.
 
             filtered_data: a 2D array of the time and value (magnetic, voltage, displacement, force)

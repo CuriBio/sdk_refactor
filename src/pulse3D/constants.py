@@ -23,6 +23,8 @@ CURRENT_BETA2_HDF5_FILE_FORMAT_VERSION = "1.0.0"
 FILE_FORMAT_VERSION_METADATA_KEY = "File Format Version"
 FILE_MIGRATION_PATHS = immutabledict({"0.3.1": "0.4.1", "0.4.1": "0.4.2"})
 
+NOT_APPLICABLE_LABEL = "N/A"
+
 # Eli (1/19/21): H5 files can't store the concept of `None` in their metadata, so using this value to denote that a particular piece of metadata is not available (i.e. after migrating to a newer file format version)
 NOT_APPLICABLE_H5_METADATA = uuid.UUID("59d92e00-99d5-4460-9a28-5a1a0fe9aecf")
 
@@ -77,6 +79,8 @@ IS_CALIBRATION_FILE_UUID = uuid.UUID("9a6f90eb-fe34-423b-bfed-fb441d6d9e5f")
 CHANNEL_FIRMWARE_VERSION_UUID = uuid.UUID("d9694cfe-824c-41f8-915e-91e41ce7af32")
 BOOT_FLAGS_UUID = uuid.UUID("762f6715-ffcd-4e8d-b707-638dd5777841")
 INITIAL_MAGNET_FINDING_PARAMS_UUID = uuid.UUID("da5f2f6d-6874-4e53-be10-90c4bfbd3d45")
+PLATEMAP_NAME_UUID = uuid.UUID("2663ebdb-dce8-4fa1-8ec6-383db1ed1dbb")
+PLATEMAP_LABEL_UUID = uuid.UUID("f4c1a517-4c0b-4970-9253-a5b4aa64362f")
 METADATA_UUID_DESCRIPTIONS = immutabledict(
     {
         # General values
@@ -115,6 +119,8 @@ METADATA_UUID_DESCRIPTIONS = immutabledict(
         ORIGINAL_FILE_VERSION_UUID: "The original version of the file when recorded, prior to any migrations to newer versions/formats.",
         UTC_TIMESTAMP_OF_FILE_VERSION_MIGRATION_UUID: "Timestamp when this file was migrated from an earlier version.",
         FILE_VERSION_PRIOR_TO_MIGRATION_UUID: "File format version that this file was migrated from",
+        PLATEMAP_NAME_UUID: "The name of the Platemap Well Grouping",
+        PLATEMAP_LABEL_UUID: "The name of a label in the Platemap Well Grouping",
         # Beta 1 specific values
         XEM_SERIAL_NUMBER_UUID: "XEM Serial Number",
         # Beta 2 specific values
@@ -138,6 +144,7 @@ METADATA_UUID_DESCRIPTIONS = immutabledict(
 )
 
 DATETIME_STR_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
+
 MILLI_TO_BASE_CONVERSION = int(1e3)
 CENTIMILLISECONDS_PER_SECOND = int(1e5)
 MICRO_TO_BASE_CONVERSION = int(1e6)
@@ -193,11 +200,13 @@ DEFAULT_TWITCH_WIDTH_PERCENTS = tuple(range(10, 95, 5))
 DEFAULT_PROMINENCE_FACTORS = (6, 6)
 DEFAULT_WIDTH_FACTORS = (7, 7)
 
+# twitch indices keys
 PRIOR_PEAK_INDEX_UUID = uuid.UUID("80df90dc-21f8-4cad-a164-89436909b30a")
 PRIOR_VALLEY_INDEX_UUID = uuid.UUID("72ba9466-c203-41b6-ac30-337b4a17a124")
 SUBSEQUENT_PEAK_INDEX_UUID = uuid.UUID("7e37325b-6681-4623-b192-39f154350f36")
 SUBSEQUENT_VALLEY_INDEX_UUID = uuid.UUID("fd47ba6b-ee4d-4674-9a89-56e0db7f3d97")
 
+# filters
 BESSEL_BANDPASS_UUID = uuid.UUID("0ecf0e52-0a29-453f-a6ff-46f5ec3ae783")
 BESSEL_LOWPASS_10_UUID = uuid.UUID("7d64cac3-b841-4912-b734-c0cf20a81e7a")
 BESSEL_LOWPASS_30_UUID = uuid.UUID("eee66c75-4dc4-4eb4-8d48-6c608bf28d91")

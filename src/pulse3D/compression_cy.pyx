@@ -101,3 +101,32 @@ def compress_filtered_magnetic_data(data: NDArray[(2, Any), int]) -> NDArray[(2,
             left_idx += 1
 
     return np.array([np.compress(what_to_keep, data_view[0]), np.compress(what_to_keep, data_view[1])], np.int64)
+
+
+cpdef float interpolate_x_for_y_between_two_points(
+    float desired_y,
+    float x_1,
+    float y_1,
+    float x_2,
+    float y_2,
+):
+    """Find a value of x between two points that matches the desired y value.
+
+    Uses linear interpolation, based on point-slope formula.
+    """
+    return interpolate_y_for_x_between_two_points(desired_y, y_1, x_1, y_2, x_2)
+
+
+cpdef float interpolate_y_for_x_between_two_points(
+    float desired_x,
+    float x_1,
+    float y_1,
+    float x_2,
+    float y_2,
+):
+    """Find a value of y between two points that matches the desired x value.
+
+    Uses linear interpolation, based on point-slope formula.
+    """
+    cdef float slope = (y_2 - y_1) / (x_2 - x_1)
+    return slope * (desired_x - x_1) + y_1

@@ -183,17 +183,16 @@ def find_twitch_indices(
         raise TwoValleysInARowError((valley_indices[valley_idx], valley_indices[valley_idx + 1]))
 
     # compile dict of twitch information
-    for itr_idx, itr_peak_index in enumerate(peak_indices):
-        if itr_idx < peak_indices.shape[0] - 1:  # last peak
-            if itr_idx == 0 and starts_with_peak:
-                continue
+    for itr_idx, itr_peak_index in enumerate(peak_indices[:-1]):
+        if itr_idx == 0 and starts_with_peak:
+            continue
 
-            twitches[itr_peak_index] = {
-                PRIOR_PEAK_INDEX_UUID: None if itr_idx == 0 else peak_indices[itr_idx - 1],
-                PRIOR_VALLEY_INDEX_UUID: valley_indices[itr_idx - 1 if starts_with_peak else itr_idx],
-                SUBSEQUENT_PEAK_INDEX_UUID: peak_indices[itr_idx + 1],
-                SUBSEQUENT_VALLEY_INDEX_UUID: valley_indices[itr_idx if starts_with_peak else itr_idx + 1],
-            }
+        twitches[itr_peak_index] = {
+            PRIOR_PEAK_INDEX_UUID: None if itr_idx == 0 else peak_indices[itr_idx - 1],
+            PRIOR_VALLEY_INDEX_UUID: valley_indices[itr_idx - 1 if starts_with_peak else itr_idx],
+            SUBSEQUENT_PEAK_INDEX_UUID: peak_indices[itr_idx + 1],
+            SUBSEQUENT_VALLEY_INDEX_UUID: valley_indices[itr_idx if starts_with_peak else itr_idx + 1],
+        }
 
     return twitches
 

@@ -7,25 +7,22 @@ If a new metric is requested, you must implement `fit`,
 
 # for hashing dataframes
 import abc
-from functools import lru_cache
 from functools import partial
-from hashlib import sha256
 from typing import Any
 from typing import Dict
-from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import Union
 from uuid import UUID
 
-from nptyping import Float64
 from nptyping import NDArray
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
 from pandas import Series
-from pandas.util import hash_pandas_object
 
+from .compression_cy import interpolate_x_for_y_between_two_points
+from .compression_cy import interpolate_y_for_x_between_two_points
 from .constants import DEFAULT_TWITCH_WIDTH_PERCENTS
 from .constants import MICRO_TO_BASE_CONVERSION
 from .constants import PRIOR_VALLEY_INDEX_UUID
@@ -53,7 +50,7 @@ class BaseMetric:
         filtered_data: NDArray[(2, Any), int],
         twitch_indices: Dict[int, Dict[UUID, Optional[int]]],
         **kwargs: Dict[str, Any],
-    ) -> Union[NDArray[Float64], List[Dict[int, Dict[UUID, Any]]], DataFrame]:
+    ) -> Series:
         pass
 
     def add_per_twitch_metrics(
@@ -124,7 +121,7 @@ class TwitchAmplitude(BaseMetric):
         filtered_data: NDArray[(2, Any), int],
         twitch_indices: Dict[int, Dict[UUID, Optional[int]]],
         **kwargs: Dict[str, Any],
-    ) -> DataFrame:
+    ) -> Series:
 
         amplitudes = self.calculate_amplitudes(
             twitch_indices=twitch_indices, filtered_data=filtered_data, rounded=self.rounded
@@ -144,8 +141,7 @@ class TwitchAmplitude(BaseMetric):
         is calculated as the mean distance from peak to both valleys.
 
         Args:
-            twitch_indices: a dictionary in which the key is an integer representing the time points
-                of all the peaks of interest and the value is an inner dictionary with various UUID
+            twitch_indices: a dictionary in which the key is an integer representing (TODO fix this for every metric) of interest and the value is an inner dictionary with various UUID
                 of prior/subsequent peaks and valleys and their index values.
 
             filtered_data: a 2D array of the time and value (magnetic, voltage, displacement, force)
@@ -156,25 +152,24 @@ class TwitchAmplitude(BaseMetric):
         """
         twitch_width = 90
 
-        twitch_indices_hashable = HashableDataFrame(DataFrame.from_dict(twitch_indices).T)
-        filtered_data_hashable = tuple(tuple(d) for d in filtered_data)
         _, coordinates = TwitchWidth.calculate_twitch_widths(
-            twitch_indices=twitch_indices_hashable,
-            filtered_data=filtered_data_hashable,
-            rounded=rounded,
+            filtered_data=filtered_data,
+            twitch_indices=twitch_indices,
             twitch_width_percents=(twitch_width,),
+            rounded=rounded,
+            as_dict=True,  # Tanner (1/20/23): using as_dict=True here to speed this up. This calculation is performed in the MA Controller, so it must be as fast as possible
         )
 
         estimates_dict: Dict[int, float] = dict()
 
-        for twitch_peak_idx, twitch_data in coordinates.iterrows():
+        for twitch_peak_idx, twitch_data in coordinates.items():
             twitch_peak_x, twitch_peak_y = filtered_data[:, twitch_peak_idx]
 
             # C10 in the metric definition diagram is the C point at 90% twitch width
-            c10x = twitch_data.loc["time", "contraction", twitch_width]
-            c10y = twitch_data.loc["force", "contraction", twitch_width]
-            r90x = twitch_data.loc["time", "relaxation", twitch_width]
-            r90y = twitch_data.loc["force", "relaxation", twitch_width]
+            c10x = twitch_data["time"]["contraction"][twitch_width]
+            c10y = twitch_data["force"]["contraction"][twitch_width]
+            r90x = twitch_data["time"]["relaxation"][twitch_width]
+            r90y = twitch_data["force"]["relaxation"][twitch_width]
 
             twitch_base_y = interpolate_y_for_x_between_two_points(twitch_peak_x, c10x, c10y, r90x, r90y)
             amplitude_y = (twitch_peak_y - twitch_base_y) * MICRO_TO_BASE_CONVERSION
@@ -197,7 +192,7 @@ class TwitchFractionAmplitude(TwitchAmplitude):
         filtered_data: NDArray[(2, Any), int],
         twitch_indices: Dict[int, Dict[UUID, Optional[int]]],
         **kwargs: Dict[str, Any],
-    ) -> DataFrame:
+    ) -> Series:
         amplitudes = super().fit(
             peak_and_valley_indices=peak_and_valley_indices,
             twitch_indices=twitch_indices,
@@ -205,39 +200,6 @@ class TwitchFractionAmplitude(TwitchAmplitude):
         )
         estimates = amplitudes / np.nanmax(amplitudes)
         return estimates
-
-
-class TwitchWidthCoordinates(BaseMetric):
-    """Calculate contraction (or relaxation) percent-width coordinates."""
-
-    def __init__(
-        self,
-        rounded: bool = False,
-        twitch_width_percents: Tuple[int, ...] = DEFAULT_TWITCH_WIDTH_PERCENTS,
-        **kwargs: Dict[str, Any],
-    ):
-        super().__init__(rounded=rounded, **kwargs)
-
-        self.twitch_width_percents = twitch_width_percents
-
-    def fit(
-        self,
-        peak_and_valley_indices: Tuple[NDArray[int], NDArray[int]],
-        filtered_data: NDArray[(2, Any), int],
-        twitch_indices: Dict[int, Dict[UUID, Optional[int]]],
-        **kwargs: Dict[str, Any],
-    ) -> DataFrame:
-        twitch_indices_hashable = HashableDataFrame(DataFrame.from_dict(twitch_indices).T)
-        filtered_data_hashable = tuple(tuple(d) for d in filtered_data)
-
-        _, coordinates = TwitchWidth.calculate_twitch_widths(
-            twitch_indices=twitch_indices_hashable,
-            filtered_data=filtered_data_hashable,
-            rounded=self.rounded,
-            twitch_width_percents=tuple(self.twitch_width_percents),
-        )
-
-        return coordinates
 
 
 class TwitchWidth(BaseMetric):
@@ -260,14 +222,11 @@ class TwitchWidth(BaseMetric):
         twitch_indices: Dict[int, Dict[UUID, Optional[int]]],
         **kwargs: Dict[str, Any],
     ) -> DataFrame:
-        twitch_indices_hashable = HashableDataFrame(DataFrame.from_dict(twitch_indices).T)
-        filtered_data_hashable = tuple(tuple(d) for d in filtered_data)
-
         widths, _ = self.calculate_twitch_widths(
-            twitch_indices=twitch_indices_hashable,
-            filtered_data=filtered_data_hashable,
-            rounded=self.rounded,
+            filtered_data=filtered_data,
+            twitch_indices=twitch_indices,
             twitch_width_percents=tuple(self.twitch_width_percents),
+            rounded=self.rounded,
         )
 
         return widths
@@ -279,18 +238,16 @@ class TwitchWidth(BaseMetric):
             aggregate_df[metric_id, iter_percent] = aggregate_estimates
 
     @staticmethod
-    @lru_cache()
     def calculate_twitch_widths(
-        twitch_indices: DataFrame,
-        filtered_data: Tuple[Tuple[float], Tuple[float]],
-        rounded: bool = False,
+        filtered_data: NDArray[(2, Any), int],
+        twitch_indices: Dict[int, Dict[UUID, Optional[int]]],
         twitch_width_percents: Tuple[int, ...] = DEFAULT_TWITCH_WIDTH_PERCENTS,
+        rounded: bool = False,
+        as_dict: bool = False,
     ) -> Tuple[DataFrame, DataFrame]:
         """Determine twitch width between 10-90% down to the nearby valleys.
 
-        This is a time-consuming step, so we use a hashable DataFrame for the
-        twitch indices, and a tuple of tuples for the filtered data.
-
+        TODO
         Args:
             twitch_indices: a HashableDataFrame in which index is an integer representing the time points
                 of all the peaks of interest and columns are UUIDs of prior/subsequent peaks and valleys and
@@ -303,27 +260,30 @@ class TwitchWidth(BaseMetric):
             is a percent-twitch width of all the peaks of interest
 
             coordinate_df: MultiIndex DataFrame, where each index is an integer representing the time points,
-            and each  column level corresponds to the time (X) / force(Y), contration (rising) / relaxation
+            and each  column level corresponds to the time (X) / force(Y), contraction (rising) / relaxation
             (falling), and percent-twitch width coordinates
         """
         coordinate_dict: Dict[int, Dict[str, Dict[str, Any]]] = dict()
 
-        width_dict: Dict[int, Dict[int, Any]] = {twitch_index: {} for twitch_index in twitch_indices.index}
+        width_dict: Dict[int, Dict[int, Any]] = {twitch_index: {} for twitch_index in twitch_indices}
 
-        time_series = filtered_data[0]
-        value_series = filtered_data[1]
+        timepoints_arr = filtered_data[0]
+        force_amplitudes_arr = filtered_data[1]
 
-        for iter_twitch_peak_idx in twitch_indices.index:
-            peak_value = value_series[iter_twitch_peak_idx]
+        twitch_width_percents = sorted(twitch_width_percents)  # type: ignore
 
-            prior_valley_idx = int(twitch_indices[PRIOR_VALLEY_INDEX_UUID][iter_twitch_peak_idx])
-            prior_valley_value = value_series[prior_valley_idx]
+        for iter_twitch_peak_idx in twitch_indices:
+            peak_force = force_amplitudes_arr[iter_twitch_peak_idx]
 
-            subsequent_valley_idx = int(twitch_indices[SUBSEQUENT_VALLEY_INDEX_UUID][iter_twitch_peak_idx])
-            subsequent_valley_value = value_series[subsequent_valley_idx]
+            # calculate magnitude of rise
+            prior_valley_idx = twitch_indices[iter_twitch_peak_idx][PRIOR_VALLEY_INDEX_UUID]  # type: ignore
+            prior_valley_force = force_amplitudes_arr[prior_valley_idx]
+            magnitude_of_rise = peak_force - prior_valley_force
 
-            rising_amplitude = peak_value - prior_valley_value
-            falling_amplitude = peak_value - subsequent_valley_value
+            # calculate magnitude of fall
+            subsequent_valley_idx = twitch_indices[iter_twitch_peak_idx][SUBSEQUENT_VALLEY_INDEX_UUID]  # type: ignore
+            subsequent_valley_force = force_amplitudes_arr[subsequent_valley_idx]
+            magnitude_of_fall = peak_force - subsequent_valley_force
 
             rising_idx = iter_twitch_peak_idx - 1
             falling_idx = iter_twitch_peak_idx + 1
@@ -333,36 +293,33 @@ class TwitchWidth(BaseMetric):
                 for metric_type in ("force", "time")
             }
 
-            for iter_percent in sorted(twitch_width_percents):
-                rising_threshold = peak_value - (iter_percent / 100) * rising_amplitude
-                falling_threshold = peak_value - (iter_percent / 100) * falling_amplitude
+            for iter_percent in twitch_width_percents:
+                rising_threshold = peak_force - (iter_percent / 100) * magnitude_of_rise
+                falling_threshold = peak_force - (iter_percent / 100) * magnitude_of_fall
 
-                # move to the left from the twitch peak until the threshold is reached
-                while abs(value_series[rising_idx] - prior_valley_value) > abs(
-                    rising_threshold - prior_valley_value
-                ):
+                # move to the left from the twitch peak until the rising threshold is reached
+                while force_amplitudes_arr[rising_idx] > rising_threshold:
                     rising_idx -= 1
                 # move to the right from the twitch peak until the falling threshold is reached
-                while abs(value_series[falling_idx] - subsequent_valley_value) > abs(
-                    falling_threshold - subsequent_valley_value
-                ):
+                while force_amplitudes_arr[falling_idx] > falling_threshold:
                     falling_idx += 1
+
                 interpolated_rising_timepoint = interpolate_x_for_y_between_two_points(
                     rising_threshold,
-                    time_series[rising_idx],
-                    value_series[rising_idx],
-                    time_series[rising_idx + 1],
-                    value_series[rising_idx + 1],
+                    timepoints_arr[rising_idx],
+                    force_amplitudes_arr[rising_idx],
+                    timepoints_arr[rising_idx + 1],
+                    force_amplitudes_arr[rising_idx + 1],
                 )
                 interpolated_falling_timepoint = interpolate_x_for_y_between_two_points(
                     falling_threshold,
-                    time_series[falling_idx],
-                    value_series[falling_idx],
-                    time_series[falling_idx - 1],
-                    value_series[falling_idx - 1],
+                    timepoints_arr[falling_idx],
+                    force_amplitudes_arr[falling_idx],
+                    timepoints_arr[falling_idx - 1],
+                    force_amplitudes_arr[falling_idx - 1],
                 )
-
                 width_val = interpolated_falling_timepoint - interpolated_rising_timepoint
+
                 if rounded:
                     width_val = int(round(width_val, 0))
                     interpolated_falling_timepoint = int(round(interpolated_falling_timepoint, 0))
@@ -380,13 +337,16 @@ class TwitchWidth(BaseMetric):
             # fill coordinate value dictionary
             coordinate_dict[iter_twitch_peak_idx] = twitch_dict
 
+        if as_dict:
+            return width_dict, coordinate_dict
+
         # convert coordinate dictionary to dataframe
         coordinate_df = pd.DataFrame.from_dict(
             {
                 (twitch_index, metric_type, contraction_type, twitch_width): coordinate_dict[twitch_index][
                     metric_type
                 ][contraction_type][twitch_width]
-                for twitch_index in twitch_indices.index
+                for twitch_index in twitch_indices
                 for metric_type in ("force", "time")
                 for contraction_type in ["contraction", "relaxation"]
                 for twitch_width in twitch_width_percents
@@ -435,28 +395,20 @@ class TwitchVelocity(BaseMetric):
         twitch_indices: Dict[int, Dict[UUID, Optional[int]]],
         **kwargs: Dict[str, Any],
     ) -> Series:
-        twitch_indices_hashable = HashableDataFrame(DataFrame.from_dict(twitch_indices).T)
-        filtered_data_hashable = tuple(tuple(d) for d in filtered_data)
-
         _, coordinates = TwitchWidth.calculate_twitch_widths(
-            twitch_indices=twitch_indices_hashable,
-            filtered_data=filtered_data_hashable,
-            rounded=self.rounded,
+            filtered_data=filtered_data,
+            twitch_indices=twitch_indices,
             twitch_width_percents=tuple(self.twitch_width_percents),
+            rounded=self.rounded,
         )
 
         velocities = self.calculate_twitch_velocity(
-            twitch_indices=twitch_indices, coordinate_df=coordinates, is_contraction=self.is_contraction
+            coordinate_df=coordinates, is_contraction=self.is_contraction
         )
 
         return velocities
 
-    def calculate_twitch_velocity(
-        self,
-        twitch_indices: Dict[int, Dict[UUID, Optional[int]]],
-        coordinate_df: DataFrame,
-        is_contraction: bool,
-    ) -> Series:
+    def calculate_twitch_velocity(self, coordinate_df: DataFrame, is_contraction: bool) -> Series:
         """Find the velocity for each twitch.
 
         Args:
@@ -580,14 +532,11 @@ class TwitchAUC(BaseMetric):
         twitch_indices: Dict[int, Dict[UUID, Optional[int]]],
         **kwargs: Dict[str, Any],
     ) -> Series:
-        twitch_indices_hashable = HashableDataFrame(DataFrame.from_dict(twitch_indices).T)
-        filtered_data_hashable = tuple(tuple(d) for d in filtered_data)
-
         _, coordinates = TwitchWidth.calculate_twitch_widths(
-            twitch_indices=twitch_indices_hashable,
-            filtered_data=filtered_data_hashable,
-            rounded=self.rounded,
+            filtered_data=filtered_data,
+            twitch_indices=twitch_indices,
             twitch_width_percents=tuple(self.twitch_width_percents),
+            rounded=self.rounded,
         )
 
         auc = self.calculate_area_under_curve(
@@ -748,7 +697,7 @@ class TwitchPeriod(BaseMetric):
         filtered_data: NDArray[(2, Any), int],
         twitch_indices: Dict[int, Dict[UUID, Optional[int]]],
         **kwargs: Dict[str, Any],
-    ) -> DataFrame:
+    ) -> Series:
         periods = self.calculate_twitch_period(
             twitch_indices=twitch_indices,
             peak_indices=peak_and_valley_indices[0],
@@ -837,14 +786,11 @@ class TwitchPeakTime(BaseMetric):
         twitch_indices: Dict[int, Dict[UUID, Optional[int]]],
         **kwargs: Dict[str, Any],
     ) -> DataFrame:
-        twitch_indices_hashable = HashableDataFrame(DataFrame.from_dict(twitch_indices).T)
-        filtered_data_hashable = tuple(tuple(d) for d in filtered_data)
-
         _, coordinates = TwitchWidth.calculate_twitch_widths(
-            twitch_indices=twitch_indices_hashable,
-            filtered_data=filtered_data_hashable,
-            rounded=self.rounded,
+            filtered_data=filtered_data,
+            twitch_indices=twitch_indices,
             twitch_width_percents=tuple(self.twitch_width_percents),
+            rounded=self.rounded,
         )
 
         time_difference = self.calculate_twitch_time_diff(
@@ -966,56 +912,3 @@ class TwitchPeakToBaseline(BaseMetric):
         ]
         estimates = pd.Series(estimates_list, index=twitch_indices.keys()) / MICRO_TO_BASE_CONVERSION
         return estimates
-
-
-def interpolate_x_for_y_between_two_points(
-    desired_y: Union[int, float],
-    x_1: Union[int, float],
-    y_1: Union[int, float],
-    x_2: Union[int, float],
-    y_2: Union[int, float],
-) -> Union[int, float]:
-    """Find a value of x between two points that matches the desired y value.
-
-    Uses linear interpolation, based on point-slope formula.
-    """
-    denominator = x_2 - x_1
-
-    if denominator == 0:
-        raise ZeroDivisionError("Denominator cannot be 0.")
-
-    slope = (y_2 - y_1) / denominator
-    return (desired_y - y_1) / slope + x_1
-
-
-def interpolate_y_for_x_between_two_points(
-    desired_x: Union[int, float],
-    x_1: Union[int, float],
-    y_1: Union[int, float],
-    x_2: Union[int, float],
-    y_2: Union[int, float],
-) -> Union[int, float]:
-    """Find a value of y between two points that matches the desired x value.
-
-    Uses linear interpolation, based on point-slope formula.
-    """
-    denominator = x_2 - x_1
-
-    if denominator == 0:
-        raise ZeroDivisionError("Denominator cannot be 0.")
-
-    slope = (y_2 - y_1) / denominator
-    return slope * (desired_x - x_1) + y_1
-
-
-class HashableDataFrame(DataFrame):
-    def __init__(self, obj):
-        super().__init__(obj)
-
-    def __hash__(self):
-        hash_value = sha256(hash_pandas_object(self, index=True).values)
-        hash_value = hash(hash_value.hexdigest())
-        return hash_value
-
-    def __eq__(self, other):
-        return self.equals(other)

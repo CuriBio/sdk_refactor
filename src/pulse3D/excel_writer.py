@@ -305,18 +305,30 @@ def write_xlsx(
     else:
         post_stiffness_factor = get_stiffness_label(get_experiment_id(first_wf[PLATE_BARCODE_UUID]))
 
+    stim_barcode_display = first_wf.get(STIM_BARCODE_UUID)
+    if stim_barcode_display is None or stim_barcode_display == str(NOT_APPLICABLE_H5_METADATA):
+        stim_barcode_display = NOT_APPLICABLE_LABEL
+
+    platemap_label_display_rows = [
+        ("", label, ", ".join(well_names))
+        for label, well_names in plate_recording.platemap_labels.items()
+        if label != NOT_APPLICABLE_LABEL
+    ]
+
     # create metadata sheet format as DataFrame
     metadata_rows = [
         ("Recording Information:", "", ""),
         ("", "Plate Barcode", first_wf[PLATE_BARCODE_UUID]),
-        ("", "Stimulation Lid Barcode", first_wf.get(STIM_BARCODE_UUID)),
+        ("", "Stimulation Lid Barcode", stim_barcode_display),
         (
             "",
             "UTC Timestamp of Beginning of Recording",
             str(first_wf[UTC_BEGINNING_RECORDING_UUID].replace(tzinfo=None)),
         ),
         ("", "Post Stiffness Factor", post_stiffness_factor),
-        ("", "", ""),
+        ("Well Grouping Information:", "", ""),
+        ("", "PlateMap Name", plate_recording.platemap_name),
+        *platemap_label_display_rows,
         ("Device Information:", "", ""),
         ("", "H5 File Layout Version", first_wf.version),
         ("", "Mantarray Serial Number", first_wf.get(MANTARRAY_SERIAL_NUMBER_UUID, "")),
@@ -440,6 +452,7 @@ def write_xlsx(
                 "metrics": metrics,
                 "well_index": well_index,
                 "well_name": TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_index),
+                "platemap_label": well_file[PLATEMAP_LABEL_UUID],
                 "min_value": min_value,
                 "interp_data": interpolated_force,
                 "interp_data_fn": interp_data_fn,
@@ -953,12 +966,11 @@ def aggregate_metrics_df(
     Returns:
         df (DataFrame): aggregate data frame of all metric aggregate measures
     """
-    well_names_row = ["", "", *[d["well_name"] for d in data]]
-    description_row = ["", "Treatment Description", *["" for _ in data]]
-    error_row = [
-        "",
-        "n (twitches)",
-        *[(len(d["metrics"][0]) if not d["error_msg"] else d["error_msg"]) for d in data],
+    well_names_row = ["", ""] + [d["well_name"] for d in data]
+    description_row = ["", "PlateMap Label"] + [d["platemap_label"] for d in data]
+    error_row = ["", "n (twitches)"] + [
+        d["error_msg"] if d["error_msg"] else len(d["metrics"][0])  # get error or the number of twitches
+        for d in data
     ]
 
     df = pd.DataFrame(data=[well_names_row, description_row, error_row, [""]])

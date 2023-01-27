@@ -93,81 +93,62 @@ class WellFile:
         self.stiffness_override = stiffness_factor is not None
 
         if file_path.endswith(".h5"):
-            with h5py.File(file_path, "r") as h5_file:
-                self.file_name = os.path.basename(h5_file.filename)
-                self.is_force_data = True
-                self.is_magnetic_data = True
+            self.is_force_data = True
+            self.is_magnetic_data = True
 
-                self.attrs = {attr: h5_file.attrs[attr] for attr in list(h5_file.attrs)}
-                self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
+            self._load_data_from_h5_file(file_path)
 
-                # TODO unit test
-                for uuid_ in (PLATEMAP_NAME_UUID, PLATEMAP_LABEL_UUID):
-                    val = self.get(uuid_, NOT_APPLICABLE_LABEL)
-                    if val == str(NOT_APPLICABLE_H5_METADATA):
-                        val = NOT_APPLICABLE_LABEL
-                    self[uuid_] = val
+            self.tissue_sampling_period = (
+                sampling_period if sampling_period else self[TISSUE_SAMPLING_PERIOD_UUID]
+            )
 
-                if self.stiffness_override:
-                    self.stiffness_factor = stiffness_factor
-                elif not self.get(IS_CALIBRATION_FILE_UUID, False):
-                    # earlier versions of files do not have the IS_CALIBRATION_FILE_UUID in their metadata
-                    experiment_id = get_experiment_id(self[PLATE_BARCODE_UUID])
-                    self.stiffness_factor = get_stiffness_factor(experiment_id, self[WELL_INDEX_UUID])
-                else:
-                    # calibration recordings do not have an associated barcode or post stiffness since they
-                    # are creatd when a plate is not even on the istrument, so just set the stiffness factor to 1
-                    self.stiffness_factor = CALIBRATION_STIFFNESS_FACTOR
+            if self.stiffness_override:
+                self.stiffness_factor = stiffness_factor
+            elif not self.get(IS_CALIBRATION_FILE_UUID, False):
+                # earlier versions of files do not have the IS_CALIBRATION_FILE_UUID in their metadata
+                experiment_id = get_experiment_id(self[PLATE_BARCODE_UUID])
+                self.stiffness_factor = get_stiffness_factor(experiment_id, self[WELL_INDEX_UUID])
+            else:
+                # calibration recordings do not have an associated barcode or post stiffness since they
+                # are creatd when a plate is not even on the istrument, so just set the stiffness factor to 1
+                self.stiffness_factor = CALIBRATION_STIFFNESS_FACTOR
 
-                # extract datetimes
-                for uuid_ in (
-                    UTC_BEGINNING_RECORDING_UUID,
-                    UTC_BEGINNING_DATA_ACQUISTION_UUID,
-                    UTC_FIRST_TISSUE_DATA_POINT_UUID,
-                ):
-                    self[uuid_] = self._extract_datetime(uuid_)
-
-                self.tissue_sampling_period = (
-                    sampling_period if sampling_period else self[TISSUE_SAMPLING_PERIOD_UUID]
+            if self.version < VersionInfo.parse("1.0.0"):  # type: ignore
+                # Ref data not yet added to Beta 2 files
+                self[UTC_FIRST_REF_DATA_POINT_UUID] = self._extract_datetime(UTC_FIRST_REF_DATA_POINT_UUID)
+                # setup noise filter, should probably add beta 2 file support for this
+                self.noise_filter_uuid = (
+                    TSP_TO_DEFAULT_FILTER_UUID[self.tissue_sampling_period] if self.is_magnetic_data else None
+                )
+                self.filter_coefficients = (
+                    create_filter(self.noise_filter_uuid, self.tissue_sampling_period)
+                    if self.noise_filter_uuid
+                    else None
                 )
 
-                if self.version < VersionInfo.parse("1.0.0"):
-                    # Ref data not yet added to Beta 2 files
-                    self[UTC_FIRST_REF_DATA_POINT_UUID] = self._extract_datetime(
-                        UTC_FIRST_REF_DATA_POINT_UUID
-                    )
-                    # setup noise filter, should probably add beta 2 file support for this
-                    self.noise_filter_uuid = (
-                        TSP_TO_DEFAULT_FILTER_UUID[self.tissue_sampling_period]
-                        if self.is_magnetic_data
-                        else None
-                    )
-                    self.filter_coefficients = (
-                        create_filter(self.noise_filter_uuid, self.tissue_sampling_period)
-                        if self.noise_filter_uuid
-                        else None
-                    )
+                self._load_magnetic_data()
+            else:
+                if self.has_inverted_post_magnet:
+                    raise ValueError("V1 algorithm will automatically fix this issue")
 
-                    # load sensor data. This is only possible to do here for Beta 1 data files
-                    self[TISSUE_SENSOR_READINGS] = self._load_reading(h5_file, TISSUE_SENSOR_READINGS)
-                    self[REFERENCE_SENSOR_READINGS] = self._load_reading(h5_file, REFERENCE_SENSOR_READINGS)
-                    self._load_magnetic_data()
-                else:
-                    if self.has_inverted_post_magnet:
-                        raise ValueError("V1 algorithm will automatically fix this issue")
+                self.noise_filter_uuid = None
+                self.filter_coefficients = None
+                self.is_magnetic_data = False
 
-                    self.noise_filter_uuid = None
-                    self.filter_coefficients = None
-                    self.is_magnetic_data = False
+            # extract datetime metadata
+            for uuid_ in (
+                UTC_BEGINNING_RECORDING_UUID,
+                UTC_BEGINNING_DATA_ACQUISTION_UUID,
+                UTC_FIRST_TISSUE_DATA_POINT_UUID,
+            ):
+                self[uuid_] = self._extract_datetime(uuid_)
 
-                    for dataset in (
-                        TIME_INDICES,
-                        TIME_OFFSETS,
-                        TISSUE_SENSOR_READINGS,
-                        REFERENCE_SENSOR_READINGS,
-                        STIMULATION_READINGS,
-                    ):
-                        self[dataset] = h5_file[dataset][:]
+            # format platemap metadata
+            for uuid_ in (PLATEMAP_NAME_UUID, PLATEMAP_LABEL_UUID):
+                val = self.get(uuid_, NOT_APPLICABLE_LABEL)
+                if val == str(NOT_APPLICABLE_H5_METADATA):
+                    val = NOT_APPLICABLE_LABEL
+                self[uuid_] = val
 
         elif file_path.endswith(".xlsx"):
             self._excel_sheet = _get_single_sheet(file_path)
@@ -191,6 +172,42 @@ class WellFile:
             self.stiffness_factor = stiffness_factor if stiffness_factor else CARDIAC_STIFFNESS_FACTOR
 
             self._load_magnetic_data()
+
+    def _load_data_from_h5_file(self, file_path: str) -> None:
+        with h5py.File(file_path, "r") as h5_file:
+            self.file_name = os.path.basename(h5_file.filename)
+
+            self.attrs = {attr: h5_file.attrs[attr] for attr in list(h5_file.attrs)}
+            self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
+
+            if self.version < VersionInfo.parse("1.0.0"):
+                # load sensor data. This is only possible to do here for Beta 1 data files
+                self[TISSUE_SENSOR_READINGS] = self._load_reading(h5_file, TISSUE_SENSOR_READINGS)
+                self[REFERENCE_SENSOR_READINGS] = self._load_reading(h5_file, REFERENCE_SENSOR_READINGS)
+            else:
+                for dataset in (
+                    TIME_INDICES,
+                    TIME_OFFSETS,
+                    TISSUE_SENSOR_READINGS,
+                    REFERENCE_SENSOR_READINGS,
+                    STIMULATION_READINGS,
+                ):
+                    self[dataset] = h5_file[dataset][:]
+
+    def _load_reading(self, h5_file, reading_type: str) -> NDArray[(Any, Any), int]:
+        sampling_period = self[
+            REF_SAMPLING_PERIOD_UUID
+            if reading_type == REFERENCE_SENSOR_READINGS
+            else TISSUE_SAMPLING_PERIOD_UUID
+        ]
+        time_step = int(sampling_period / MICROSECONDS_PER_CENTIMILLISECOND)
+
+        tissue_contraction_amplitudes = h5_file[reading_type][:]
+        num_data_points = tissue_contraction_amplitudes.shape[-1]
+
+        timepoints = np.arange(num_data_points) * time_step
+
+        return np.array([timepoints, tissue_contraction_amplitudes], dtype=np.int32)
 
     def _load_magnetic_data(self):
         adj_raw_tissue_reading = self[TISSUE_SENSOR_READINGS].copy()
@@ -311,21 +328,6 @@ class WellFile:
             tzinfo=datetime.timezone.utc
         )
 
-    def _load_reading(self, h5_file, reading_type: str) -> NDArray[(Any, Any), int]:
-        sampling_period = self[
-            REF_SAMPLING_PERIOD_UUID
-            if reading_type == REFERENCE_SENSOR_READINGS
-            else TISSUE_SAMPLING_PERIOD_UUID
-        ]
-        time_step = int(sampling_period / MICROSECONDS_PER_CENTIMILLISECOND)
-
-        tissue_contraction_amplitudes = h5_file[reading_type][:]
-        num_data_points = tissue_contraction_amplitudes.shape[-1]
-
-        timepoints = np.arange(num_data_points) * time_step
-
-        return np.array([timepoints, tissue_contraction_amplitudes], dtype=np.int32)
-
 
 class PlateRecording:
     def __init__(
@@ -376,7 +378,7 @@ class PlateRecording:
         if not any(self.wells):
             raise NoRecordingFilesLoadedError()
 
-        # set up platemap info  # TODO unit test this
+        # set up platemap info
         self.platemap_name = self.wells[0][PLATEMAP_NAME_UUID]
 
         platemap_labels = defaultdict(list)

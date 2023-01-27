@@ -1,13 +1,21 @@
 # -*- coding: utf-8 -*-
 import os
+from secrets import choice
 import tempfile
 
 import numpy as np
 from pulse3D import plate_recording
 from pulse3D.constants import MICRO_TO_BASE_CONVERSION
+from pulse3D.constants import NOT_APPLICABLE_H5_METADATA
+from pulse3D.constants import NOT_APPLICABLE_LABEL
+from pulse3D.constants import PLATEMAP_LABEL_UUID
+from pulse3D.constants import PLATEMAP_NAME_UUID
 from pulse3D.constants import TISSUE_SAMPLING_PERIOD_UUID
+from pulse3D.constants import TWENTY_FOUR_WELL_PLATE
+from pulse3D.constants import WELL_INDEX_UUID
 from pulse3D.magnet_finding import format_well_file_data
 from pulse3D.plate_recording import PlateRecording
+from pulse3D.plate_recording import WellFile
 import pytest
 
 from ..fixtures_utils import PATH_TO_H5_FILES
@@ -22,6 +30,65 @@ TEST_TWO_STIM_SESSIONS_FILE_PATH = os.path.join(
 TEST_VAR_STIM_SESSIONS_FILE_PATH = os.path.join(
     PATH_TO_H5_FILES, "stim", "StimInterpolationTest-VariableSessions.zip"
 )
+
+
+@pytest.mark.parametrize(
+    "test_platemap_name,test_label_meta_options",
+    [
+        (None, [None]),
+        (NOT_APPLICABLE_H5_METADATA, [str(NOT_APPLICABLE_H5_METADATA)]),
+        ("test_name", [str(NOT_APPLICABLE_H5_METADATA), "testlabel1", "testlabel2"]),
+    ],
+)
+def test_PlateRecording__loads_platemap_info_correctly(test_platemap_name, test_label_meta_options, mocker):
+    # mock so magnet finding alg doesn't run
+    mocker.patch.object(
+        plate_recording,
+        "find_magnet_positions",
+        autospec=True,
+        side_effect=lambda x, *args, **kwargs: {"X": np.empty((x.shape[-1], 24))},
+    )
+
+    if test_platemap_name:
+        if len(test_label_meta_options) == 1:
+            test_label_metadata = test_label_meta_options * 24
+        else:
+            test_label_metadata = test_label_meta_options + [
+                choice(test_label_meta_options) for _ in range(21)
+            ]
+        expected_labels = {
+            label: [
+                TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_idx)
+                for well_idx, label_ in enumerate(test_label_metadata)
+                if label_ == label
+            ]
+            for label in test_label_meta_options
+        }
+        expected_labels[NOT_APPLICABLE_LABEL] = expected_labels.pop(str(NOT_APPLICABLE_H5_METADATA))
+    else:
+        expected_labels = {
+            NOT_APPLICABLE_LABEL: [
+                TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_idx) for well_idx in range(24)
+            ]
+        }
+
+    unmocked_load = WellFile._load_data_from_h5_file
+
+    def load_se(wf, file_path):
+        unmocked_load(wf, file_path)
+        if test_platemap_name:
+            wf.attrs[str(PLATEMAP_NAME_UUID)] = test_platemap_name
+            wf.attrs[str(PLATEMAP_LABEL_UUID)] = test_label_metadata[wf[WELL_INDEX_UUID]]
+        # these metadata tags are not in the file currently chosen for this test, so don't need to remove them for the test where they shouldn't be present
+
+    mocker.patch.object(
+        plate_recording.WellFile, "_load_data_from_h5_file", autospec=True, side_effect=load_se
+    )
+
+    pr = PlateRecording(TEST_TWO_STIM_SESSIONS_FILE_PATH)  # arbitrary file chosen
+
+    # test full dict
+    assert pr.platemap_labels == expected_labels
 
 
 @pytest.mark.parametrize("test_file_path", [TEST_SMALL_BETA_1_FILE_PATH, TEST_SMALL_BETA_2_FILE_PATH])

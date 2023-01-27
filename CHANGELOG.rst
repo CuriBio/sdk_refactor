@@ -1,10 +1,13 @@
 Changelog for Pulse3D
 =====================
 
-0.30.0 (unreleased)
+0.30.0 (2023-01-27)
 -------------------
 
-TODO
+Added:
+^^^^^^
+- Initial support for PlateMaps, including a new section in the metadata sheet and the PlateMap Labels for
+  each well on the aggregate metrics sheets
 
 
 0.29.2 (2023-01-24)

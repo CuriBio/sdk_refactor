@@ -969,7 +969,8 @@ def aggregate_metrics_df(
     well_names_row = ["", ""] + [d["well_name"] for d in data]
     description_row = ["", "PlateMap Label"] + [d["platemap_label"] for d in data]
     error_row = ["", "n (twitches)"] + [
-        d["error_msg"] if d["error_msg"] else len(d["metrics"][0]) for d in data
+        d["error_msg"] if d["error_msg"] else len(d["metrics"][0])  # get error or the number of twitches
+        for d in data
     ]
 
     df = pd.DataFrame(data=[well_names_row, description_row, error_row, [""]])

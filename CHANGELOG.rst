@@ -24,7 +24,7 @@ Fixed:
 
 Fixed:
 ^^^^^^
-- Calculation of twitch amplitude now uses Contraction 10% and Relaxation 90% points for baseline.
+- Calculation of twitch amplitude now uses Contraction 10% and Relaxation 90% points for baseline
 
 
 0.29.0 (2022-12-22)
@@ -38,10 +38,6 @@ Added:
   - "Stacked" display which graphs stim waveforms in a separate chart beneath the tissue waveforms chart
 
 - Ability to interpolate stimulator output waveforms from start timepoints of each subprotocol
-
-Fixed:
-^^^^^^
-- Calculation of twitch amplitude now uses Contraction 10% and Relaxation 90% points for baseline.
 
 
 0.28.3 (2022-12-08)

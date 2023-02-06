@@ -26,12 +26,13 @@ jobs:
           - "windows-2022"
           - "macos-11.0"
         python-version:
-          - 3.8
-          - 3.9
+          - "3.8"
+          - "3.9"
+          - "3.10"
         include:
           # only enable coverage on the fastest job
           - os: "ubuntu-22.04"
-            python-version: "3.9"
+            python-version: "3.10"
             IS_FASTEST_JOB: true
 
     name: Test code before publishing in Python ${{ matrix.python-version }} on ${{ matrix.os }}
@@ -178,7 +179,7 @@ jobs:
         os:
           - "ubuntu-22.04"
         python-version:
-          - 3.9
+          - "3.10"
     name: Publish to Test PyPI for Python ${{ matrix.python-version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -228,93 +229,6 @@ jobs:
 
         run: twine upload --repository testpypi dist/*
 
-      # - name: Sleep for 360 seconds to allow Test PyPI Index to update before proceeding to the next step
-      #   if: github.event.inputs.dry_run != '1'
-      #   uses: juliangruber/sleep-action@v1
-      #   with:
-      #     time: 360s
-
-  # install_from_test_pypi:
-  #   needs: [publish_to_test_pypi]
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       os:
-  #         - "ubuntu-18.04"
-  #         - "ubuntu-22.04"
-  #         - "windows-2022"
-  #         - "macos-11.0"
-  #       python-version:
-  #           - 3.8
-  #           - 3.9
-  #   name: Install from Test PyPI and run tests on Python ${{ matrix.python-version }} on ${{ matrix.os }}
-  #   runs-on: ${{ matrix.os }}
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v3
-  #       with:
-  #         fetch-depth: 1
-
-  #     - name: Set up Python
-  #       uses: actions/setup-python@v4
-  #       with:
-  #         python-version: ${{ matrix.python-version }}
-  #     - name: Display Python version
-  #       run: |
-  #         python -c "import sys; print(sys.version)"
-  #         python -m venv venv
-
-  #     - name: Activate virtual environment (Linux/MacOS)
-  #       if: runner.os == 'Linux' || runner.os == 'macOS'
-  #       run: . venv/bin/activate
-
-  #     - name: Activate virtual environment (Windows)
-  #       if: runner.os == 'Windows'
-  #       run: venv\Scripts\Activate.ps1
-
-  #     - name: Display Pip Version and confirm environment empty
-  #       run: |
-  #         pip -V
-  #         pip freeze
-
-  #     - name: Download built dist folder from previous step
-  #       uses: actions/download-artifact@v2
-  #       with:
-  #         name: dist--${{ matrix.os }}--${{ matrix.python-version }}
-  #         path: dist
-
-  #     - name: Extract package info # Adapted from: https://stackoverflow.com/questions/58033366/how-to-get-current-branch-within-github-actions
-  #       shell: bash
-  #       run: |
-  #         echo '##[set-output name=package-name;]$(echo $(python .github/workflows/extract_package_info.py package_name))'
-  #         echo '##[set-output name=package-version;]$(echo $(python .github/workflows/extract_package_info.py package_version))'
-  #       id: extract_package_info
-
-  #     - name: Install Main Package From Test PyPI
-  #       if: github.event.inputs.dry_run != '1'
-  #       run: python .github/workflows/extract_package_info.py install_from_test_pypi
-
-  #     - name: Install Main Package From built wheel file as test since not publishing to PyPI
-  #       if: github.event.inputs.dry_run == '1'
-  #       run: python .github/workflows/extract_package_info.py install_from_dist
-
-  #     - name: Confirm no import errors when opening package
-  #       run: python -c "import ${{ steps.extract_package_info.outputs.package-name }}"
-
-  #     - name: Install Dev Dependencies
-  #       run: pip install -r requirements-dev.txt
-
-  #     - name: Log full installed packages
-  #       run: pip freeze
-
-  #     - name: Run Tests with randomly generated seed
-  #       if: github.event.inputs.randomlyseed == ''
-  #       run: pytest -xsvv --full-ci --include-slow-tests -n auto
-
-  #     - name: Run Tests with supplied pytest-randomly seed
-  #       if: github.event.inputs.randomlyseed != ''
-  #       run: pytest -xsvv --full-ci --include-slow-tests -n auto --randomly-seed=${{ github.event.inputs.randomlyseed }}
-
   publish_to_pypi:
     needs: [publish_to_test_pypi]
     strategy:
@@ -325,8 +239,9 @@ jobs:
           - "windows-2022"
           - "macos-11.0"
         python-version:
-          - 3.8
-          - 3.9
+          - "3.8"
+          - "3.9"
+          - "3.10"
     name: Publish to PyPI for Python ${{ matrix.python-version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -375,93 +290,6 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
 
         run: twine upload dist/*
-
-  #     - name: Sleep for 360 seconds to allow PyPI Index to update before proceeding to the next step
-  #       if: github.event.inputs.dry_run != '1'
-  #       uses: juliangruber/sleep-action@v1
-  #       with:
-  #         time: 360s
-
-  # install_from_pypi:
-  #   needs: [publish_to_pypi]
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       os:
-  #         - "ubuntu-18.04"
-  #         - "ubuntu-22.04"
-  #         - "windows-2022"
-  #         - "macos-11.0"
-  #       python-version:
-  #           - 3.8
-  #           - 3.9
-  #   name: Test installation from PyPI for Python ${{ matrix.python-version }} on ${{ matrix.os }}
-  #   runs-on: ${{ matrix.os }}
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v3
-  #       with:
-  #         fetch-depth: 1
-
-  #     - name: Set up Python
-  #       uses: actions/setup-python@v4
-  #       with:
-  #         python-version: ${{ matrix.python-version }}
-  #     - name: Display Python version
-  #       run: |
-  #         python -c "import sys; print(sys.version)"
-  #         python -m venv venv
-
-  #     - name: Activate virtual environment (Linux/MacOS)
-  #       if: runner.os == 'Linux' || runner.os == 'macOS'
-  #       run: . venv/bin/activate
-
-  #     - name: Activate virtual environment (Windows)
-  #       if: runner.os == 'Windows'
-  #       run: venv\Scripts\Activate.ps1
-
-  #     - name: Display Pip Version and confirm environment empty
-  #       run: |
-  #         pip -V
-  #         pip freeze
-
-  #     - name: Download built dist folder from previous step
-  #       uses: actions/download-artifact@v2
-  #       with:
-  #         name: dist--${{ matrix.os }}--${{ matrix.python-version }}
-  #         path: dist
-
-  #     - name: Extract package info # Adapted from: https://stackoverflow.com/questions/58033366/how-to-get-current-branch-within-github-actions
-  #       shell: bash
-  #       run: |
-  #         echo '##[set-output name=package-name;]$(echo $(python .github/workflows/extract_package_info.py package_name))'
-  #         echo '##[set-output name=package-version;]$(echo $(python .github/workflows/extract_package_info.py package_version))'
-  #       id: extract_package_info
-
-  #     - name: Install Main Package From PyPI
-  #       if: github.event.inputs.dry_run != '1'
-  #       run: python .github/workflows/extract_package_info.py install_from_pypi
-
-  #     - name: Install Main Package From built wheel file as test since not publishing to PyPI
-  #       if: github.event.inputs.dry_run == '1'
-  #       run: python .github/workflows/extract_package_info.py install_from_dist
-
-  #     - name: Confirm no import errors when opening package
-  #       run: python -c "import ${{ steps.extract_package_info.outputs.package-name }}"
-
-  #     - name: Install Dev Dependencies
-  #       run: pip install -r requirements-dev.txt
-
-  #     - name: Log full installed packages
-  #       run: pip freeze
-
-  #     - name: Run Tests with randomly generated seed
-  #       if: github.event.inputs.randomlyseed == ''
-  #       run: pytest -xsvv --full-ci --include-slow-tests -n auto
-
-  #     - name: Run Tests with supplied pytest-randomly seed
-  #       if: github.event.inputs.randomlyseed != ''
-  #       run: pytest -xsvv --full-ci --include-slow-tests -n auto --randomly-seed=${{ github.event.inputs.randomlyseed }}
 
   create_tag:
     needs: [publish_to_pypi]

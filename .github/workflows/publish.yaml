@@ -155,6 +155,12 @@ jobs:
           cp ./dist/Pulse3D-${{ steps.extract_version.outputs.package-version }}-cp39-cp39-linux_x86_64.whl ./dist/Pulse3D-${{ steps.extract_version.outputs.package-version }}-cp39-cp39-manylinux1_x86_64.whl
           rm ./dist/Pulse3D-${{ steps.extract_version.outputs.package-version }}-cp39-cp39-linux_x86_64.whl
 
+      - name: Rename wheel for Linux (Python 3.10)
+        if: runner.os == 'Linux' && matrix.python-version == '3.10'
+        run: |
+          cp ./dist/Pulse3D-${{ steps.extract_version.outputs.package-version }}-cp310-cp310-linux_x86_64.whl ./dist/Pulse3D-${{ steps.extract_version.outputs.package-version }}-cp310-cp310-manylinux1_x86_64.whl
+          rm ./dist/Pulse3D-${{ steps.extract_version.outputs.package-version }}-cp310-cp310-linux_x86_64.whl
+
       - name: Build sdist for release (Linux)
         if: matrix.IS_FASTEST_JOB == true
         run: python setup.py sdist

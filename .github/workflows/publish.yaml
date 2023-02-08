@@ -222,7 +222,7 @@ jobs:
         run: pip freeze
 
       - name: Download built dist folder from previous step
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: dist--${{ matrix.os }}--${{ matrix.python-version }}
           path: dist
@@ -284,7 +284,7 @@ jobs:
         run: pip freeze
 
       - name: Download built dist folder from previous step
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: dist--${{ matrix.os }}--${{ matrix.python-version }}
           path: dist

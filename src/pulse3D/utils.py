@@ -7,6 +7,7 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 
+import h5py
 from nptyping import NDArray
 
 from .constants import CARDIAC_STIFFNESS_LABEL
@@ -19,6 +20,7 @@ from .constants import POST_STIFFNESS_LABEL_TO_FACTOR
 from .constants import SKM_STIFFNESS_LABEL
 from .constants import TWENTY_FOUR_WELL_PLATE
 from .constants import VARIABLE_STIFFNESS_LABEL
+from .constants import WELL_NAME_UUID
 
 
 logger = logging.getLogger(__name__)
@@ -129,3 +131,8 @@ def xl_col_to_name(col, col_abs=False):
         col_num = int((col_num - 1) / 26)
 
     return col_abs + col_str
+
+
+def get_well_name_from_h5(file_path: str) -> str:
+    with h5py.File(file_path, "r") as h5_file:
+        return h5_file.attrs[str(WELL_NAME_UUID)]

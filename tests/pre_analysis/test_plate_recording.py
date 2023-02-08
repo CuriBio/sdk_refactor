@@ -13,6 +13,7 @@ from pulse3D.constants import PLATEMAP_NAME_UUID
 from pulse3D.constants import TISSUE_SAMPLING_PERIOD_UUID
 from pulse3D.constants import TWENTY_FOUR_WELL_PLATE
 from pulse3D.constants import WELL_INDEX_UUID
+from pulse3D.constants import WELL_NAME_UUID
 from pulse3D.magnet_finding import format_well_file_data
 from pulse3D.plate_recording import PlateRecording
 from pulse3D.plate_recording import WellFile
@@ -89,6 +90,21 @@ def test_PlateRecording__loads_platemap_info_correctly(test_platemap_name, test_
 
     # test full dict
     assert pr.platemap_labels == expected_labels
+
+
+def test_PlateRecording__creates_WellFiles_with_correct_value_for_has_inverted_post_magnet(mocker):
+    # make sure A1 is always present
+    wells_to_flip = ["A1"] + [
+        TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_idx)
+        for well_idx in range(1, 24)
+        if choice([True, False])
+    ]
+
+    pr = PlateRecording(TEST_SMALL_BETA_1_FILE_PATH, inverted_post_magnet_wells=wells_to_flip)
+
+    for wf in pr:
+        well_name = wf[WELL_NAME_UUID]
+        assert wf.has_inverted_post_magnet is (well_name in wells_to_flip), well_name
 
 
 @pytest.mark.parametrize("test_file_path", [TEST_SMALL_BETA_1_FILE_PATH, TEST_SMALL_BETA_2_FILE_PATH])

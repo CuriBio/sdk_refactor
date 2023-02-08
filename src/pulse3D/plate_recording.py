@@ -44,6 +44,7 @@ from .transforms import create_filter
 from .transforms import noise_cancellation
 from .utils import get_experiment_id
 from .utils import get_stiffness_factor
+from .utils import get_well_name_from_h5
 from .utils import truncate
 from .utils import truncate_float
 
@@ -75,7 +76,7 @@ class WellFile:
         self,
         file_path: str,
         sampling_period: Optional[Union[int, float]] = None,
-        # TODO unit test the stiffness factor (auto and override) and has_inverted_post_magnet?
+        # TODO unit test the stiffness factor (auto and override)
         stiffness_factor: Optional[int] = None,
         has_inverted_post_magnet: bool = False,
     ):
@@ -680,7 +681,7 @@ def load_files(
 
     for f in recording_files:
         log.info(f"Loading data from {os.path.basename(f)}")
-        well_name = os.path.splitext(f)[0].split("__")[1]
+        well_name = get_well_name_from_h5(f)
         well_file = WellFile(
             f,
             stiffness_factor=stiffness_factor,

@@ -1,6 +1,16 @@
 Changelog for Pulse3D
 =====================
 
+
+0.30.1 (2023-02-07)
+-------------------
+
+Fixed:
+^^^^^^
+- Issue with double underscores in file names causing WellFiles to get initialized with the incorrect
+  ``has_inverted_post_magnet`` value.
+
+
 0.30.0 (2023-01-27)
 -------------------
 

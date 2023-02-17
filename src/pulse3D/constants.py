@@ -288,7 +288,7 @@ DEFAULT_CELL_HEIGHT = 20
 CHART_ALPHA = 60  # for full/snapshots -- num pixels between left figure edge and plot area
 CHART_GAMMA = 150  # for full/snapshots -- num pixels between right figure edge and plot area
 CHART_PIXELS_PER_SECOND = 35  # for full/snapshots -- number of pixels per second
-CHART_MAXIMUM_SNAPSHOT_LENGTH = 10
+CHART_MAXIMUM_SNAPSHOT_LENGTH_SECS = 10
 
 CHART_HEIGHT_CELLS = 15
 CHART_HEIGHT = DEFAULT_CELL_HEIGHT * CHART_HEIGHT_CELLS

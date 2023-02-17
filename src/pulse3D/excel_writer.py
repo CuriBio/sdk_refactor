@@ -374,7 +374,7 @@ def write_xlsx(
         # fit interpolation function on recorded data
         interp_data_fn = interpolate.interp1d(*well_file.force)
         # window, interpolate, normalize, and scale data
-        windowed_timepoints_us = interpolated_timepoints_us[start_idx:end_idx] / MICRO_TO_BASE_CONVERSION
+        windowed_timepoints_us = interpolated_timepoints_us[start_idx:end_idx]
         interpolated_force = interp_data_fn(windowed_timepoints_us)
         interpolated_force = (interpolated_force - min(interpolated_force)) * MICRO_TO_BASE_CONVERSION
         interpolated_well_data = np.row_stack([windowed_timepoints_us, interpolated_force])
@@ -433,7 +433,9 @@ def write_xlsx(
 
         recording_plotting_info.append(well_info)
 
-    continuous_waveforms_df = _create_continuous_waveforms_df(windowed_timepoints_us, recording_plotting_info)
+    continuous_waveforms_df = _create_continuous_waveforms_df(
+        windowed_timepoints_us / MICRO_TO_BASE_CONVERSION, recording_plotting_info
+    )
 
     if not normalize_y_axis:
         # override given value since y-axis normalization is disabled
@@ -751,7 +753,9 @@ def create_waveform_charts(
 
     # maximum snapshot size is 10 seconds
     snapshot_lower_x_bound = well_info["tissue_data"][0, 0]
-    snapshot_upper_x_bound = min(well_info["tissue_data"][0, -1], CHART_MAXIMUM_SNAPSHOT_LENGTH)
+    snapshot_upper_x_bound = min(
+        well_info["tissue_data"][0, -1], CHART_MAXIMUM_SNAPSHOT_LENGTH_SECS * MICRO_TO_BASE_CONVERSION
+    )
 
     df_column = continuous_waveforms_df.columns.get_loc(f"{well_name} - Active Twitch Force (μN)")
 

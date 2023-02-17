@@ -25,15 +25,13 @@ log = logging.getLogger(__name__)
 def peak_detector(
     filtered_magnetic_signal: NDArray[(2, Any), int],
     twitches_point_up: bool = True,
-    start_time: float = 0,
-    end_time: float = np.inf,
     prominence_factors: Tuple[Union[int, float], Union[int, float]] = DEFAULT_PROMINENCE_FACTORS,
     width_factors: Tuple[Union[int, float], Union[int, float]] = DEFAULT_WIDTH_FACTORS,
 ) -> Tuple[List[int], List[int]]:
     """Locates peaks and valleys and returns the indices.
 
     Args:
-        filtered_magnetic_signal: a 2D array of the magnetic signal vs time data after it has gone through noise cancellation. It is assumed that the time values are in microseconds
+        filtered_magnetic_signal: a 2D array of the magnetic signal vs time data after it has gone through noise cancellation and interpolation. It is assumed that the time values are in microseconds
         twitches_point_up: whether in the incoming data stream the biological twitches are pointing up (in the positive direction) or down
         start_time (float): start time of windowed analysis, in seconds. Default value = 0 seconds.
         end_time (float): end time of windowed analysis, in seconds.  Default value = Inf seconds.
@@ -47,29 +45,20 @@ def peak_detector(
     width_factors = _format_factors(width_factors)
     prominence_factors = _format_factors(prominence_factors)
 
-    time_signal: NDArray[float] = filtered_magnetic_signal[0, :]
-    magnetic_signal: NDArray[float] = filtered_magnetic_signal[1, :]
-
-    max_time = time_signal[-1]
-    start_time = np.max([0, start_time])
-    end_time = np.min([end_time, max_time / MICRO_TO_BASE_CONVERSION])
-    # if provided end time is less than or equal to start time, reset  # TODO figure out how to handle this
-    if end_time <= start_time:
-        end_time = np.inf
-
-    peak_invertor_factor, valley_invertor_factor = (1, -1) if twitches_point_up else (-1, 1)
+    # interpolated data points are required, meaning that the time steps should all be the same, so using the first one
     sampling_period_us = filtered_magnetic_signal[0, 1] - filtered_magnetic_signal[0, 0]
 
     max_possible_twitch_freq = 7
     min_required_samples_between_twitches = int(
         round((1 / max_possible_twitch_freq) * MICRO_TO_BASE_CONVERSION / sampling_period_us, 0),
     )
+
+    magnetic_signal = filtered_magnetic_signal[1, :]
     # find required height of peaks
-    max_height = np.max(magnetic_signal)
-    min_height = np.min(magnetic_signal)
-    max_prominence = abs(max_height - min_height)
+    max_prominence = abs(np.max(magnetic_signal) - np.min(magnetic_signal))
 
     # find peaks and valleys
+    peak_invertor_factor, valley_invertor_factor = (1, -1) if twitches_point_up else (-1, 1)
     peak_indices, _ = signal.find_peaks(
         magnetic_signal * peak_invertor_factor,
         width=min_required_samples_between_twitches / width_factors[0],
@@ -106,18 +95,6 @@ def peak_detector(
                 right_ips = np.delete(right_ips, i - 1)
         else:
             i += 1
-
-    # don't perform windowing of twitches unless requested
-    if start_time > 0 or end_time < max_time:
-        peak_times = time_signal[peak_indices] / MICRO_TO_BASE_CONVERSION
-        # identify peaks within time window
-        filtered_peaks = np.where((peak_times >= start_time) & (peak_times <= end_time))[0]
-        peak_indices = peak_indices[filtered_peaks]
-
-        valley_times = time_signal[valley_indices] / MICRO_TO_BASE_CONVERSION
-        # identify valleys within time window
-        filtered_valleys = np.where((valley_times >= start_time) & (valley_times <= end_time))[0]
-        valley_indices = valley_indices[filtered_valleys]
 
     return peak_indices, valley_indices
 

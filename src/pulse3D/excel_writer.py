@@ -39,17 +39,13 @@ log = logging.getLogger(__name__)
 
 
 def add_peak_detection_series(
-    waveform_charts,
-    continuous_waveform_sheet,
-    detector_type: str,
     well_index: int,
     well_name: str,
-    upper_x_bound_cell: int,
     indices,
-    interpolated_data_function: interpolate.interpolate.interp1d,
-    time_values,
-    is_optical_recording,
-    minimum_value: float,
+    tissue_data,
+    detector_type: str,
+    continuous_waveform_sheet,
+    waveform_charts,
 ) -> None:
     if detector_type == "Valley":
         label = "Relaxation"
@@ -65,27 +61,14 @@ def add_peak_detection_series(
 
     for idx in indices:
         # convert peak/valley index to seconds
-        idx_time = time_values[idx] / MICRO_TO_BASE_CONVERSION
-        uninterpolated_time_seconds = round(idx_time, 2)
+        idx_time = tissue_data[0][idx]
 
         # we can use the peak/valley indices directly because we are using the interpolated data
         row = idx + 2
 
-        if is_optical_recording:
-            value = (
-                interpolated_data_function(uninterpolated_time_seconds * MICRO_TO_BASE_CONVERSION)
-                - minimum_value
-            ) * MICRO_TO_BASE_CONVERSION
-        else:
-            interpolated_data = interpolated_data_function(
-                uninterpolated_time_seconds * MICRO_TO_BASE_CONVERSION
-            )
+        continuous_waveform_sheet.write(f"{result_column}{row}", idx_time)
 
-            interpolated_data -= minimum_value
-            value = interpolated_data * MICRO_TO_BASE_CONVERSION
-
-        continuous_waveform_sheet.write(f"{result_column}{row}", value)
-
+    upper_x_bound_cell = tissue_data.shape[1]
     for chart in waveform_charts:
         chart.add_series(
             {
@@ -173,20 +156,19 @@ def create_force_frequency_relationship_charts(
 def create_frequency_vs_time_charts(
     frequency_chart_sheet,
     frequency_chart,
-    well_index: int,
-    d: Dict[str, Any],
-    well_name: str,
+    well_info: Dict[str, Any],
     num_data_points: int,
     num_per_twitch_metrics,
 ) -> None:
+    well_index = well_info["well_index"]
 
-    well_row = well_index * num_per_twitch_metrics
+    row = well_index * num_per_twitch_metrics
     last_column = xl_col_to_name(num_data_points)
 
     frequency_chart.add_series(
         {
-            "categories": f"='{PER_TWITCH_METRICS_SHEET_NAME}'!$B${well_row + 2}:${last_column}${well_row + 2}",
-            "values": f"='{PER_TWITCH_METRICS_SHEET_NAME}'!$B${well_row + 7}:${last_column}${well_row + 7}",
+            "categories": f"='{PER_TWITCH_METRICS_SHEET_NAME}'!$B${row + 2}:${last_column}${row + 2}",
+            "values": f"='{PER_TWITCH_METRICS_SHEET_NAME}'!$B${row + 7}:${last_column}${row + 7}",
             "marker": {"type": "diamond", "size": 7},
             "line": {"none": True},
         }
@@ -194,9 +176,11 @@ def create_frequency_vs_time_charts(
 
     frequency_chart.set_legend({"none": True})
 
-    x_axis_settings: Dict[str, Any] = {"name": "Time (seconds)"}
-    x_axis_settings["min"] = d["start_time"]
-    x_axis_settings["max"] = d["end_time"]
+    x_axis_settings: Dict[str, Any] = {
+        "name": "Time (seconds)",
+        "min": well_info["tissue_data"][0, 0],
+        "max": well_info["tissue_data"][0, -1],
+    }
 
     frequency_chart.set_x_axis(x_axis_settings)
 
@@ -205,14 +189,12 @@ def create_frequency_vs_time_charts(
     frequency_chart.set_y_axis({"name": y_axis_label, "min": 0, "major_gridlines": {"visible": 0}})
 
     frequency_chart.set_size({"width": CHART_FIXED_WIDTH, "height": CHART_HEIGHT})
-    frequency_chart.set_title({"name": f"Well {well_name}"})
+    frequency_chart.set_title({"name": f"Well {well_info['well_name']}"})
 
     well_row, well_col = TWENTY_FOUR_WELL_PLATE.get_row_and_column_from_well_index(well_index)
 
     frequency_chart_sheet.insert_chart(
-        1 + well_row * (CHART_HEIGHT_CELLS + 1),
-        1 + well_col * (CHART_FIXED_WIDTH_CELLS + 1),
-        frequency_chart,
+        1 + well_row * (CHART_HEIGHT_CELLS + 1), 1 + well_col * (CHART_FIXED_WIDTH_CELLS + 1), frequency_chart
     )
 
 
@@ -353,7 +335,7 @@ def write_xlsx(
 
     log.info("Computing data metrics for each well.")
 
-    tissue_data = []
+    recording_plotting_info = []
     max_force_of_recording = 0
     for well_file in plate_recording:
         # initialize some data structures
@@ -388,20 +370,17 @@ def write_xlsx(
         start_idx = max(window_start_idx, well_start_idx)
         end_idx = min(window_end_idx, well_end_idx)
 
+        # TODO make this a function
         # fit interpolation function on recorded data
-        interp_data_fn = interpolate.interp1d(well_file.force[0, :], well_file.force[1, :])
-        # interpolate, normalize, and scale data
-        interpolated_force = interp_data_fn(interpolated_timepoints_us[start_idx:end_idx])
-        interpolated_well_data = np.row_stack(
-            [interpolated_timepoints_us[start_idx:end_idx], interpolated_force]
-        )
-
-        min_value = min(interpolated_force)
-        interpolated_force -= min_value
-        interpolated_force *= MICRO_TO_BASE_CONVERSION
+        interp_data_fn = interpolate.interp1d(*well_file.force)
+        # window, interpolate, normalize, and scale data
+        windowed_timepoints_us = interpolated_timepoints_us[start_idx:end_idx] / MICRO_TO_BASE_CONVERSION
+        interpolated_force = interp_data_fn(windowed_timepoints_us)
+        interpolated_force = (interpolated_force - min(interpolated_force)) * MICRO_TO_BASE_CONVERSION
+        interpolated_well_data = np.row_stack([windowed_timepoints_us, interpolated_force])
 
         # find the biggest activation twitch force over all
-        max_force_of_well = max(interpolated_force)
+        max_force_of_well = max(interpolated_well_data[1])
         max_force_of_recording = max(max_force_of_recording, max_force_of_well)
 
         try:
@@ -411,11 +390,7 @@ def write_xlsx(
             if peaks_valleys is None:
                 log.info("No user defined peaks and valleys were found, so calculating with peak_detector")
                 peaks_and_valleys = peak_detector(
-                    interpolated_well_data,
-                    prominence_factors=prominence_factors,
-                    width_factors=width_factors,
-                    start_time=start_time,
-                    end_time=end_time,
+                    interpolated_well_data, prominence_factors=prominence_factors, width_factors=width_factors
                 )
             else:
                 # convert peak and valley lists into a format compatible with find_twitch_indices
@@ -445,27 +420,20 @@ def write_xlsx(
         except TooFewPeaksDetectedError:
             error_msg = "Not Enough Twitches Detected"
 
-        tissue_data.append(
-            {
-                "error_msg": error_msg,
-                "peaks_and_valleys": peaks_and_valleys,
-                "metrics": metrics,
-                "well_index": well_index,
-                "well_name": TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_index),
-                "platemap_label": well_file[PLATEMAP_LABEL_UUID],
-                "min_value": min_value,
-                "interp_data": interpolated_force,
-                "interp_data_fn": interp_data_fn,
-                "force": interpolated_well_data,
-                "num_data_points": len(interpolated_well_data[0]),
-                "start_time": start_time,
-                "end_time": np.min([interpolated_timepoints_us[-1] / MICRO_TO_BASE_CONVERSION, end_time]),
-            }
-        )
+        well_info = {
+            "well_index": well_index,
+            "well_name": TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_index),
+            "platemap_label": well_file[PLATEMAP_LABEL_UUID],
+            "tissue_data": interpolated_well_data,
+            "peaks_and_valleys": peaks_and_valleys,
+            "metrics": metrics,
+        }
+        if error_msg:
+            well_info["error_msg"] = error_msg
 
-    continuous_waveforms_df = _create_continuous_waveforms_df(
-        interpolated_timepoints_us, tissue_data, start_idx, end_idx
-    )
+        recording_plotting_info.append(well_info)
+
+    continuous_waveforms_df = _create_continuous_waveforms_df(windowed_timepoints_us, recording_plotting_info)
 
     if not normalize_y_axis:
         # override given value since y-axis normalization is disabled
@@ -487,10 +455,9 @@ def write_xlsx(
         continuous_waveforms_df=continuous_waveforms_df,
         stim_protocols_df=stim_protocols_df,
         stim_plotting_info=stim_plotting_info,
-        data=tissue_data,
+        recording_plotting_info=recording_plotting_info,
         y_axis_bounds=y_axis_bounds,
         include_stim_protocols=include_stim_protocols,
-        is_optical_recording=plate_recording.is_optical_recording,
         twitch_widths=twitch_widths,
         baseline_widths_to_use=baseline_widths_to_use,
     )
@@ -546,12 +513,13 @@ def _create_stim_protocols_df(plate_recording):
     return pd.DataFrame(stim_protocols_dict)
 
 
-def _create_continuous_waveforms_df(interpolated_timepoints_us, tissue_data, start_idx, end_idx):
-    continuous_waveforms = {
-        "Time (seconds)": pd.Series(interpolated_timepoints_us[start_idx:end_idx] / MICRO_TO_BASE_CONVERSION)
-    }
+def _create_continuous_waveforms_df(windowed_timepoints_us, recording_plotting_info):
+    continuous_waveforms = {"Time (seconds)": pd.Series(windowed_timepoints_us)}
     continuous_waveforms.update(
-        {f"{d['well_name']} - Active Twitch Force (μN)": pd.Series(d["interp_data"]) for d in tissue_data}
+        {
+            f"{well_info['well_name']} - Active Twitch Force (μN)": pd.Series(well_info["tissue_data"][1])
+            for well_info in recording_plotting_info
+        }
     )
     return pd.DataFrame(continuous_waveforms)
 
@@ -626,10 +594,9 @@ def _write_xlsx(
     continuous_waveforms_df: pd.DataFrame,
     stim_protocols_df: pd.DataFrame,
     stim_plotting_info: Dict[str, Any],
-    data: List[Dict[Any, Any]],
+    recording_plotting_info: List[Dict[Any, Any]],
     y_axis_bounds: Dict[str, Dict[str, Any]],
     include_stim_protocols: bool = False,
-    is_optical_recording: bool = False,
     twitch_widths: Tuple[int, ...] = DEFAULT_TWITCH_WIDTHS,
     baseline_widths_to_use: Tuple[int, ...] = DEFAULT_BASELINE_WIDTHS,
 ):
@@ -650,57 +617,56 @@ def _write_xlsx(
         snapshot_sheet = wb.add_worksheet("continuous-waveform-snapshot")
         full_sheet = wb.add_worksheet("full-continuous-waveform-plots")
 
-        for well_idx, dm in enumerate(data):
-            log.info(f'Creating waveform charts for well {dm["well_name"]}')
+        for well_info in recording_plotting_info:
+            log.info(f'Creating waveform charts for well {well_info["well_name"]}')
             create_waveform_charts(
                 y_axis_bounds,
-                well_idx,
-                dm,
+                well_info,
                 continuous_waveforms_df,
                 wb,
                 continuous_waveforms_sheet,
                 snapshot_sheet,
                 full_sheet,
-                is_optical_recording,
                 stim_plotting_info,
             )
 
-        _write_aggregate_metrics(writer, data, twitch_widths, baseline_widths_to_use)
+        _write_aggregate_metrics(writer, recording_plotting_info, twitch_widths, baseline_widths_to_use)
 
-        num_metrics = _write_per_twitch_metrics(writer, data, twitch_widths, baseline_widths_to_use)
+        num_metrics = _write_per_twitch_metrics(
+            writer, recording_plotting_info, twitch_widths, baseline_widths_to_use
+        )
 
         # freq/force charts
         force_freq_sheet = wb.add_worksheet(FORCE_FREQUENCY_RELATIONSHIP_SHEET)
         freq_vs_time_sheet = wb.add_worksheet(TWITCH_FREQUENCIES_CHART_SHEET_NAME)
 
-        for well_index, d in enumerate(data):
-            dm = d["metrics"]
-            if dm:
-                force_freq_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
-                freq_vs_time_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
+        for well_info in recording_plotting_info:
+            well_metrics = well_info["metrics"]
+            if not well_metrics:
+                continue
+            num_data_points = len(well_metrics[0])
 
-                num_data_points = len(dm[0])
+            force_freq_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
+            freq_vs_time_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
 
-                log.info(f"Creating frequency vs time chart for well {d['well_name']}")
-                create_frequency_vs_time_charts(
-                    freq_vs_time_sheet,
-                    freq_vs_time_chart,
-                    well_index,
-                    d,
-                    d["well_name"],
-                    num_data_points,
-                    num_metrics,
-                )
+            log.info(f"Creating frequency vs time chart for well {well_info['well_name']}")
+            create_frequency_vs_time_charts(
+                freq_vs_time_sheet,
+                freq_vs_time_chart,
+                well_info,
+                num_data_points,
+                num_metrics,
+            )
 
-                log.info(f"Creating force frequency relationship chart for well {d['well_name']}")
-                create_force_frequency_relationship_charts(
-                    force_freq_sheet,
-                    force_freq_chart,
-                    well_index,
-                    d["well_name"],
-                    num_data_points,  # number of twitches
-                    num_metrics,
-                )
+            log.info(f"Creating force frequency relationship chart for well {well_info['well_name']}")
+            create_force_frequency_relationship_charts(
+                force_freq_sheet,
+                force_freq_chart,
+                well_info["well_index"],
+                well_info["well_name"],
+                num_data_points,  # number of twitches
+                num_metrics,
+            )
 
 
 def _write_metadata(writer, metadata_df):
@@ -757,52 +723,48 @@ def _write_stim_waveforms(writer, stim_waveform_df):
     )
 
 
-def _write_aggregate_metrics(writer, data, twitch_widths, baseline_widths_to_use):
+def _write_aggregate_metrics(writer, recording_plotting_info, twitch_widths, baseline_widths_to_use):
     log.info("Writing aggregate metrics.")
-    aggregate_df = aggregate_metrics_df(data, twitch_widths, baseline_widths_to_use)
+    aggregate_df = aggregate_metrics_df(recording_plotting_info, twitch_widths, baseline_widths_to_use)
     aggregate_df.to_excel(writer, sheet_name="aggregate-metrics", index=False, header=False)
 
 
-def _write_per_twitch_metrics(writer, data, twitch_widths, baseline_widths_to_use):
+def _write_per_twitch_metrics(writer, recording_plotting_info, twitch_widths, baseline_widths_to_use):
     log.info("Writing per-twitch metrics.")
-    pdf, num_metrics = per_twitch_df(data, twitch_widths, baseline_widths_to_use)
+    pdf, num_metrics = per_twitch_df(recording_plotting_info, twitch_widths, baseline_widths_to_use)
     pdf.to_excel(writer, sheet_name="per-twitch-metrics", index=False, header=False)
     return num_metrics
 
 
 def create_waveform_charts(
     y_axis_bounds,
-    well_idx,
-    dm,
+    well_info,
     continuous_waveforms_df,
     wb,
     continuous_waveforms_sheet,
     snapshot_sheet,
     full_sheet,
-    is_optical_recording,
     stim_plotting_info,
 ):
-    well_name = dm["well_name"]
+    well_idx = well_info["well_index"]
+    well_name = well_info["well_name"]
 
     # maximum snapshot size is 10 seconds
-    lower_x_bound = dm["start_time"]
-
-    upper_x_bound = (
-        dm["end_time"]
-        if dm["end_time"] - dm["start_time"] <= CHART_MAXIMUM_SNAPSHOT_LENGTH
-        else dm["start_time"] + CHART_MAXIMUM_SNAPSHOT_LENGTH
-    )
+    snapshot_lower_x_bound = well_info["tissue_data"][0, 0]
+    snapshot_upper_x_bound = min(well_info["tissue_data"][0, -1], CHART_MAXIMUM_SNAPSHOT_LENGTH)
 
     df_column = continuous_waveforms_df.columns.get_loc(f"{well_name} - Active Twitch Force (μN)")
 
     well_column = xl_col_to_name(df_column)
 
     # plot snapshot of waveform
-    snapshot_plot_params = plotting_parameters(upper_x_bound - lower_x_bound)
+    snapshot_plot_params = plotting_parameters(snapshot_upper_x_bound - snapshot_lower_x_bound)
 
     snapshot_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
 
-    snapshot_chart.set_x_axis({"name": "Time (seconds)", "min": lower_x_bound, "max": upper_x_bound})
+    snapshot_chart.set_x_axis(
+        {"name": "Time (seconds)", "min": snapshot_lower_x_bound, "max": snapshot_upper_x_bound}
+    )
     snapshot_chart.set_y_axis(
         {"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0}, **y_axis_bounds["tissue"]}
     )
@@ -830,15 +792,17 @@ def create_waveform_charts(
     )
 
     # plot full waveform
-    full_plot_include_y2_axis = stim_plotting_info.get("chart_format") == "overlayed"
+    full_lower_x_bound = well_info["tissue_data"][0, 0]
+    full_upper_x_bound = well_info["tissue_data"][0, -1]
 
+    full_plot_include_y2_axis = stim_plotting_info.get("chart_format") == "overlayed"
     full_plot_params = plotting_parameters(
-        dm["end_time"] - dm["start_time"], include_y2_axis=full_plot_include_y2_axis
+        full_upper_x_bound - full_lower_x_bound, include_y2_axis=full_plot_include_y2_axis
     )
 
     full_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
 
-    full_chart.set_x_axis({"name": "Time (seconds)", "min": dm["start_time"], "max": dm["end_time"]})
+    full_chart.set_x_axis({"name": "Time (seconds)", "min": full_lower_x_bound, "max": full_upper_x_bound})
     full_chart.set_y_axis(
         {"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0}, **y_axis_bounds["tissue"]}
     )
@@ -875,7 +839,7 @@ def create_waveform_charts(
         else:
             chart = stim_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
 
-            chart.set_x_axis({"name": "Time (seconds)", "min": dm["start_time"], "max": dm["end_time"]})
+            chart.set_x_axis({"name": "Time (seconds)", "min": full_lower_x_bound, "max": full_upper_x_bound})
 
             chart.set_size({"width": full_plot_params["chart_width"], "height": STIM_CHART_HEIGHT})
             chart.set_plotarea(
@@ -905,42 +869,23 @@ def create_waveform_charts(
                 y_axis_bounds=y_axis_bounds["stim"],
             )
 
-    peaks, valleys = dm["peaks_and_valleys"]
+    peaks, valleys = well_info["peaks_and_valleys"]
     log.info(f"Adding peak detection series for well {well_name}")
 
-    add_peak_detection_series(
-        waveform_charts=[snapshot_chart, full_chart],
-        continuous_waveform_sheet=continuous_waveforms_sheet,
-        detector_type="Peak",
-        well_index=well_idx,
-        well_name=well_name,
-        upper_x_bound_cell=dm["num_data_points"],
-        indices=peaks,
-        interpolated_data_function=dm["interp_data_fn"],
-        time_values=dm["force"][0],
-        is_optical_recording=is_optical_recording,
-        minimum_value=dm["min_value"],
-    )
-
-    add_peak_detection_series(
-        waveform_charts=[snapshot_chart, full_chart],
-        continuous_waveform_sheet=continuous_waveforms_sheet,
-        detector_type="Valley",
-        well_index=well_idx,
-        well_name=well_name,
-        upper_x_bound_cell=dm["num_data_points"],
-        indices=valleys,
-        interpolated_data_function=dm["interp_data_fn"],
-        time_values=dm["force"][0],
-        is_optical_recording=is_optical_recording,
-        minimum_value=dm["min_value"],
-    )
+    for detector_type, indices in [("Peak", peaks), ("Valley", valleys)]:
+        add_peak_detection_series(
+            well_index=well_idx,
+            well_name=well_name,
+            indices=indices,
+            tissue_data=well_info["tissue_data"],
+            detector_type=detector_type,
+            continuous_waveform_sheet=continuous_waveforms_sheet,
+            waveform_charts=[snapshot_chart, full_chart],
+        )
 
     well_row, well_col = TWENTY_FOUR_WELL_PLATE.get_row_and_column_from_well_index(df_column - 1)
     snapshot_sheet.insert_chart(
-        well_row * (CHART_HEIGHT_CELLS + 1),
-        well_col * (CHART_FIXED_WIDTH_CELLS + 1),
-        snapshot_chart,
+        well_row * (CHART_HEIGHT_CELLS + 1), well_col * (CHART_FIXED_WIDTH_CELLS + 1), snapshot_chart
     )
 
     cells_per_well = CHART_HEIGHT_CELLS + 1
@@ -953,29 +898,32 @@ def create_waveform_charts(
 
 
 def aggregate_metrics_df(
-    data: List[Dict[Any, Any]],
+    recording_plotting_info: List[Dict[Any, Any]],
     widths: Tuple[int, ...] = DEFAULT_TWITCH_WIDTHS,
     baseline_widths_to_use: Tuple[int, ...] = DEFAULT_BASELINE_WIDTHS,
 ):
     """Combine aggregate metrics for each well into single DataFrame.
 
     Args:
-        data (list): list of data metrics and metadata associated with each well
+        recording_plotting_info (list): list of data metrics and metadata associated with each well
         widths (tuple of ints, optional): twitch-widths to return data for.
         baseline_widths_to_use: twitch widths to use as baseline metrics
     Returns:
         df (DataFrame): aggregate data frame of all metric aggregate measures
     """
-    well_names_row = ["", ""] + [d["well_name"] for d in data]
-    description_row = ["", "PlateMap Label"] + [d["platemap_label"] for d in data]
-    error_row = ["", "n (twitches)"] + [
-        d["error_msg"] if d["error_msg"] else len(d["metrics"][0])  # get error or the number of twitches
-        for d in data
+    well_names_row = ["", ""] + [well_info["well_name"] for well_info in recording_plotting_info]
+    description_row = ["", "PlateMap Label"] + [
+        well_info["platemap_label"] for well_info in recording_plotting_info
+    ]
+    num_twitches_row = ["", "n (twitches)"] + [
+        # get error if there is one, otherwise the number of twitches
+        well_info.get("error_msg", len(well_info["metrics"][0]))
+        for well_info in recording_plotting_info
     ]
 
-    df = pd.DataFrame(data=[well_names_row, description_row, error_row, [""]])
+    df = pd.DataFrame(data=[well_names_row, description_row, num_twitches_row, [""]])
 
-    combined = pd.concat([d["metrics"][1] for d in data])
+    combined = pd.concat([well_info["metrics"][1] for well_info in recording_plotting_info])
     for metric_id in ALL_METRICS:
         if metric_id in (WIDTH_UUID, RELAXATION_TIME_UUID, CONTRACTION_TIME_UUID):
             for width in widths:
@@ -1024,14 +972,14 @@ def _append_aggregate_measures_df(main_df: pd.DataFrame, metrics: pd.DataFrame, 
 
 
 def per_twitch_df(
-    data: List[Dict[Any, Any]],
+    recording_plotting_info: List[Dict[Any, Any]],
     widths: Tuple[int, ...] = DEFAULT_TWITCH_WIDTHS,
     baseline_widths_to_use: Tuple[int, ...] = DEFAULT_BASELINE_WIDTHS,
 ):
     """Combine per-twitch metrics for each well into single DataFrame.
 
     Args:
-        data (list): list of data metrics and metadata associated with each well
+        recording_plotting_info (list): list of data metrics and metadata associated with each well
         widths (tuple of ints, optional): twitch-widths to return data for.
         baseline_widths_to_use: twitch widths to use as baseline metrics
     Returns:
@@ -1040,14 +988,14 @@ def per_twitch_df(
     # append to a list instead of to a dataframe directly because it's faster and construct the dataframe at the end
     series_list = []
 
-    for d in data:  # for each well
+    for well_info in recording_plotting_info:  # for each well
         num_per_twitch_metrics = 0  # len(labels)
-        twitch_times = [d["force"][0, i] / MICRO_TO_BASE_CONVERSION for i in d["metrics"][0].index]
+        twitch_times = [well_info["tissue_data"][0, i] for i in well_info["metrics"][0].index]
 
         # get metrics for single well
-        dm = d["metrics"][0]
+        dm = well_info["metrics"][0]
 
-        series_list.append(pd.Series([d["well_name"]] + [f"Twitch {i+1}" for i in range(len(dm))]))
+        series_list.append(pd.Series([well_info["well_name"]] + [f"Twitch {i+1}" for i in range(len(dm))]))
         series_list.append(pd.Series(["Timepoint of Twitch Contraction"] + twitch_times))
 
         num_per_twitch_metrics += 2

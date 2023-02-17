@@ -8,9 +8,6 @@ from .constants import CHART_ALPHA
 from .constants import CHART_GAMMA
 from .constants import CHART_PIXELS_PER_SECOND
 
-"""
-"""
-
 
 def compute_chart_width(
     N: Union[int, float],
@@ -98,7 +95,7 @@ def plotting_parameters(
     if gamma <= 0:
         raise ValueError("Right chart boundary (gamma) must be positive.")
     if N <= 0:
-        raise ValueError("Number of time samples (N) must be positive.")
+        raise ValueError("Number of seconds (N) must be positive.")
 
     if include_y2_axis:
         gamma += 50

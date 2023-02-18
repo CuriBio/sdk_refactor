@@ -84,7 +84,7 @@ def test_metrics__TwitchAmplitude():
     metric = metrics.TwitchAmplitude()
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    np.testing.assert_array_almost_equal(estimate, expected, decimal=4)
+    np.testing.assert_array_almost_equal(estimate, expected)
 
 
 def test_metrics__TwitchAUC():
@@ -97,7 +97,7 @@ def test_metrics__TwitchAUC():
 
     metric = metrics.TwitchAUC()
     estimate = metric.fit(pv, w.force, twitch_indices)
-    np.testing.assert_array_almost_equal(estimate, expected, decimal=4)
+    np.testing.assert_array_almost_equal(estimate, expected)
 
 
 def test_metrics__TwitchBaselineToPeak():
@@ -195,7 +195,7 @@ def test_metrics__TwitchVelocity__contraction():
     metric = metrics.TwitchVelocity(rounded=False, is_contraction=True)
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    np.testing.assert_array_almost_equal(estimate, expected, decimal=1)
+    np.testing.assert_array_almost_equal(estimate, expected)
 
 
 def test_metrics__TwitchVelocity__relaxation():
@@ -209,7 +209,7 @@ def test_metrics__TwitchVelocity__relaxation():
     metric = metrics.TwitchVelocity(rounded=False, is_contraction=False)
     estimate = metric.fit(pv, w.force, twitch_indices)
 
-    np.testing.assert_array_almost_equal(estimate, expected, decimal=1)
+    np.testing.assert_array_almost_equal(estimate, expected)
 
 
 ##### TESTS FOR BY-WIDTH METRICS #####

@@ -52,7 +52,7 @@ def get_per_twitch_labels(df) -> Set[str]:
     }
 
 
-@pytest.fixture(scope="function", name="tmp_dir_for_xlsx", autouse=False)
+@pytest.fixture(scope="function", name="tmp_dir_for_xlsx", autouse=True)
 def fixture_write_to_tmp_dir():
     # save dir before switching to temp dir
     cwd = os.getcwd()
@@ -93,7 +93,7 @@ def test_write_xlsx__runs_beta_1_file_without_error():
     assert isinstance(output_file_name, str)
 
 
-# @pytest.mark.slow
+@pytest.mark.slow
 def test_write_xlsx__runs_magnet_finding_alg_without_error():
     # Tanner (12/8/22): do not add anything to this test, it is just meant to run a full analysis start to
     # finish with no mocking. This is specifically to make sure that there are no issues with using the magnet
@@ -101,7 +101,7 @@ def test_write_xlsx__runs_magnet_finding_alg_without_error():
     # Any and all param testing should be done in separate tests and make assertions on the xlsx output as is
     # done in the tests below.
 
-    pr = PlateRecording("/Users/tannerpeterson/Downloads/ML22305003-2__2023_02_09_day 15 spont.zip")
+    pr = PlateRecording(TEST_FILE_PATH)
     output_file_name = write_xlsx(pr)
 
     # this assertion isn't really necessary, but it's nice to make an assertion in a test that otherwise has none

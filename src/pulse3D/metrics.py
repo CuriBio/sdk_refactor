@@ -172,7 +172,7 @@ class TwitchAmplitude(BaseMetric):
             r90y = twitch_data["force"]["relaxation"][twitch_width]
 
             twitch_base_y = interpolate_y_for_x_between_two_points(twitch_peak_x, c10x, c10y, r90x, r90y)
-            amplitude_y = (twitch_peak_y - twitch_base_y) * MICRO_TO_BASE_CONVERSION
+            amplitude_y = twitch_peak_y - twitch_base_y
 
             estimates_dict[twitch_peak_idx] = amplitude_y
 
@@ -441,7 +441,7 @@ class TwitchVelocity(BaseMetric):
 
         # change in force / change in time
         velocity = abs((Y_end - Y_start) / (X_end - X_start))
-        velocity *= MICRO_TO_BASE_CONVERSION**2
+        velocity *= MICRO_TO_BASE_CONVERSION
 
         return velocity
 
@@ -653,7 +653,7 @@ class TwitchAUC(BaseMetric):
 
             estimates_dict[iter_twitch_peak_idx] = auc_total
 
-        estimates = pd.Series(estimates_dict)
+        estimates = pd.Series(estimates_dict) / MICRO_TO_BASE_CONVERSION
         return estimates
 
     @staticmethod

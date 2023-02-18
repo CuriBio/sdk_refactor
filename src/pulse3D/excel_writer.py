@@ -20,7 +20,6 @@ from .constants import *
 from .exceptions import *
 from .peak_detection import concat
 from .peak_detection import data_metrics
-from .peak_detection import find_twitch_indices
 from .peak_detection import get_windowed_peaks_valleys
 from .peak_detection import init_dfs
 from .peak_detection import peak_detector
@@ -60,13 +59,9 @@ def add_peak_detection_series(
     continuous_waveform_sheet.write(f"{result_column}1", f"{well_name} {detector_type} Values")
 
     for idx in indices:
-        # convert peak/valley index to seconds
-        idx_time = tissue_data[0][idx]
-
         # we can use the peak/valley indices directly because we are using the interpolated data
         row = idx + 2
-
-        continuous_waveform_sheet.write(f"{result_column}{row}", idx_time)
+        continuous_waveform_sheet.write(f"{result_column}{row}", tissue_data[1, idx])
 
     upper_x_bound_cell = tissue_data.shape[1]
     for chart in waveform_charts:
@@ -254,9 +249,7 @@ def write_xlsx(
     # get max and min of final timepoints across each well
     raw_timepoints = [w.force[0, -1] for w in plate_recording if w]
     max_final_time_us = max(raw_timepoints)
-    interpolated_timepoints_us = np.arange(
-        interpolated_data_period_us, max_final_time_us, interpolated_data_period_us
-    )
+    interpolated_timepoints_us = np.arange(0, max_final_time_us, interpolated_data_period_us)
 
     max_final_time_secs = max_final_time_us / MICRO_TO_BASE_CONVERSION
     # produce min final time truncated to 1 decimal place
@@ -400,10 +393,6 @@ def write_xlsx(
                     window_start_idx, window_end_idx, peaks, valleys
                 )
 
-            log.info(f"Finding twitch indices for well {well_name}")
-            # Tanner (2/8/22): the value returned from this function isn't used, assuming it is only being called to raise PeakDetectionErrors
-            find_twitch_indices(peaks_and_valleys)
-
             # compute metrics on interpolated well data
             log.info(f"Calculating metrics for well {well_name}")
             metrics = data_metrics(
@@ -420,6 +409,9 @@ def write_xlsx(
         except TooFewPeaksDetectedError:
             error_msg = "Not Enough Twitches Detected"
 
+        # the rest of the code will expect time to be in seconds, so convert here
+        interpolated_well_data[0] /= MICRO_TO_BASE_CONVERSION
+
         well_info = {
             "well_index": well_index,
             "well_name": TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_index),
@@ -434,7 +426,7 @@ def write_xlsx(
         recording_plotting_info.append(well_info)
 
     continuous_waveforms_df = _create_continuous_waveforms_df(
-        windowed_timepoints_us / MICRO_TO_BASE_CONVERSION, recording_plotting_info
+        interpolated_well_data[0], recording_plotting_info
     )
 
     if not normalize_y_axis:
@@ -670,6 +662,8 @@ def _write_xlsx(
                 num_metrics,
             )
 
+        log.info("Saving file")
+
 
 def _write_metadata(writer, metadata_df):
     log.info("Writing H5 file metadata")
@@ -753,9 +747,7 @@ def create_waveform_charts(
 
     # maximum snapshot size is 10 seconds
     snapshot_lower_x_bound = well_info["tissue_data"][0, 0]
-    snapshot_upper_x_bound = min(
-        well_info["tissue_data"][0, -1], CHART_MAXIMUM_SNAPSHOT_LENGTH_SECS * MICRO_TO_BASE_CONVERSION
-    )
+    snapshot_upper_x_bound = min(well_info["tissue_data"][0, -1], CHART_MAXIMUM_SNAPSHOT_LENGTH_SECS)
 
     df_column = continuous_waveforms_df.columns.get_loc(f"{well_name} - Active Twitch Force (μN)")
 

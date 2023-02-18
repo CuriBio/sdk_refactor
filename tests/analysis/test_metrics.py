@@ -97,6 +97,7 @@ def test_metrics__TwitchAUC():
 
     metric = metrics.TwitchAUC()
     estimate = metric.fit(pv, w.force, twitch_indices)
+
     np.testing.assert_array_almost_equal(estimate, expected)
 
 

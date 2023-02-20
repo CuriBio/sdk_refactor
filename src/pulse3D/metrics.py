@@ -26,7 +26,253 @@ from .constants import DEFAULT_TWITCH_WIDTH_PERCENTS
 from .constants import INTERPOLATED_DATA_PERIOD_SECONDS
 from .constants import MICRO_TO_BASE_CONVERSION
 from .constants import PRIOR_VALLEY_INDEX_UUID
+from .constants import SUBSEQUENT_PEAK_INDEX_UUID
 from .constants import SUBSEQUENT_VALLEY_INDEX_UUID
+
+
+class MetricCalculator:
+    def __init__(
+        self,
+        filtered_data,
+        twitch_indices,
+        peak_and_valley_indices,
+        twitch_width_percents,
+        baseline_width_percents,
+        rounded=False,
+    ):
+        self._peak_and_valley_indices = peak_and_valley_indices
+        self._filtered_data = filtered_data
+        self._twitch_indices = twitch_indices
+        self._twitch_width_percents = sorted(twitch_width_percents)
+        self._baseline_width_percents = sorted(baseline_width_percents)
+        self._rounded = rounded
+
+        self._metrics_data = dict()
+        # self._metrics_dfs = dict()
+
+    def __getitem__(self, metric):
+        vals = self._metrics_data.get(metric)
+        if vals is None:
+            res = getattr(self, f"_calculate_{metric}")()
+            self._metrics_data.update(res)
+            vals = self._metrics_data[metric]
+        return vals
+
+    def _calculate_twitch_amplitude(self):
+        twitch_width = 90
+
+        amplitudes: Dict[int, float] = dict()
+
+        for twitch_peak_idx, twitch_data in self["twitch_width_coordinates"].items():
+            twitch_peak_x, twitch_peak_y = self._filtered_data[:, twitch_peak_idx]
+
+            # C10 in the metric definition diagram is the C point at 90% twitch width
+            c10x = twitch_data["time"]["contraction"][twitch_width]
+            c10y = twitch_data["force"]["contraction"][twitch_width]
+            r90x = twitch_data["time"]["relaxation"][twitch_width]
+            r90y = twitch_data["force"]["relaxation"][twitch_width]
+
+            twitch_base_y = interpolate_y_for_x_between_two_points(twitch_peak_x, c10x, c10y, r90x, r90y)
+            amplitude_y = twitch_peak_y - twitch_base_y
+
+            amplitudes[twitch_peak_idx] = amplitude_y
+
+        return {"twitch_amplitude": pd.Series(amplitudes)}
+
+    def _calculate_twitch_fraction_amplitude(self):
+        amplitudes = self["twitch_amplitude"]
+        return {"twitch_fraction_amplitude": amplitudes / np.nanmax(amplitudes)}
+
+    def _calculate_twitch_frequency(self):
+        twitch_idx_list = list(self._twitch_indices.keys())
+        # final peak is needed to get freq for final twitch
+        twitch_idx_list.append(self._twitch_indices[twitch_idx_list[-1]][SUBSEQUENT_PEAK_INDEX_UUID])
+
+        timepoints = self._filtered_data[0]
+        twitch_timepoints = timepoints[np.array(twitch_idx_list)]
+        twitch_periods = np.diff(twitch_timepoints)
+        twitch_freqs = MICRO_TO_BASE_CONVERSION / twitch_periods
+
+        return {"twitch_frequency": pd.Series(twitch_freqs)}
+
+    def _calculate_twitch_width(self):
+        return self.__calculate_twitch_width_and_coordinates()
+
+    def _calculate_twitch_width_coordinates(self):
+        return self.__calculate_twitch_width_and_coordinates()
+
+    def __calculate_twitch_width_and_coordinates(self):
+        coordinate_dict: Dict[int, Dict[str, Dict[str, Any]]] = dict()
+
+        width_dict: Dict[int, Dict[int, Any]] = {twitch_index: {} for twitch_index in self._twitch_indices}
+
+        timepoints_arr = self._filtered_data[0]
+        force_amplitudes_arr = self._filtered_data[1]
+
+        for iter_twitch_peak_idx in self._twitch_indices:
+            peak_force = force_amplitudes_arr[iter_twitch_peak_idx]
+
+            # calculate magnitude of rise
+            prior_valley_idx = self._twitch_indices[iter_twitch_peak_idx][PRIOR_VALLEY_INDEX_UUID]  # type: ignore
+            prior_valley_force = force_amplitudes_arr[prior_valley_idx]
+            magnitude_of_rise = peak_force - prior_valley_force
+
+            # calculate magnitude of fall
+            subsequent_valley_idx = self._twitch_indices[iter_twitch_peak_idx][SUBSEQUENT_VALLEY_INDEX_UUID]  # type: ignore
+            subsequent_valley_force = force_amplitudes_arr[subsequent_valley_idx]
+            magnitude_of_fall = peak_force - subsequent_valley_force
+
+            rising_idx = iter_twitch_peak_idx - 1
+            falling_idx = iter_twitch_peak_idx + 1
+
+            twitch_dict = {  # type: ignore
+                metric_type: {contraction_type: {} for contraction_type in ("contraction", "relaxation")}
+                for metric_type in ("force", "time")
+            }
+
+            for iter_percent in self._twitch_width_percents:
+                rising_threshold = peak_force - (iter_percent / 100) * magnitude_of_rise
+                falling_threshold = peak_force - (iter_percent / 100) * magnitude_of_fall
+
+                # move to the left from the twitch peak until the rising threshold is reached
+                while force_amplitudes_arr[rising_idx] > rising_threshold:
+                    rising_idx -= 1
+                # move to the right from the twitch peak until the falling threshold is reached
+                while force_amplitudes_arr[falling_idx] > falling_threshold:
+                    falling_idx += 1
+
+                interpolated_rising_timepoint = interpolate_x_for_y_between_two_points(
+                    rising_threshold,
+                    timepoints_arr[rising_idx],
+                    force_amplitudes_arr[rising_idx],
+                    timepoints_arr[rising_idx + 1],
+                    force_amplitudes_arr[rising_idx + 1],
+                )
+                interpolated_falling_timepoint = interpolate_x_for_y_between_two_points(
+                    falling_threshold,
+                    timepoints_arr[falling_idx],
+                    force_amplitudes_arr[falling_idx],
+                    timepoints_arr[falling_idx - 1],
+                    force_amplitudes_arr[falling_idx - 1],
+                )
+                width_val = interpolated_falling_timepoint - interpolated_rising_timepoint
+
+                if self._rounded:
+                    width_val = int(round(width_val, 0))
+                    interpolated_falling_timepoint = int(round(interpolated_falling_timepoint, 0))
+                    interpolated_rising_timepoint = int(round(interpolated_rising_timepoint, 0))
+                    rising_threshold = int(round(rising_threshold, 0))
+                    falling_threshold = int(round(falling_threshold, 0))
+
+                # fill width-value dictionary
+                width_dict[iter_twitch_peak_idx][iter_percent] = width_val / MICRO_TO_BASE_CONVERSION
+                twitch_dict["force"]["contraction"][iter_percent] = rising_threshold
+                twitch_dict["force"]["relaxation"][iter_percent] = falling_threshold
+                twitch_dict["time"]["contraction"][iter_percent] = interpolated_rising_timepoint
+                twitch_dict["time"]["relaxation"][iter_percent] = interpolated_falling_timepoint
+
+            # fill coordinate value dictionary
+            coordinate_dict[iter_twitch_peak_idx] = twitch_dict
+
+        return {"twitch_width": width_dict, "twitch_width_coordinates": coordinate_dict}
+
+    def _calculate_twitch_contraction_velocity(self):
+        return self.__calculate_twitch_velocity(True)
+
+    def _calculate_twitch_relaxation_velocity(self):
+        return self.__calculate_twitch_velocity(False)
+
+    def __calculate_twitch_velocity(self, is_contraction):
+        initial_width = min(self._twitch_width_percents)
+        final_width = max(self._twitch_width_percents)
+
+        coord_type = "contraction" if is_contraction else "relaxation"
+
+        velocity = []
+
+        for twitch_data in self["twitch_width_coordinates"].values():
+            x_initial = twitch_data["time"][coord_type][initial_width]
+            y_initial = twitch_data["force"][coord_type][initial_width]
+
+            x_final = twitch_data["time"][coord_type][final_width]
+            y_final = twitch_data["force"][coord_type][final_width]
+
+            # change in force / change in time
+            velocity.append(abs((y_initial - y_final) / (x_initial - x_final)) * MICRO_TO_BASE_CONVERSION)
+
+        return {f"twitch_{coord_type}_velocity": pd.Series(velocity)}
+
+    def _calculate_twitch_interval_irregularity(self):
+        list_of_twitch_indices = list(self._twitch_indices.keys())
+        num_twitches = len(list_of_twitch_indices)
+
+        timepoints = self._filtered_data[0]
+
+        estimates = {list_of_twitch_indices[0]: None}
+        for twitch in range(1, num_twitches - 1):
+            last_twitch_index = list_of_twitch_indices[twitch - 1]
+            current_twitch_index = list_of_twitch_indices[twitch]
+            next_twitch_index = list_of_twitch_indices[twitch + 1]
+
+            last_interval = timepoints[current_twitch_index] - timepoints[last_twitch_index]
+            current_interval = timepoints[next_twitch_index] - timepoints[current_twitch_index]
+            interval = abs(current_interval - last_interval)
+
+            estimates[current_twitch_index] = interval
+        estimates[list_of_twitch_indices[-1]] = None
+
+        return {"twitch_interval_irregularity": pd.Series(estimates) / MICRO_TO_BASE_CONVERSION}
+
+    def _calculate_twitch_auc(self):
+        width_percent = 90  # what percent of repolarization to use as the bottom limit for calculating AUC
+        estimates_dict: Dict[int, Union[int, float]] = dict()
+
+        timepoints, force = self._filtered_data
+
+        for twitch_peak_idx, twitch_data in self["twitch_width_coordinates"].items():
+            start_timepoint = twitch_data["time"]["contraction"][width_percent]
+            stop_timepoint = twitch_data["time"]["relaxation"][width_percent]
+
+            auc_window = (timepoints >= start_timepoint) & (timepoints <= stop_timepoint)
+            auc_total = np.trapz(force[auc_window], dx=INTERPOLATED_DATA_PERIOD_SECONDS)
+
+            if self._rounded:
+                auc_total = int(round(auc_total, 0))
+
+            estimates_dict[twitch_peak_idx] = auc_total
+
+        return {"twitch_auc": pd.Series(estimates_dict)}
+
+    def _calculate_twitch_contraction_time(self):
+        return self.__calculate_peak_baseline_time_diff(True)
+
+    def _calculate_twitch_relaxation_time(self):
+        return self.__calculate_peak_baseline_time_diff(False)
+
+    def __calculate_peak_baseline_time_diff(self, is_contraction):
+        # TODO test
+        # dictionary of time differences for each peak
+        coord_label = "contraction" if is_contraction else "relaxation"
+
+        def diff_fn(x, y):
+            return x - y if is_contraction else y - x
+
+        estimates_dict = {}  # type: ignore
+
+        for twitch_idx, twitch_data in self["twitch_width_coordinates"].items():
+            estimates_dict[twitch_idx] = {}
+
+            for width_percent in self._twitch_width_percents:
+                percent = 100 - width_percent if is_contraction else width_percent
+                percent_time = twitch_data["time"][coord_label][percent]
+
+                peak_time = self._filtered_data[0, twitch_idx]
+
+                estimates_dict[twitch_idx][width_percent] = (
+                    diff_fn(peak_time, percent_time) / MICRO_TO_BASE_CONVERSION
+                )
+
+        return estimates_dict
 
 
 class BaseMetric:
@@ -781,39 +1027,3 @@ class TwitchPeakTime(BaseMetric):
         estimates = pd.DataFrame.from_dict(estimates_dict, orient="index")
 
         return estimates / MICRO_TO_BASE_CONVERSION
-
-
-class TwitchPeakToBaseline(BaseMetric):
-    """Calculate full contraction or full relaxation time."""
-
-    def __init__(
-        self,
-        rounded: bool = False,
-        is_contraction: bool = True,
-        **kwargs: Dict[str, Any],
-    ):
-        super().__init__(rounded=rounded, **kwargs)
-        self.is_contraction = is_contraction
-
-    def fit(
-        self,
-        peak_and_valley_indices: Tuple[NDArray[int], NDArray[int]],
-        filtered_data: NDArray[(2, Any), int],
-        twitch_indices: Dict[int, Dict[UUID, Optional[int]]],
-        **kwargs: Dict[str, Any],
-    ) -> Series:
-        time_series = filtered_data[0, :]
-        valley_key = PRIOR_VALLEY_INDEX_UUID if self.is_contraction else SUBSEQUENT_VALLEY_INDEX_UUID
-
-        def get_diff(x, y):
-            diff = x - y if self.is_contraction else y - x
-            return diff
-
-        peak_times = [time_series[k] for k in twitch_indices.keys()]
-        valley_times = [time_series[twitch_indices[k][valley_key]] for k in twitch_indices.keys()]
-
-        estimates_list = [
-            get_diff(peak_time, valley_time) for peak_time, valley_time in zip(peak_times, valley_times)
-        ]
-        estimates = pd.Series(estimates_list, index=twitch_indices.keys()) / MICRO_TO_BASE_CONVERSION
-        return estimates

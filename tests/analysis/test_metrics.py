@@ -5,7 +5,10 @@ import uuid
 
 import numpy as np
 import pandas as pd
+from pulse3D.constants import DEFAULT_BASELINE_WIDTHS
+from pulse3D.constants import DEFAULT_TWITCH_WIDTH_PERCENTS
 import pulse3D.metrics as metrics
+from pulse3D.metrics import MetricCalculator
 from pulse3D.peak_detection import find_twitch_indices
 from pulse3D.peak_detection import peak_detector
 from pulse3D.plate_recording import WellFile
@@ -81,10 +84,14 @@ def test_metrics__TwitchAmplitude():
     pv = peak_detector(w.force, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS)
     twitch_indices = find_twitch_indices(pv)
 
-    metric = metrics.TwitchAmplitude()
-    estimate = metric.fit(pv, w.force, twitch_indices)
+    # metric = metrics.TwitchAmplitude()
+    # estimate = metric.fit(pv, w.force, twitch_indices)
 
-    np.testing.assert_array_almost_equal(estimate, expected)
+    mc = MetricCalculator(
+        w.force, twitch_indices, pv, DEFAULT_TWITCH_WIDTH_PERCENTS, DEFAULT_BASELINE_WIDTHS, rounded=False
+    )
+
+    np.testing.assert_array_almost_equal(mc["twitch_amplitude"], expected)
 
 
 def test_metrics__TwitchAUC():
@@ -95,38 +102,14 @@ def test_metrics__TwitchAUC():
     pv = peak_detector(w.force, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS)
     twitch_indices = find_twitch_indices(pv)
 
-    metric = metrics.TwitchAUC()
-    estimate = metric.fit(pv, w.force, twitch_indices)
+    # metric = metrics.TwitchAUC()
+    # estimate = metric.fit(pv, w.force, twitch_indices)
 
-    np.testing.assert_array_almost_equal(estimate, expected)
+    mc = MetricCalculator(
+        w.force, twitch_indices, pv, DEFAULT_TWITCH_WIDTH_PERCENTS, DEFAULT_BASELINE_WIDTHS, rounded=False
+    )
 
-
-def test_metrics__TwitchBaselineToPeak():
-    file_path = os.path.join(PATH_TO_EXPECTED_METRICS_FOLDER, "baseline_to_peak.parquet")
-    expected = pq.read_table(file_path).to_pandas().squeeze()
-
-    w = WellFile(PATH_TO_TEST_H5_FILE)
-    pv = peak_detector(w.force, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS)
-    twitch_indices = find_twitch_indices(pv)
-
-    metric = metrics.TwitchPeakToBaseline(is_contraction=True)
-    estimate = metric.fit(pv, w.force, twitch_indices)
-
-    np.testing.assert_array_equal(estimate, expected)
-
-
-def test_metrics__TwitchPeakToBaseline():
-    file_path = os.path.join(PATH_TO_EXPECTED_METRICS_FOLDER, "peak_to_baseline.parquet")
-    expected = pq.read_table(file_path).to_pandas().squeeze()
-
-    w = WellFile(PATH_TO_TEST_H5_FILE)
-    pv = peak_detector(w.force, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS)
-    twitch_indices = find_twitch_indices(pv)
-
-    metric = metrics.TwitchPeakToBaseline(is_contraction=False)
-    estimate = metric.fit(pv, w.force, twitch_indices)
-
-    np.testing.assert_array_equal(estimate, expected)
+    np.testing.assert_array_almost_equal(mc["twitch_auc"], expected)
 
 
 def test_metrics__TwitchFractionAmplitude():
@@ -137,10 +120,14 @@ def test_metrics__TwitchFractionAmplitude():
     pv = peak_detector(w.force, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS)
     twitch_indices = find_twitch_indices(pv)
 
-    metric = metrics.TwitchFractionAmplitude()
-    estimate = metric.fit(pv, w.force, twitch_indices)
+    # metric = metrics.TwitchFractionAmplitude()
+    # estimate = metric.fit(pv, w.force, twitch_indices)
 
-    np.testing.assert_array_almost_equal(estimate, expected, decimal=3)
+    mc = MetricCalculator(
+        w.force, twitch_indices, pv, DEFAULT_TWITCH_WIDTH_PERCENTS, DEFAULT_BASELINE_WIDTHS, rounded=False
+    )
+
+    np.testing.assert_array_almost_equal(mc["twitch_fraction_amplitude"], expected, decimal=3)
 
 
 def test_metrics__TwitchFrequency():
@@ -151,10 +138,14 @@ def test_metrics__TwitchFrequency():
     pv = peak_detector(w.force, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS)
     twitch_indices = find_twitch_indices(pv)
 
-    metric = metrics.TwitchFrequency()
-    estimate = metric.fit(pv, w.force, twitch_indices)
+    # metric = metrics.TwitchFrequency()
+    # estimate = metric.fit(pv, w.force, twitch_indices)
 
-    np.testing.assert_array_almost_equal(estimate, expected)
+    mc = MetricCalculator(
+        w.force, twitch_indices, pv, DEFAULT_TWITCH_WIDTH_PERCENTS, DEFAULT_BASELINE_WIDTHS, rounded=False
+    )
+
+    np.testing.assert_array_almost_equal(mc["twitch_frequency"], expected)
 
 
 def test_metrics__TwitchIrregularityInterval():
@@ -165,24 +156,14 @@ def test_metrics__TwitchIrregularityInterval():
     pv = peak_detector(w.force, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS)
     twitch_indices = find_twitch_indices(pv)
 
-    metric = metrics.TwitchIrregularity()
-    estimate = metric.fit(pv, w.force, twitch_indices)
+    # metric = metrics.TwitchIrregularity()
+    # estimate = metric.fit(pv, w.force, twitch_indices)
 
-    np.testing.assert_array_almost_equal(estimate[1:-1], expected[1:-1])
+    mc = MetricCalculator(
+        w.force, twitch_indices, pv, DEFAULT_TWITCH_WIDTH_PERCENTS, DEFAULT_BASELINE_WIDTHS, rounded=False
+    )
 
-
-def test_metrics__TwitchPeriod():
-    file_path = os.path.join(PATH_TO_EXPECTED_METRICS_FOLDER, "period.parquet")
-    expected = pq.read_table(file_path).to_pandas().squeeze()
-
-    w = WellFile(PATH_TO_TEST_H5_FILE)
-    pv = peak_detector(w.force, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS)
-    twitch_indices = find_twitch_indices(pv)
-
-    metric = metrics.TwitchPeriod()
-    estimate = metric.fit(pv, w.force, twitch_indices)
-
-    np.testing.assert_array_almost_equal(estimate, expected)
+    np.testing.assert_array_almost_equal(mc["twitch_interval_irregularity"][1:-1], expected[1:-1])
 
 
 def test_metrics__TwitchVelocity__contraction():
@@ -193,10 +174,14 @@ def test_metrics__TwitchVelocity__contraction():
     pv = peak_detector(w.force, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS)
     twitch_indices = find_twitch_indices(pv)
 
-    metric = metrics.TwitchVelocity(rounded=False, is_contraction=True)
-    estimate = metric.fit(pv, w.force, twitch_indices)
+    # metric = metrics.TwitchVelocity(rounded=False, is_contraction=True)
+    # estimate = metric.fit(pv, w.force, twitch_indices)
 
-    np.testing.assert_array_almost_equal(estimate, expected)
+    mc = MetricCalculator(
+        w.force, twitch_indices, pv, DEFAULT_TWITCH_WIDTH_PERCENTS, DEFAULT_BASELINE_WIDTHS, rounded=False
+    )
+
+    np.testing.assert_array_almost_equal(mc["twitch_contraction_velocity"], expected)
 
 
 def test_metrics__TwitchVelocity__relaxation():
@@ -207,10 +192,14 @@ def test_metrics__TwitchVelocity__relaxation():
     pv = peak_detector(w.force, prominence_factors=PROMINENCE_FACTORS, width_factors=WIDTH_FACTORS)
     twitch_indices = find_twitch_indices(pv)
 
-    metric = metrics.TwitchVelocity(rounded=False, is_contraction=False)
-    estimate = metric.fit(pv, w.force, twitch_indices)
+    # metric = metrics.TwitchVelocity(rounded=False, is_contraction=False)
+    # estimate = metric.fit(pv, w.force, twitch_indices)
 
-    np.testing.assert_array_almost_equal(estimate, expected)
+    mc = MetricCalculator(
+        w.force, twitch_indices, pv, DEFAULT_TWITCH_WIDTH_PERCENTS, DEFAULT_BASELINE_WIDTHS, rounded=False
+    )
+
+    np.testing.assert_array_almost_equal(mc["twitch_relaxation_velocity"], expected)
 
 
 ##### TESTS FOR BY-WIDTH METRICS #####

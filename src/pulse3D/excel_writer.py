@@ -14,6 +14,7 @@ from typing import Union
 
 import numpy as np
 import pandas as pd
+from pulse3D.transforms import get_time_window
 from scipy import interpolate
 
 from .constants import *
@@ -546,7 +547,7 @@ def _get_stim_plotting_data(
         for waveform in wf.stim_sessions:
             stim_session_idx += 1
             stim_waveforms_dict[f"{well_name} - Stim Session {stim_session_idx}"] = waveform[
-                :, (start_time_us <= waveform[0]) & (waveform[0] <= end_time_us)
+                :, get_time_window(waveform[0], start_time_us, end_time_us)
             ]
 
     stim_timepoints_aggregate_us = aggregate_timepoints(

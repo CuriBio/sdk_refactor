@@ -25,6 +25,8 @@ log = logging.getLogger(__name__)
 def peak_detector(
     filtered_magnetic_signal: NDArray[(2, Any), int],
     twitches_point_up: bool = True,
+    start_time: float = 0,
+    end_time: float = np.inf,
     prominence_factors: Tuple[Union[int, float], Union[int, float]] = DEFAULT_PROMINENCE_FACTORS,
     width_factors: Tuple[Union[int, float], Union[int, float]] = DEFAULT_WIDTH_FACTORS,
 ) -> Tuple[List[int], List[int]]:
@@ -44,6 +46,10 @@ def peak_detector(
     # make sure width and prominece factors are a tuple of two ints
     width_factors = _format_factors(width_factors)
     prominence_factors = _format_factors(prominence_factors)
+
+    # apply window
+    window = get_time_window(filtered_magnetic_signal, start_time, end_time)
+    filtered_magnetic_signal = filtered_magnetic_signal[:, window]
 
     # interpolated data points are required, meaning that the time steps should all be the same, so using the first one
     sampling_period_us = filtered_magnetic_signal[0, 1] - filtered_magnetic_signal[0, 0]
@@ -399,12 +405,12 @@ def get_windowed_peaks_valleys(
         peaks: NDArray of peak indices
         valleys: NDArray of valley indices
     """
-    windowed_indices = end_idx - start_idx
+    windowed_end_idx = end_idx - start_idx - 1
     # remove up to starting index to make start time index 0
     sub_peaks = np.subtract(peaks, start_idx)
     sub_valleys = np.subtract(valleys, start_idx)
     # remove indices greater than max windowed index
-    filtered_peaks = np.where((sub_peaks < windowed_indices) & (sub_peaks >= 0))[0]
-    filtered_valleys = np.where((sub_valleys < windowed_indices) & (sub_valleys >= 0))[0]
+    peak_window = get_time_window(sub_peaks, 0, windowed_end_idx)
+    valley_window = get_time_window(sub_valleys, 0, windowed_end_idx)
     # grab indices from original sub peaks and valleys
-    return sub_peaks[filtered_peaks], sub_valleys[filtered_valleys]
+    return sub_peaks[peak_window], sub_valleys[valley_window]

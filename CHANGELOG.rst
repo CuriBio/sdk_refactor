@@ -1,6 +1,15 @@
 Changelog for Pulse3D
 =====================
 
+0.30.2 (2023-02-22)
+-------------------
+
+Changed:
+^^^^^^^^
+- ``peak_detector`` will now remove timepoints from outside the window provided by ``start_time`` and
+  ``end_time`` before running the data through the peak finding alg. This is too ensure that problematic
+  data outside the window does not interfere with peak finding.
+
 
 0.30.1 (2023-02-07)
 -------------------

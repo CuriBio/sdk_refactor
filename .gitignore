@@ -36,6 +36,7 @@ tests/**/snapshots/*_actual.png
 tests/**/snapshots/*_diff.png
 tests/**/visual-regression-testing/*-actual.png
 tests/**/visual-regression-testing/*-diff.png
+NEW_*
 
 dist/
 build/

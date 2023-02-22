@@ -364,7 +364,7 @@ def write_xlsx(
         start_idx = max(window_start_idx, well_start_idx)
         end_idx = min(window_end_idx, well_end_idx)
 
-        # TODO make this a function
+        # TODO make this a function?
         # fit interpolation function on recorded data
         interp_data_fn = interpolate.interp1d(*well_file.force)
         # window, interpolate, normalize, and scale data

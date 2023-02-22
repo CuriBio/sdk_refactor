@@ -119,7 +119,7 @@ def test_peak_detection__handles_window_correctly(mocker):
 
     test_data = np.array([np.arange(10), np.arange(10) + 100])
 
-    test_start_time = randint(1, 4)
+    test_start_time = randint(0, 4)
     test_end_time = randint(5, 8)
 
     expected_windowed_peak_indices = np.array([0, 2])

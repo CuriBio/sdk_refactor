@@ -340,6 +340,7 @@ class PlateRecording:
         # TODO unit test the stiffness factor (auto and override), inverted_post_magnet_wells
         stiffness_factor: Optional[int] = None,
         inverted_post_magnet_wells: Optional[List[str]] = None,
+        well_groups: Optional[dict[str, List[str]]] = None,
     ):
         self.path = path
         self.wells = []
@@ -381,11 +382,16 @@ class PlateRecording:
 
         # set up platemap info
         self.platemap_name = self.wells[0][PLATEMAP_NAME_UUID]
-
         platemap_labels = defaultdict(list)
-        for well_file in self:
-            label = well_file[PLATEMAP_LABEL_UUID]
-            platemap_labels[label].append(well_file[WELL_NAME_UUID])
+        
+        if well_groups is None:
+            for well_file in self:
+                label = well_file[PLATEMAP_LABEL_UUID]
+                platemap_labels[label].append(well_file[WELL_NAME_UUID])
+        else:
+            for (label, wells) in enumerate(well_groups.items()):
+                platemap_labels[label] = wells
+            
         self.platemap_labels = dict(platemap_labels)
 
         # currently file versions 1.0.0 and above must have all their data processed together

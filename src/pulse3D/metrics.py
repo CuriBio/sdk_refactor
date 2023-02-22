@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 from pandas import DataFrame
 from pandas import Series
-from pulse3D.transforms import get_time_window
+from pulse3D.transforms import get_time_window_indices
 
 from .compression_cy import interpolate_x_for_y_between_two_points
 from .compression_cy import interpolate_y_for_x_between_two_points
@@ -579,8 +579,8 @@ class TwitchAUC(BaseMetric):
             start_timepoint = rising_x_values[iter_twitch_peak_idx][width_percent]
             stop_timepoint = falling_x_values[iter_twitch_peak_idx][width_percent]
 
-            auc_window = get_time_window(filtered_data[0], start_timepoint, stop_timepoint)
-            auc_total = np.trapz(filtered_data[1, auc_window], dx=INTERPOLATED_DATA_PERIOD_SECONDS)
+            auc_window_indices = get_time_window_indices(filtered_data[0], start_timepoint, stop_timepoint)
+            auc_total = np.trapz(filtered_data[1, auc_window_indices], dx=INTERPOLATED_DATA_PERIOD_SECONDS)
 
             if self.rounded:
                 auc_total = int(round(auc_total, 0))

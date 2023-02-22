@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from random import randint
+
 import numpy as np
 from pulse3D import peak_detection
 from pulse3D.constants import MICRO_TO_BASE_CONVERSION
@@ -117,8 +119,8 @@ def test_peak_detection__handles_window_correctly(mocker):
 
     test_data = np.array([np.arange(10), np.arange(10) + 100])
 
-    test_start_time = 3
-    test_end_time = 6
+    test_start_time = randint(1, 4)
+    test_end_time = randint(5, 8)
 
     expected_windowed_peak_indices = np.array([0, 2])
     expected_windowed_valley_indices = np.array([1, 3])

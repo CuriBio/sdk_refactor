@@ -48,8 +48,8 @@ def peak_detector(
     prominence_factors = _format_factors(prominence_factors)
 
     # apply window
-    window = get_time_window(filtered_magnetic_signal[0], start_time, end_time)
-    windowed_signal = filtered_magnetic_signal[:, window]
+    window_indices = get_time_window_indices(filtered_magnetic_signal[0], start_time, end_time)
+    windowed_signal = filtered_magnetic_signal[:, window_indices]
 
     # interpolated data points are required, meaning that the time steps should all be the same, so using the first one
     sampling_period_us = windowed_signal[0, 1] - windowed_signal[0, 0]
@@ -82,9 +82,8 @@ def peak_detector(
     _fix_peak_finding_results(magnetic_signal, valley_indices, valley_properties)
 
     # indices are only valid with the given window, so adjust to match original signal
-    window_start_idx = np.argmax(window)
-    peak_indices += window_start_idx
-    valley_indices += window_start_idx
+    peak_indices += window_indices[0]
+    valley_indices += window_indices[0]
 
     return peak_indices, valley_indices
 
@@ -421,7 +420,7 @@ def get_windowed_peaks_valleys(
     sub_peaks = np.subtract(peaks, start_idx)
     sub_valleys = np.subtract(valleys, start_idx)
     # remove indices greater than max windowed index
-    peak_window = get_time_window(sub_peaks, 0, windowed_end_idx)
-    valley_window = get_time_window(sub_valleys, 0, windowed_end_idx)
+    peak_window_indices = get_time_window_indices(sub_peaks, 0, windowed_end_idx)
+    valley_window_indices = get_time_window_indices(sub_valleys, 0, windowed_end_idx)
     # grab indices from original sub peaks and valleys
-    return sub_peaks[peak_window], sub_valleys[valley_window]
+    return sub_peaks[peak_window_indices], sub_valleys[valley_window_indices]

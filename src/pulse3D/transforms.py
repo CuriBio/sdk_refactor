@@ -251,7 +251,7 @@ def calculate_force_from_displacement(
     return np.vstack((time, sample_in_newtons)).astype(np.float64)
 
 
-def get_time_window(
+def get_time_window_indices(
     time: NDArray[(1, Any), np.float64], start: Union[float, int], stop: Union[float, int]
 ) -> NDArray[(1, Any), int]:
     return np.where((time >= start) & (time <= stop))[0]

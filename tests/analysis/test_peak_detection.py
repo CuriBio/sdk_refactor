@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from random import randint
+
 import numpy as np
 from pulse3D import peak_detection
 from pulse3D.constants import MICRO_TO_BASE_CONVERSION
@@ -109,6 +111,39 @@ def test_peak_detection_input__width_factors(test_width, mocker):
         mocked_find_peaks.call_args_list[1][1]["width"]
         == min_required_samples_between_twitches / expected_widths[1]
     )
+
+
+def test_peak_detection__handles_window_correctly(mocker):
+    # mock to avoid errors
+    mocker.patch.object(peak_detection, "_fix_peak_finding_results", autospec=True)
+
+    test_data = np.array([np.arange(10), np.arange(10) + 100])
+
+    test_start_time = randint(0, 4)
+    test_end_time = randint(5, 8)
+
+    expected_windowed_peak_indices = np.array([0, 2])
+    expected_windowed_valley_indices = np.array([1, 3])
+
+    mocked_find_peaks = mocker.patch.object(
+        peak_detection.signal,
+        "find_peaks",
+        autospec=True,
+        side_effect=[
+            (expected_windowed_peak_indices.copy(), mocker.MagicMock()),
+            (expected_windowed_valley_indices.copy(), mocker.MagicMock()),
+        ],
+    )
+
+    peaks, valleys = peak_detector(test_data, start_time=test_start_time, end_time=test_end_time)
+
+    np.testing.assert_array_equal(peaks, expected_windowed_peak_indices + test_start_time)
+    np.testing.assert_array_equal(valleys, expected_windowed_valley_indices + test_start_time)
+
+    # make sure data was sliced to window bounds before being ran through peak finding alg
+    expected_slice = slice(test_start_time, test_end_time + 1)
+    np.testing.assert_array_equal(test_data[1, expected_slice], mocked_find_peaks.call_args_list[0][0][0])
+    np.testing.assert_array_equal(-test_data[1, expected_slice], mocked_find_peaks.call_args_list[1][0][0])
 
 
 def test_find_twitch_indices__raises_error_if_not_enough_peaks_given():

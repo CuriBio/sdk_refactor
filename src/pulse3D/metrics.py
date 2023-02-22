@@ -7,7 +7,6 @@ If a new metric is requested, you must implement `fit`,
 
 # for hashing dataframes
 import abc
-from functools import partial
 from typing import Any
 from typing import Dict
 from typing import Optional
@@ -20,10 +19,12 @@ import numpy as np
 import pandas as pd
 from pandas import DataFrame
 from pandas import Series
+from pulse3D.transforms import get_time_window_indices
 
 from .compression_cy import interpolate_x_for_y_between_two_points
 from .compression_cy import interpolate_y_for_x_between_two_points
 from .constants import DEFAULT_TWITCH_WIDTH_PERCENTS
+from .constants import INTERPOLATED_DATA_PERIOD_SECONDS
 from .constants import MICRO_TO_BASE_CONVERSION
 from .constants import PRIOR_VALLEY_INDEX_UUID
 from .constants import SUBSEQUENT_VALLEY_INDEX_UUID
@@ -172,7 +173,7 @@ class TwitchAmplitude(BaseMetric):
             r90y = twitch_data["force"]["relaxation"][twitch_width]
 
             twitch_base_y = interpolate_y_for_x_between_two_points(twitch_peak_x, c10x, c10y, r90x, r90y)
-            amplitude_y = (twitch_peak_y - twitch_base_y) * MICRO_TO_BASE_CONVERSION
+            amplitude_y = twitch_peak_y - twitch_base_y
 
             estimates_dict[twitch_peak_idx] = amplitude_y
 
@@ -441,7 +442,7 @@ class TwitchVelocity(BaseMetric):
 
         # change in force / change in time
         velocity = abs((Y_end - Y_start) / (X_end - X_start))
-        velocity *= MICRO_TO_BASE_CONVERSION**2
+        velocity *= MICRO_TO_BASE_CONVERSION
 
         return velocity
 
@@ -558,7 +559,7 @@ class TwitchAUC(BaseMetric):
                 of prior/subsequent peaks and valleys and their index values.
 
             filtered_data: a 2D array of the time and value (magnetic, voltage, displacement, force)
-                data after it has gone through noise filtering
+                data after it has gone through noise filtering and interpolation
 
             per_twitch_widths: a list of dictionaries where the first key is the percentage of the
                 way down to the nearby valleys, the second key is a UUID representing either the
@@ -571,83 +572,16 @@ class TwitchAUC(BaseMetric):
         width_percent = 90  # what percent of repolarization to use as the bottom limit for calculating AUC
         estimates_dict: Dict[int, Union[int, float]] = dict()
 
-        value_series = filtered_data[1, :]
-        time_series = filtered_data[0, :]
-
         rising_x_values = coordinate_df["time"]["contraction"].T.to_dict()
-        rising_y_values = coordinate_df["force"]["contraction"].T.to_dict()
-
         falling_x_values = coordinate_df["time"]["relaxation"].T.to_dict()
-        falling_y_values = coordinate_df["force"]["relaxation"].T.to_dict()
 
-        for iter_twitch_peak_idx, iter_twitch_indices_info in twitch_indices.items():
-            # iter_twitch_peak_timepoint = time_series[iter_twitch_peak_idx]
-            prior_valley_value = value_series[iter_twitch_indices_info[PRIOR_VALLEY_INDEX_UUID]]
-            subsequent_valley_value = value_series[iter_twitch_indices_info[SUBSEQUENT_VALLEY_INDEX_UUID]]
+        for iter_twitch_peak_idx in twitch_indices.keys():
+            start_timepoint = rising_x_values[iter_twitch_peak_idx][width_percent]
+            stop_timepoint = falling_x_values[iter_twitch_peak_idx][width_percent]
 
-            rising_x = rising_x_values[iter_twitch_peak_idx][width_percent]
-            rising_y = rising_y_values[iter_twitch_peak_idx][width_percent]
-            rising_coords = (rising_x, rising_y)
+            auc_window_indices = get_time_window_indices(filtered_data[0], start_timepoint, stop_timepoint)
+            auc_total = np.trapz(filtered_data[1, auc_window_indices], dx=INTERPOLATED_DATA_PERIOD_SECONDS)
 
-            falling_x = falling_x_values[iter_twitch_peak_idx][width_percent]
-            falling_y = falling_y_values[iter_twitch_peak_idx][width_percent]
-            falling_coords = (falling_x, falling_y)
-
-            auc_total: Union[float, int] = 0
-
-            # calculate area of rising side
-            rising_idx = iter_twitch_peak_idx
-            # move to the left from the twitch peak until the threshold is reached
-            while abs(value_series[rising_idx - 1] - prior_valley_value) > abs(rising_y - prior_valley_value):
-                left_x = time_series[rising_idx - 1]
-                right_x = time_series[rising_idx]
-                left_y = value_series[rising_idx - 1]
-                right_y = value_series[rising_idx]
-
-                auc_total += self.calculate_trapezoid_area(
-                    left_x,
-                    right_x,
-                    left_y,
-                    right_y,
-                    rising_coords,
-                    falling_coords,
-                )
-                rising_idx -= 1
-            # final trapezoid at the boundary of the interpolated twitch width point
-            left_x = rising_x
-            right_x = time_series[rising_idx]
-            left_y = rising_y
-            right_y = value_series[rising_idx]
-
-            auc_total += self.calculate_trapezoid_area(
-                left_x, right_x, left_y, right_y, rising_coords, falling_coords
-            )
-
-            # calculate area of falling side
-            falling_idx = iter_twitch_peak_idx
-            # move to the left from the twitch peak until the threshold is reached
-            while abs(value_series[falling_idx + 1] - subsequent_valley_value) > abs(
-                falling_y - subsequent_valley_value
-            ):
-                left_x = time_series[falling_idx]
-                right_x = time_series[falling_idx + 1]
-                left_y = value_series[falling_idx]
-                right_y = value_series[falling_idx + 1]
-
-                auc_total += self.calculate_trapezoid_area(
-                    left_x, right_x, left_y, right_y, rising_coords, falling_coords
-                )
-                falling_idx += 1
-
-            # final trapezoid at the boundary of the interpolated twitch width point
-            left_x = time_series[falling_idx]
-            right_x = falling_x
-            left_y = value_series[rising_idx]
-            right_y = falling_y
-
-            auc_total += self.calculate_trapezoid_area(
-                left_x, right_x, left_y, right_y, rising_coords, falling_coords
-            )
             if self.rounded:
                 auc_total = int(round(auc_total, 0))
 
@@ -655,34 +589,6 @@ class TwitchAUC(BaseMetric):
 
         estimates = pd.Series(estimates_dict)
         return estimates
-
-    @staticmethod
-    def calculate_trapezoid_area(
-        left_x: int,
-        right_x: int,
-        left_y: int,
-        right_y: int,
-        rising_coords: Tuple[Union[float, int], Union[float, int]],
-        falling_coords: Tuple[Union[float, int], Union[float, int]],
-    ) -> Union[int, float]:
-        """Calculate the area under the trapezoid.
-
-        Returns: area of the trapezoid
-        """
-        rising_x, rising_y = rising_coords
-        falling_x, falling_y = falling_coords
-
-        interp_y_for_lower_bound = partial(
-            interpolate_y_for_x_between_two_points, x_1=rising_x, y_1=rising_y, x_2=falling_x, y_2=falling_y
-        )
-
-        trapezoid_left_side = abs(left_y - interp_y_for_lower_bound(left_x))
-        trapezoid_right_side = abs(right_y - interp_y_for_lower_bound(right_x))
-
-        trapezoid_h = right_x - left_x
-        auc_total = (trapezoid_left_side + trapezoid_right_side) / 2 * trapezoid_h
-
-        return auc_total
 
 
 class TwitchPeriod(BaseMetric):

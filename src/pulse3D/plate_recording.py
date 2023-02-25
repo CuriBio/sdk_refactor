@@ -545,8 +545,8 @@ class PlateRecording:
         if self._created_from_dataframe:
             raise NotImplementedError("Cannot export a DF if created from a DF. Just use the original")
 
-        min_time = min([wf.force[0][0] for wf in self])
-        max_time = max([wf.force[0][-1] for wf in self])
+        min_time = min([wf.force[0, 0] for wf in self])
+        max_time = max([wf.force[0, -1] for wf in self])
         interp_period = (
             first_well[INTERPOLATION_VALUE_UUID] if self.is_optical_recording else INTERPOLATED_DATA_PERIOD_US
         )

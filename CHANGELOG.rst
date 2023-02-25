@@ -9,6 +9,9 @@ Added:
 - ``well_groups`` param added to ``PlateRecording`` to override the well groups in the H5 files
 - Added ``Platemap Group Metrics`` to the  ``aggregate-metrics`` sheet after individual well metrics
 
+Changed:
+^^^^^^^^
+- Removed ``PlateRecording.write_time_force_csv``
 
 0.30.2 (2023-02-22)
 -------------------

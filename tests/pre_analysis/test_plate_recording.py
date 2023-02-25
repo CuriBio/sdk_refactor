@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
+from collections import defaultdict
 import os
 from secrets import choice
-import tempfile
 
 import numpy as np
 from pulse3D import plate_recording
@@ -38,7 +38,7 @@ TEST_VAR_STIM_SESSIONS_FILE_PATH = os.path.join(
     [
         (None, [None]),
         (NOT_APPLICABLE_H5_METADATA, [str(NOT_APPLICABLE_H5_METADATA)]),
-        ("test_name", [str(NOT_APPLICABLE_H5_METADATA), "testlabel1", "testlabel2"]),
+        ("test_name", ["testlabel1", "testlabel2"]),
     ],
 )
 def test_PlateRecording__loads_platemap_info_correctly(test_platemap_name, test_label_meta_options, mocker):
@@ -50,12 +50,12 @@ def test_PlateRecording__loads_platemap_info_correctly(test_platemap_name, test_
         side_effect=lambda x, *args, **kwargs: {"X": np.empty((x.shape[-1], 24))},
     )
 
-    if test_platemap_name:
+    if test_platemap_name and test_platemap_name != NOT_APPLICABLE_H5_METADATA:
         if len(test_label_meta_options) == 1:
             test_label_metadata = test_label_meta_options * 24
         else:
             test_label_metadata = test_label_meta_options + [
-                choice(test_label_meta_options) for _ in range(21)
+                choice(test_label_meta_options) for _ in range(22)
             ]
         expected_labels = {
             label: [
@@ -65,19 +65,14 @@ def test_PlateRecording__loads_platemap_info_correctly(test_platemap_name, test_
             ]
             for label in test_label_meta_options
         }
-        expected_labels[NOT_APPLICABLE_LABEL] = expected_labels.pop(str(NOT_APPLICABLE_H5_METADATA))
     else:
-        expected_labels = {
-            NOT_APPLICABLE_LABEL: [
-                TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_idx) for well_idx in range(24)
-            ]
-        }
+        expected_labels = defaultdict(list)
 
     unmocked_load = WellFile._load_data_from_h5_file
 
     def load_se(wf, file_path):
         unmocked_load(wf, file_path)
-        if test_platemap_name:
+        if test_platemap_name and test_platemap_name != NOT_APPLICABLE_H5_METADATA:
             wf.attrs[str(PLATEMAP_NAME_UUID)] = test_platemap_name
             wf.attrs[str(PLATEMAP_LABEL_UUID)] = test_label_metadata[wf[WELL_INDEX_UUID]]
         # these metadata tags are not in the file currently chosen for this test, so don't need to remove them for the test where they shouldn't be present
@@ -202,37 +197,6 @@ def test_PlateRecording__slices_data_before_analysis(mocker):
     assert abs(expected_final_time_index - pr.wells[0].force[0][-1]) <= recording_sampling_period_us * 2
 
 
-def test_PlateRecording__writes_time_force_csv_with_no_errors(mocker):
-    # mock instead of spy so magnet finding alg doesn't run
-    mocker.patch.object(
-        plate_recording,
-        "find_magnet_positions",
-        autospec=True,
-        side_effect=lambda data, *args: {"X": np.zeros((data.shape[-1], 24))},
-    )
-
-    zip_pr = PlateRecording(
-        os.path.join(
-            PATH_TO_MAGNET_FINDING_FILES,
-            "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.zip",
-        )
-    )
-    h5_pr = PlateRecording.from_directory(os.path.join(PATH_TO_H5_FILES, "v0.3.2"))
-    # raw_baseline_data = spied_mfd_from_memsic.spy_return
-    with tempfile.TemporaryDirectory() as output_dir:
-        zip_pr.write_time_force_csv(output_dir)
-        for pr in h5_pr:
-            df, _ = pr.write_time_force_csv(output_dir)
-            assert len(df.index) == 7975
-            assert len(df.columns) == 25
-
-        assert (
-            "MA200440001__2020_02_09_190359__with_calibration_recordings__zipped_as_folder.csv"
-            in os.listdir(output_dir)
-        )
-        assert "MA20223322__2020_09_02_173919.csv" in os.listdir(output_dir)
-
-
 def test_PlateRecording__v1_data_loaded_from_dataframe_will_equal_original_well_data(mocker):
     def se(x, *args, **kwargs):
         x_len = x.shape[-1]
@@ -279,3 +243,47 @@ def test_PlateRecording__v1_data_loaded_from_dataframe_will_equal_original_well_
                 original_session_data,
                 err_msg=f"Well {well_idx}, Stim Session {session_idx}",
             )
+
+
+def test_PlateRecording__overrides_h5_platemap_groups_if_well_groups_param_is_not_none(mocker):
+    # mock so magnet finding alg doesn't run
+    mocker.patch.object(
+        plate_recording,
+        "find_magnet_positions",
+        autospec=True,
+        side_effect=lambda x, *args, **kwargs: {"X": np.empty((x.shape[-1], 24))},
+    )
+
+    test_label_meta_options = ["label_one", "label_two"]
+    test_platemap_meta_name = "original_platemap_name"
+    test_label_metadata = (
+        test_label_meta_options + test_label_meta_options + [NOT_APPLICABLE_LABEL for _ in range(20)]
+    )
+    unmocked_load = WellFile._load_data_from_h5_file
+
+    def load_se(wf, file_path):
+        unmocked_load(wf, file_path)
+        wf.attrs[str(PLATEMAP_NAME_UUID)] = test_platemap_meta_name
+        wf.attrs[str(PLATEMAP_LABEL_UUID)] = test_label_metadata[wf[WELL_INDEX_UUID]]
+
+        # these metadata tags are not in the file currently chosen for this test, so don't need to remove them for the test where they shouldn't be present
+
+    mocker.patch.object(
+        plate_recording.WellFile, "_load_data_from_h5_file", autospec=True, side_effect=load_se
+    )
+
+    pr = PlateRecording(TEST_TWO_STIM_SESSIONS_FILE_PATH)
+    # test full dict
+    assert pr.platemap_labels == defaultdict(**{"label_one": ["A1", "C1"], "label_two": ["B1", "D1"]})
+
+    new_well_groups = {
+        "new_label_one": ["A2", "A3"],
+        "new_label_two": ["B1"],
+        "new_label_three": ["B4", "C5", "D6"],
+    }
+    pr = PlateRecording(
+        TEST_TWO_STIM_SESSIONS_FILE_PATH, well_groups=new_well_groups
+    )  # arbitrary file chosen
+
+    # test full dict
+    assert pr.platemap_labels == defaultdict(**new_well_groups)

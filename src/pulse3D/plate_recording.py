@@ -46,7 +46,6 @@ from .utils import get_experiment_id
 from .utils import get_stiffness_factor
 from .utils import get_well_name_from_h5
 from .utils import truncate
-from .utils import truncate_float
 
 log = logging.getLogger(__name__)
 
@@ -524,27 +523,6 @@ class PlateRecording:
                 stim_session = stim_session_raw[:, ~np.isnan(stim_session_raw[1])].astype(int)
                 wf.stim_sessions.append(stim_session)
 
-    def write_time_force_csv(self, output_dir: str):
-        # get recording name
-        recording_name = os.path.splitext(os.path.basename(self.path))[0]
-        output_path = os.path.join(output_dir, f"{recording_name}.csv")
-
-        # set indexes to time points
-        truncated_time_sec = [
-            truncate_float(ms / MICRO_TO_BASE_CONVERSION, 2) for ms in self.wells[0].force[0]
-        ]
-
-        force_data = dict({"Time (s)": pd.Series(truncated_time_sec)})
-
-        for well in self:
-            well_name = well.get(WELL_NAME_UUID, None)
-            force_data[well_name] = pd.Series(well.force[1])
-
-        time_recording_df = pd.DataFrame(force_data)
-        time_recording_df.to_csv(output_path, index=False)
-
-        return time_recording_df, output_path
-
     def to_dataframe(self) -> pd.DataFrame:
         """Creates DataFrame from PlateRecording with all the data
         interpolated, normalized, and scaled. The returned dataframe contains
@@ -625,10 +603,10 @@ class PlateRecording:
         return df
 
     @staticmethod
-    def from_dataframe(path, df: pd.DataFrame):
+    def from_dataframe(path, **kwargs):
         # only allowed for one recording at a time assuming a user would only ever pass a dataframe to one recording
         log.info(f"Loading recording from file {os.path.basename(path)}")
-        yield PlateRecording(path, recording_df=df)
+        yield PlateRecording(path, **kwargs)
 
     @staticmethod
     def from_directory(path, **kwargs):

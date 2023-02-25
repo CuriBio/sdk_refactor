@@ -7,6 +7,7 @@ import logging
 import os
 import tempfile
 from typing import Any
+from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Union
@@ -339,7 +340,7 @@ class PlateRecording:
         # TODO unit test the stiffness factor (auto and override), inverted_post_magnet_wells
         stiffness_factor: Optional[int] = None,
         inverted_post_magnet_wells: Optional[List[str]] = None,
-        well_groups: Optional[dict[str, List[str]]] = None,
+        well_groups: Optional[Dict[str, List[str]]] = None,
     ):
         self.path = path
         self.wells = []

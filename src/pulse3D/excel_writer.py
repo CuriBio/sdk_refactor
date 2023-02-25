@@ -19,6 +19,7 @@ from scipy import interpolate
 
 from .constants import *
 from .exceptions import *
+from .metrics import *
 from .peak_detection import concat
 from .peak_detection import data_metrics
 from .peak_detection import get_windowed_peaks_valleys
@@ -286,9 +287,7 @@ def write_xlsx(
         stim_barcode_display = NOT_APPLICABLE_LABEL
 
     platemap_label_display_rows = [
-        ("", label, ", ".join(well_names))
-        for label, well_names in plate_recording.platemap_labels.items()
-        if label != NOT_APPLICABLE_LABEL
+        ("", label, ", ".join(well_names)) for label, well_names in plate_recording.platemap_labels.items()
     ]
 
     # create metadata sheet format as DataFrame
@@ -413,10 +412,16 @@ def write_xlsx(
         # the rest of the code will expect time to be in seconds, so convert here
         interpolated_well_data[0] /= MICRO_TO_BASE_CONVERSION
 
+        # ensure that the correct groups are used if a user overrides the original H5 labels in the dashboard
+        well_label = NOT_APPLICABLE_LABEL
+        for label, well_names in plate_recording.platemap_labels.items():
+            if well_file[WELL_NAME_UUID] in well_names:
+                well_label = label
+
         well_info = {
             "well_index": well_index,
             "well_name": TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_index),
-            "platemap_label": well_file[PLATEMAP_LABEL_UUID],
+            "platemap_label": well_label,
             "tissue_data": interpolated_well_data,
             "peaks_and_valleys": peaks_and_valleys,
             "metrics": metrics,
@@ -425,6 +430,12 @@ def write_xlsx(
             well_info["error_msg"] = error_msg
 
         recording_plotting_info.append(well_info)
+
+    group_metrics_list = _get_agg_group_metrics(
+        well_data=recording_plotting_info,
+        well_groups=plate_recording.platemap_labels,
+        twitch_widths_range=twitch_width_percents,
+    )
 
     continuous_waveforms_df = _create_continuous_waveforms_df(
         interpolated_well_data[0], recording_plotting_info
@@ -455,6 +466,7 @@ def write_xlsx(
         include_stim_protocols=include_stim_protocols,
         twitch_widths=twitch_widths,
         baseline_widths_to_use=baseline_widths_to_use,
+        group_metrics_list=group_metrics_list,
     )
 
     log.info("Done")
@@ -594,6 +606,7 @@ def _write_xlsx(
     include_stim_protocols: bool = False,
     twitch_widths: Tuple[int, ...] = DEFAULT_TWITCH_WIDTHS,
     baseline_widths_to_use: Tuple[int, ...] = DEFAULT_BASELINE_WIDTHS,
+    group_metrics_list: List[Dict[str, Any]] = [],
 ):
     log.info(f"Writing {output_file_name}")
     with pd.ExcelWriter(output_file_name) as writer:
@@ -625,7 +638,9 @@ def _write_xlsx(
                 stim_plotting_info,
             )
 
-        _write_aggregate_metrics(writer, recording_plotting_info, twitch_widths, baseline_widths_to_use)
+        _write_aggregate_metrics(
+            writer, recording_plotting_info, twitch_widths, baseline_widths_to_use, group_metrics_list
+        )
 
         num_metrics = _write_per_twitch_metrics(
             writer, recording_plotting_info, twitch_widths, baseline_widths_to_use
@@ -720,9 +735,13 @@ def _write_stim_waveforms(writer, stim_waveform_df):
     )
 
 
-def _write_aggregate_metrics(writer, recording_plotting_info, twitch_widths, baseline_widths_to_use):
+def _write_aggregate_metrics(
+    writer, recording_plotting_info, twitch_widths, baseline_widths_to_use, group_metrics_list
+):
     log.info("Writing aggregate metrics.")
-    aggregate_df = aggregate_metrics_df(recording_plotting_info, twitch_widths, baseline_widths_to_use)
+    aggregate_df = aggregate_metrics_df(
+        recording_plotting_info, twitch_widths, baseline_widths_to_use, group_metrics_list
+    )
     aggregate_df.to_excel(writer, sheet_name="aggregate-metrics", index=False, header=False)
 
 
@@ -898,6 +917,7 @@ def aggregate_metrics_df(
     recording_plotting_info: List[Dict[Any, Any]],
     widths: Tuple[int, ...] = DEFAULT_TWITCH_WIDTHS,
     baseline_widths_to_use: Tuple[int, ...] = DEFAULT_BASELINE_WIDTHS,
+    group_metrics_list: List[Dict[str, Any]] = [],
 ):
     """Combine aggregate metrics for each well into single DataFrame.
 
@@ -905,6 +925,8 @@ def aggregate_metrics_df(
         recording_plotting_info (list): list of data metrics and metadata associated with each well
         widths (tuple of ints, optional): twitch-widths to return data for.
         baseline_widths_to_use: twitch widths to use as baseline metrics
+        group_metrics_list: list of dictionaries with label name and metrics dataframe.
+
     Returns:
         df (DataFrame): aggregate data frame of all metric aggregate measures
     """
@@ -918,9 +940,22 @@ def aggregate_metrics_df(
         for well_info in recording_plotting_info
     ]
 
+    # add group metrics if groups present, else ignore
+    num_of_groups = len(group_metrics_list)
+    if num_of_groups > 0:
+        well_names_row += ["", "", "Platemap Group Metrics"] + ["" for _ in range(num_of_groups)]
+        description_row += ["", "", "Label Name"] + [gr["name"] for gr in group_metrics_list]
+        num_twitches_row += ["" for _ in range(num_of_groups + 3)]
+
     df = pd.DataFrame(data=[well_names_row, description_row, num_twitches_row, [""]])
 
-    combined = pd.concat([well_info["metrics"][1] for well_info in recording_plotting_info])
+    individual_well_metrics = [well_info["metrics"][1] for well_info in recording_plotting_info]
+    group_metrics = [gr["metrics"] for gr in group_metrics_list]
+    #  need three empty columns between individual well metrics and group metrics for separation and titles
+    empty_aggregate_df = init_dfs(twitch_widths_range=widths)["aggregate"]
+    empty_column = concat([empty_aggregate_df[j] for j in empty_aggregate_df.keys()], axis=1)
+
+    combined = pd.concat([*individual_well_metrics, *[empty_column for _ in range(3)], *group_metrics])
     for metric_id in ALL_METRICS:
         if metric_id in (WIDTH_UUID, RELAXATION_TIME_UUID, CONTRACTION_TIME_UUID):
             for width in widths:
@@ -1029,3 +1064,31 @@ def per_twitch_df(
     df = pd.concat(series_list, axis=1).T
     df.fillna("", inplace=True)
     return df, num_per_twitch_metrics
+
+
+def _get_agg_group_metrics(well_data, well_groups, twitch_widths_range):
+    all_group_metrics = []
+
+    for label, wells in well_groups.items():
+        # group metrics is list of dataframes for well groups
+        group_metrics = [d["metrics"] for d in well_data if d["well_name"] in wells]
+        first_aggregate_well_data = group_metrics[0]
+        combined_df = first_aggregate_well_data[0]
+
+        for group in group_metrics[1:]:
+            combined_df = pd.concat([combined_df, group[0]])
+
+        dfs = init_dfs(twitch_widths_range=twitch_widths_range)
+        aggregate_dfs = dfs["aggregate"]
+
+        for c in combined_df.columns:
+            metric_type = "scalar" if c[0] in CALCULATED_METRICS["scalar"] else "by_width"
+            aggregate_df_to_use = aggregate_dfs[metric_type]
+            WellGroupMetric().add_group_aggregate_metrics(
+                aggregate_df=aggregate_df_to_use, metric_id=c, metrics=combined_df[c], metric_type=metric_type
+            )
+
+        concat_aggregate_df = concat([aggregate_dfs[j] for j in aggregate_dfs.keys()], axis=1)
+        all_group_metrics.append({"name": label, "metrics": concat_aggregate_df})
+
+    return all_group_metrics

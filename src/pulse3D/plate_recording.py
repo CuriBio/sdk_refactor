@@ -382,17 +382,17 @@ class PlateRecording:
 
         # set up platemap info
         self.platemap_name = self.wells[0][PLATEMAP_NAME_UUID]
-        platemap_labels = defaultdict(list)
-        
+
         if well_groups is None:
+            platemap_labels = defaultdict(list)
             for well_file in self:
                 label = well_file[PLATEMAP_LABEL_UUID]
-                platemap_labels[label].append(well_file[WELL_NAME_UUID])
+                if label != NOT_APPLICABLE_LABEL:
+                    platemap_labels[label].append(well_file[WELL_NAME_UUID])
         else:
-            for (label, wells) in enumerate(well_groups.items()):
-                platemap_labels[label] = wells
-            
-        self.platemap_labels = dict(platemap_labels)
+            platemap_labels = defaultdict(**well_groups)
+
+        self.platemap_labels = platemap_labels
 
         # currently file versions 1.0.0 and above must have all their data processed together
         if not self.is_optical_recording and self.wells[0].version >= VersionInfo.parse("1.0.0"):
@@ -567,8 +567,8 @@ class PlateRecording:
         if self._created_from_dataframe:
             raise NotImplementedError("Cannot export a DF if created from a DF. Just use the original")
 
-        min_time = min([wf.force[0, 0] for wf in self])
-        max_time = max([wf.force[0, -1] for wf in self])
+        min_time = min([wf.force[0][0] for wf in self])
+        max_time = max([wf.force[0][-1] for wf in self])
         interp_period = (
             first_well[INTERPOLATION_VALUE_UUID] if self.is_optical_recording else INTERPOLATED_DATA_PERIOD_US
         )

@@ -1,6 +1,15 @@
 Changelog for Pulse3D
 =====================
 
+0.30.3 (2023-02-27)
+-------------------
+
+Added:
+^^^^^^
+- ``well_groups`` param added to ``PlateRecording`` to override the well groups in the H5 files
+- Added ``Platemap Group Metrics`` to the  ``aggregate-metrics`` sheet after individual well metrics
+
+
 0.30.2 (2023-02-22)
 -------------------
 

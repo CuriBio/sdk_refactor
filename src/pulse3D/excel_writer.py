@@ -1085,7 +1085,7 @@ def _get_agg_group_metrics(well_data, well_groups, twitch_widths_range):
             metric_type = "scalar" if c[0] in CALCULATED_METRICS["scalar"] else "by_width"
             aggregate_df_to_use = aggregate_dfs[metric_type]
             WellGroupMetric().add_group_aggregate_metrics(
-                aggregate_df=aggregate_df_to_use, metric_id=c, metrics=combined_df[c], metric_type=metric_type
+                aggregate_df=aggregate_df_to_use, metric_column=c, metrics=combined_df[c], metric_type=metric_type
             )
 
         concat_aggregate_df = concat([aggregate_dfs[j] for j in aggregate_dfs.keys()], axis=1)

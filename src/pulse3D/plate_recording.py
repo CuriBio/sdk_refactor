@@ -382,21 +382,21 @@ class PlateRecording:
 
         # set up platemap info
         self.platemap_name = self.wells[0][PLATEMAP_NAME_UUID]
+        platemap_labels = defaultdict(list)
 
-        if well_groups is None:
-            platemap_labels = defaultdict(list)
-            for well_file in self:
+        for well_file in self:
+            if well_groups is None:
                 label = well_file[PLATEMAP_LABEL_UUID]
+                # only add to platemap_labels if label has been assigned
                 if label != NOT_APPLICABLE_LABEL:
                     platemap_labels[label].append(well_file[WELL_NAME_UUID])
-        else:
-            for well_file in self:
+            else:
+                # default all labels to NA first
                 well_file[PLATEMAP_LABEL_UUID] = NOT_APPLICABLE_LABEL
                 for label, well_names in well_groups.items():
                     if well_file[WELL_NAME_UUID] in well_names:
                         well_file[PLATEMAP_LABEL_UUID] = label
-
-            platemap_labels = defaultdict(**well_groups)
+                        platemap_labels[label].append(well_file[WELL_NAME_UUID])
 
         self.platemap_labels = dict(platemap_labels)
 

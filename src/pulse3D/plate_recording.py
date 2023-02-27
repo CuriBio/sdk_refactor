@@ -390,9 +390,15 @@ class PlateRecording:
                 if label != NOT_APPLICABLE_LABEL:
                     platemap_labels[label].append(well_file[WELL_NAME_UUID])
         else:
+            for well_file in self:
+                well_file[PLATEMAP_LABEL_UUID] = NOT_APPLICABLE_LABEL
+                for label, well_names in well_groups.items():
+                    if well_file[WELL_NAME_UUID] in well_names:
+                        well_file[PLATEMAP_LABEL_UUID] = label
+
             platemap_labels = defaultdict(**well_groups)
 
-        self.platemap_labels = platemap_labels
+        self.platemap_labels = dict(platemap_labels)
 
         # currently file versions 1.0.0 and above must have all their data processed together
         if not self.is_optical_recording and self.wells[0].version >= VersionInfo.parse("1.0.0"):

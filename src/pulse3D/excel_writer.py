@@ -19,7 +19,7 @@ from scipy import interpolate
 
 from .constants import *
 from .exceptions import *
-from .metrics import *
+from .metrics import WellGroupMetric
 from .peak_detection import concat
 from .peak_detection import data_metrics
 from .peak_detection import get_windowed_peaks_valleys
@@ -412,16 +412,10 @@ def write_xlsx(
         # the rest of the code will expect time to be in seconds, so convert here
         interpolated_well_data[0] /= MICRO_TO_BASE_CONVERSION
 
-        # ensure that the correct groups are used if a user overrides the original H5 labels in the dashboard
-        well_label = NOT_APPLICABLE_LABEL
-        for label, well_names in plate_recording.platemap_labels.items():
-            if well_file[WELL_NAME_UUID] in well_names:
-                well_label = label
-
         well_info = {
             "well_index": well_index,
             "well_name": TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_index),
-            "platemap_label": well_label,
+            "platemap_label": well_file[PLATEMAP_LABEL_UUID],
             "tissue_data": interpolated_well_data,
             "peaks_and_valleys": peaks_and_valleys,
             "metrics": metrics,
@@ -1071,7 +1065,7 @@ def _get_agg_group_metrics(well_data, well_groups, twitch_widths_range):
 
     for label, wells in well_groups.items():
         # group metrics is list of dataframes for well groups
-        group_metrics = [d["metrics"] for d in well_data if d["well_name"] in wells]
+        group_metrics = [w["metrics"] for w in well_data if w["well_name"] in wells]
         first_aggregate_well_data = group_metrics[0]
         combined_df = first_aggregate_well_data[0]
 
@@ -1081,17 +1075,19 @@ def _get_agg_group_metrics(well_data, well_groups, twitch_widths_range):
         dfs = init_dfs(twitch_widths_range=twitch_widths_range)
         aggregate_dfs = dfs["aggregate"]
 
-        for c in combined_df.columns:
-            metric_type = "scalar" if c[0] in CALCULATED_METRICS["scalar"] else "by_width"
+        for col in combined_df.columns:
+            metric_type = "scalar" if col[0] in CALCULATED_METRICS["scalar"] else "by_width"
             aggregate_df_to_use = aggregate_dfs[metric_type]
             WellGroupMetric().add_group_aggregate_metrics(
                 aggregate_df=aggregate_df_to_use,
-                metric_column=c,
-                metrics=combined_df[c],
+                metric_column=col,
+                metrics=combined_df[col],
                 metric_type=metric_type,
             )
 
-        concat_aggregate_df = concat([aggregate_dfs[j] for j in aggregate_dfs.keys()], axis=1)
+        concat_aggregate_df = concat(
+            [aggregate_dfs[metric_type] for metric_type in aggregate_dfs.keys()], axis=1
+        )
         all_group_metrics.append({"name": label, "metrics": concat_aggregate_df})
 
     return all_group_metrics

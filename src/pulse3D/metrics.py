@@ -472,7 +472,6 @@ class TwitchIrregularity(BaseMetric):
     ) -> None:
         statistics_dict = self.create_statistics_df(metric=metrics[1:-1], rounded=self.rounded)
         statistics_dict["n"] += 2
-
         aggregate_dict[metric_id] = statistics_dict
 
     @staticmethod
@@ -818,3 +817,30 @@ class TwitchPeakToBaseline(BaseMetric):
         ]
         estimates = pd.Series(estimates_list, index=twitch_indices.keys()) / MICRO_TO_BASE_CONVERSION
         return estimates
+
+
+class WellGroupMetric(BaseMetric):
+    """Calculate aggregrate group metrics."""
+
+    def __init__(
+        self,
+        **kwargs: Dict[str, Any],
+    ):
+        super().__init__(False, **kwargs)
+
+    def add_group_aggregate_metrics(
+        self, aggregate_df: DataFrame, metric_column: Tuple, metrics: pd.Series, metric_type
+    ) -> None:
+        """Get aggregate metrics for entire well group.
+
+        Args:
+            aggregate_df (DataFrame): DataFrame storing aggregate metrics for well group
+            metric_column (UUID, str): multi-index column in aggregate metrics dataframe
+            metrics (Union[NDArray[int], NDArray[float]]): estimates from all wells in single group
+            metric_type (str): scalar or by_width
+        """
+        aggregate_metrics = self.create_statistics_df(metrics.values, rounded=self.rounded)
+        if metric_type == "scalar":
+            aggregate_df[metric_column[0]] = aggregate_metrics
+        else:
+            aggregate_df[metric_column[0], metric_column[1]] = aggregate_metrics

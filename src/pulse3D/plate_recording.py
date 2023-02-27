@@ -7,6 +7,7 @@ import logging
 import os
 import tempfile
 from typing import Any
+from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Union
@@ -46,7 +47,6 @@ from .utils import get_experiment_id
 from .utils import get_stiffness_factor
 from .utils import get_well_name_from_h5
 from .utils import truncate
-from .utils import truncate_float
 
 log = logging.getLogger(__name__)
 
@@ -340,6 +340,7 @@ class PlateRecording:
         # TODO unit test the stiffness factor (auto and override), inverted_post_magnet_wells
         stiffness_factor: Optional[int] = None,
         inverted_post_magnet_wells: Optional[List[str]] = None,
+        well_groups: Optional[Dict[str, List[str]]] = None,
     ):
         self.path = path
         self.wells = []
@@ -381,11 +382,22 @@ class PlateRecording:
 
         # set up platemap info
         self.platemap_name = self.wells[0][PLATEMAP_NAME_UUID]
-
         platemap_labels = defaultdict(list)
+
         for well_file in self:
-            label = well_file[PLATEMAP_LABEL_UUID]
-            platemap_labels[label].append(well_file[WELL_NAME_UUID])
+            if well_groups is None:
+                label = well_file[PLATEMAP_LABEL_UUID]
+                # only add to platemap_labels if label has been assigned
+                if label != NOT_APPLICABLE_LABEL:
+                    platemap_labels[label].append(well_file[WELL_NAME_UUID])
+            else:
+                # default all labels to NA first
+                well_file[PLATEMAP_LABEL_UUID] = NOT_APPLICABLE_LABEL
+                for label, well_names in well_groups.items():
+                    if well_file[WELL_NAME_UUID] in well_names:
+                        well_file[PLATEMAP_LABEL_UUID] = label
+                        platemap_labels[label].append(well_file[WELL_NAME_UUID])
+
         self.platemap_labels = dict(platemap_labels)
 
         # currently file versions 1.0.0 and above must have all their data processed together
@@ -518,27 +530,6 @@ class PlateRecording:
                 stim_session = stim_session_raw[:, ~np.isnan(stim_session_raw[1])].astype(int)
                 wf.stim_sessions.append(stim_session)
 
-    def write_time_force_csv(self, output_dir: str):
-        # get recording name
-        recording_name = os.path.splitext(os.path.basename(self.path))[0]
-        output_path = os.path.join(output_dir, f"{recording_name}.csv")
-
-        # set indexes to time points
-        truncated_time_sec = [
-            truncate_float(ms / MICRO_TO_BASE_CONVERSION, 2) for ms in self.wells[0].force[0]
-        ]
-
-        force_data = dict({"Time (s)": pd.Series(truncated_time_sec)})
-
-        for well in self:
-            well_name = well.get(WELL_NAME_UUID, None)
-            force_data[well_name] = pd.Series(well.force[1])
-
-        time_recording_df = pd.DataFrame(force_data)
-        time_recording_df.to_csv(output_path, index=False)
-
-        return time_recording_df, output_path
-
     def to_dataframe(self) -> pd.DataFrame:
         """Creates DataFrame from PlateRecording with all the data
         interpolated, normalized, and scaled. The returned dataframe contains
@@ -619,10 +610,10 @@ class PlateRecording:
         return df
 
     @staticmethod
-    def from_dataframe(path, df: pd.DataFrame):
+    def from_dataframe(path, **kwargs):
         # only allowed for one recording at a time assuming a user would only ever pass a dataframe to one recording
         log.info(f"Loading recording from file {os.path.basename(path)}")
-        yield PlateRecording(path, recording_df=df)
+        yield PlateRecording(path, **kwargs)
 
     @staticmethod
     def from_directory(path, **kwargs):

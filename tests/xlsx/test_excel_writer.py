@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import math
 import os
 from random import choice
 from random import randint
@@ -134,7 +135,7 @@ def test_write_xlsx__sets_tissue_y_axis_correctly_based_on_normalize_y_axis_and_
             tissue_waveform_data = pd.read_excel(
                 output_filepath, sheet_name="continuous-waveforms", usecols=list(range(1, 25))
             )
-            expected_max = int(max([max(tissue_waveform_data[col]) for col in tissue_waveform_data]))
+            expected_max = math.ceil(max([max(tissue_waveform_data[col]) for col in tissue_waveform_data]))
 
     expected_tissue_chart_bounds = {"max": expected_max, "min": 0}
 

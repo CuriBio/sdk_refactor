@@ -2,6 +2,7 @@
 import datetime
 import json
 import logging
+import math
 import os
 import string
 from typing import Any
@@ -440,7 +441,7 @@ def write_xlsx(
         max_y = None
     elif max_y is None:
         # if y-axis normalization enabled but no max Y given, then set it to the max twitch force across all wells
-        max_y = int(max_force_of_recording)
+        max_y = math.ceil(max_force_of_recording)
 
     # Tanner (12/15/22): setting min to zero right now since the tissue data will never be < 0. If this ever needs to change, may want to also take the new min into account when setting the y2 axis bounds for stim data
     y_axis_bounds = {"tissue": {"max": max_y, "min": 0}}

@@ -20,26 +20,45 @@ if TYPE_CHECKING:
     from .plate_recording import WellFile
 
 
+FILTER_PARAMS = signal.butter(4, 30, "low", fs=100)
+
+
 def find_magnet_positions(
     fields: NDArray[(NUM_CHANNELS_24_WELL_PLATE, Any), float],
     baseline: NDArray[(NUM_CHANNELS_24_WELL_PLATE, Any), float],
     initial_magnet_finding_params: Dict[str, Union[int, float]],
-    filter_outputs: bool = True,
+    filter_inputs: bool = True,
+    filter_outputs: bool = False,
 ) -> Dict[str, NDArray[(1, Any), float]]:
+    if filter_inputs:
+        fields = filter_raw_signal(fields)
+
     output_dict = get_positions((fields.T - baseline).T, **initial_magnet_finding_params)  # type: ignore  # mypy complaining about **
+
     if filter_outputs:
         for param, output_arr in output_dict.items():
             output_dict[param] = filter_magnet_positions(output_arr)
+
     return output_dict
 
 
+def filter_raw_signal(
+    fields: NDArray[(NUM_CHANNELS_24_WELL_PLATE, Any), float]
+) -> NDArray[(NUM_CHANNELS_24_WELL_PLATE, Any), float]:
+    filtered_fields = np.empty(fields.shape)
+
+    for channel_idx in range(fields.shape[0]):
+        filtered_fields[channel_idx] = signal.filtfilt(*FILTER_PARAMS, fields[channel_idx])
+    return filtered_fields
+
+
 def filter_magnet_positions(magnet_positions: NDArray[(Any, 24), float]) -> NDArray[(Any, 24), float]:
-    high_cut_hz = 30
-    b, a = signal.butter(4, high_cut_hz, "low", fs=100)
     filtered_magnet_positions = np.empty(magnet_positions.shape)
     # Tanner (1/7/22): need to filter each well individually, can't filter over the entire axis of the array at once
     for well_arr_idx in range(magnet_positions.shape[1]):
-        filtered_magnet_positions[:, well_arr_idx] = signal.filtfilt(b, a, magnet_positions[:, well_arr_idx])
+        filtered_magnet_positions[:, well_arr_idx] = signal.filtfilt(
+            *FILTER_PARAMS, magnet_positions[:, well_arr_idx]
+        )
     return filtered_magnet_positions
 
 

@@ -1,6 +1,18 @@
 Changelog for Pulse3D
 =====================
 
+0.30.4 (2023-03-01)
+-------------------
+
+Added:
+^^^^^^
+- Accuracy improvements to the magnet finding algorithm
+
+Changed:
+^^^^^^^^
+- Filtering of data is now applied prior to the magnet finding algorithm instead of after
+
+
 0.30.3 (2023-02-27)
 -------------------
 
@@ -19,7 +31,7 @@ Changed:
 Changed:
 ^^^^^^^^
 - ``peak_detector`` will now remove timepoints from outside the window provided by ``start_time`` and
-  ``end_time`` before running the data through the peak finding alg. This is too ensure that problematic
+  ``end_time`` before running the data through the peak finding algorithm. This is too ensure that problematic
   data outside the window does not interfere with peak finding.
 
 
@@ -85,7 +97,7 @@ Added:
 
 0.28.0 (2022-11-16)
 -------------------
-- Accuracy and performance improvements to magnet finding alg
+- Accuracy and performance improvements to the magnet finding algorithm
 - ``PlateRecording``'s ``start_time`` and ``end_time`` parameters now take effect before running the magnet finding algorithm.
   These params are currently only intended to be used for recording snapshots. They have no effect on Beta 1 data
 - Removed ``use_mean_of_baseline`` from ``PlateRecording`` since the alternative is never used
@@ -113,7 +125,7 @@ Added:
 
 0.27.0 (2022-10-07)
 -------------------
-- Change magnet finding alg to account for 180 degree rotation of plates on V1 instrument
+- Change magnet finding algorithm to account for 180 degree rotation of plates on V1 instrument
 - Fix issue with trying to grab barcode from calibration files
 
 0.26.1 (2022-10-05)

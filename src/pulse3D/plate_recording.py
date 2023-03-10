@@ -162,12 +162,16 @@ class WellFile:
             self.is_force_data = (
                 "y" in str(_get_excel_metadata_value(self._excel_sheet, TWITCHES_POINT_UP_UUID)).lower()
             )
+            self.stiffness_factor = None
             for uuid_ in (PLATEMAP_NAME_UUID, PLATEMAP_LABEL_UUID):
-                val = self.get(uuid_, NOT_APPLICABLE_LABEL)
-                if val == str(NOT_APPLICABLE_H5_METADATA):
-                    val = NOT_APPLICABLE_LABEL
-                self[uuid_] = val
-            self._load_magnetic_data()
+                self[uuid_] = NOT_APPLICABLE_LABEL
+            # set tissue to force data without ADC or noise filtering
+            adj_raw_tissue_reading = self[TISSUE_SENSOR_READINGS].copy()
+            time_conversion = (
+                MICROSECONDS_PER_CENTIMILLISECOND if self.is_magnetic_data else MICRO_TO_BASE_CONVERSION
+            )
+            adj_raw_tissue_reading[0] *= time_conversion
+            self.force = adj_raw_tissue_reading
 
     def _load_data_from_h5_file(self, file_path: str) -> None:
         with h5py.File(file_path, "r") as h5_file:
@@ -249,28 +253,26 @@ class WellFile:
                 self.fully_calibrated_magnetic_data, self.filter_coefficients
             )
 
-            self.compressed_magnetic_data: NDArray[(2, Any), int] = compress_filtered_magnetic_data(
-                self.noise_filtered_magnetic_data
-            )
-            self.compressed_voltage: NDArray[(2, Any), np.float32] = calculate_voltage_from_gmr(
-                self.compressed_magnetic_data
-            )
-            self.compressed_displacement: NDArray[(2, Any), np.float32] = calculate_displacement_from_voltage(
-                self.compressed_voltage
-            )
-            self.compressed_force: NDArray[(2, Any), np.float32] = calculate_force_from_displacement(
-                self.compressed_displacement, stiffness_factor=self.stiffness_factor, in_mm=False
-            )
+        self.compressed_magnetic_data: NDArray[(2, Any), int] = compress_filtered_magnetic_data(
+            self.noise_filtered_magnetic_data
+        )
+        self.compressed_voltage: NDArray[(2, Any), np.float32] = calculate_voltage_from_gmr(
+            self.compressed_magnetic_data
+        )
+        self.compressed_displacement: NDArray[(2, Any), np.float32] = calculate_displacement_from_voltage(
+            self.compressed_voltage
+        )
+        self.compressed_force: NDArray[(2, Any), np.float32] = calculate_force_from_displacement(
+            self.compressed_displacement, stiffness_factor=self.stiffness_factor, in_mm=False
+        )
 
-            self.voltage: NDArray[(2, Any), np.float32] = calculate_voltage_from_gmr(
-                self.noise_filtered_magnetic_data
-            )
-            self.displacement: NDArray[(2, Any), np.float64] = calculate_displacement_from_voltage(
-                self.voltage
-            )
-            self.force: NDArray[(2, Any), np.float64] = calculate_force_from_displacement(
-                self.displacement, stiffness_factor=self.stiffness_factor, in_mm=False
-            )
+        self.voltage: NDArray[(2, Any), np.float32] = calculate_voltage_from_gmr(
+            self.noise_filtered_magnetic_data
+        )
+        self.displacement: NDArray[(2, Any), np.float64] = calculate_displacement_from_voltage(self.voltage)
+        self.force: NDArray[(2, Any), np.float64] = calculate_force_from_displacement(
+            self.displacement, stiffness_factor=self.stiffness_factor, in_mm=False
+        )
 
     def get(self, key, default=None):
         try:
@@ -343,7 +345,7 @@ class PlateRecording:
         self.path = path
         self.wells = []
         self._iter = 0
-        self.is_optical_recording = False
+        self.is_optical_recording = "xlsx" in self.path
 
         # Tanner (11/16/22): due to the needs of the scientists for the full analysis,
         # these params should only be used in the recording snapshot.

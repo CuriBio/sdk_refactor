@@ -275,7 +275,7 @@ def write_xlsx(
     file_suffix = "full" if is_full_analysis else f"{start_time}-{end_time}"
     output_file_name = f"{input_file_name_no_ext}_{file_suffix}.xlsx"
 
-    if "xlsx" not in plate_recording.path:
+    if not plate_recording.is_optical_recording:
         if first_wf.stiffness_override:
             # reverse dict to use the stiffness factor as a key and get the label value
             post_stiffness_factor = {v: k for k, v in POST_STIFFNESS_LABEL_TO_FACTOR.items()}[
@@ -372,7 +372,7 @@ def write_xlsx(
         # window, interpolate, normalize, and scale data
         windowed_timepoints_us = interpolated_timepoints_us[start_idx:end_idx]
         interpolated_force = interp_data_fn(windowed_timepoints_us)
-        if "xlsx" in plate_recording.path:
+        if plate_recording.is_optical_recording:
             interpolated_force = interpolated_force - min(interpolated_force)
         else:
             interpolated_force = (interpolated_force - min(interpolated_force)) * MICRO_TO_BASE_CONVERSION

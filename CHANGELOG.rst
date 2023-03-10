@@ -4,9 +4,9 @@ Changelog for Pulse3D
 0.30.5 (unreleased)
 -------------------
 
-Changed:
+Fixed:
 ^^^^^^^^
-- Optical files can now be used with Pulse3D analysis. Removed noise filtering and ADC calculation for xlsx files.
+- Removed noise filtering and ADC calculation for xlsx optical files.
 
 0.30.4 (2023-03-01)
 -------------------

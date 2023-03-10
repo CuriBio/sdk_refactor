@@ -275,14 +275,16 @@ def write_xlsx(
     file_suffix = "full" if is_full_analysis else f"{start_time}-{end_time}"
     output_file_name = f"{input_file_name_no_ext}_{file_suffix}.xlsx"
 
-    if first_wf.stiffness_override:
-        # reverse dict to use the stiffness factor as a key and get the label value
-        post_stiffness_factor = {v: k for k, v in POST_STIFFNESS_LABEL_TO_FACTOR.items()}[
-            first_wf.stiffness_factor
-        ]
+    if "xlsx" not in plate_recording.path:
+        if first_wf.stiffness_override:
+            # reverse dict to use the stiffness factor as a key and get the label value
+            post_stiffness_factor = {v: k for k, v in POST_STIFFNESS_LABEL_TO_FACTOR.items()}[
+                first_wf.stiffness_factor
+            ]
+        else:
+            post_stiffness_factor = get_stiffness_label(get_experiment_id(first_wf[PLATE_BARCODE_UUID]))
     else:
-        post_stiffness_factor = get_stiffness_label(get_experiment_id(first_wf[PLATE_BARCODE_UUID]))
-
+        post_stiffness_factor = None
     stim_barcode_display = first_wf.get(STIM_BARCODE_UUID)
     if stim_barcode_display is None or stim_barcode_display == str(NOT_APPLICABLE_H5_METADATA):
         stim_barcode_display = NOT_APPLICABLE_LABEL
@@ -370,7 +372,10 @@ def write_xlsx(
         # window, interpolate, normalize, and scale data
         windowed_timepoints_us = interpolated_timepoints_us[start_idx:end_idx]
         interpolated_force = interp_data_fn(windowed_timepoints_us)
-        interpolated_force = (interpolated_force - min(interpolated_force)) * MICRO_TO_BASE_CONVERSION
+        if "xlsx" in plate_recording.path:
+            interpolated_force = interpolated_force - min(interpolated_force)
+        else:
+            interpolated_force = (interpolated_force - min(interpolated_force)) * MICRO_TO_BASE_CONVERSION
         interpolated_well_data = np.row_stack([windowed_timepoints_us, interpolated_force])
 
         # find the biggest activation twitch force over all

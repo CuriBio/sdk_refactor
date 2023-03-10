@@ -83,6 +83,8 @@ class WellFile:
         self.displacement: NDArray[(2, Any), np.float64]
         self.force: NDArray[(2, Any), np.float64]
         self.stim_sessions: List[NDArray[(2, Any), int]] = []
+        self.noise_filter_uuid = None
+        self.filter_coefficients = None
 
         if stiffness_factor not in (*POST_STIFFNESS_OVERRIDE_OPTIONS, None):
             raise ValueError(
@@ -160,18 +162,11 @@ class WellFile:
             self.is_force_data = (
                 "y" in str(_get_excel_metadata_value(self._excel_sheet, TWITCHES_POINT_UP_UUID)).lower()
             )
-
-            self.noise_filter_uuid = (
-                TSP_TO_DEFAULT_FILTER_UUID[self.tissue_sampling_period] if self.is_magnetic_data else None
-            )
-            self.filter_coefficients = (
-                create_filter(self.noise_filter_uuid, self.tissue_sampling_period)
-                if self.noise_filter_uuid
-                else None
-            )
-
-            self.stiffness_factor = stiffness_factor if stiffness_factor else CARDIAC_STIFFNESS_FACTOR
-
+            for uuid_ in (PLATEMAP_NAME_UUID, PLATEMAP_LABEL_UUID):
+                val = self.get(uuid_, NOT_APPLICABLE_LABEL)
+                if val == str(NOT_APPLICABLE_H5_METADATA):
+                    val = NOT_APPLICABLE_LABEL
+                self[uuid_] = val
             self._load_magnetic_data()
 
     def _load_data_from_h5_file(self, file_path: str) -> None:
@@ -248,31 +243,34 @@ class WellFile:
         self.noise_filtered_magnetic_data: NDArray[(2, Any), int]
         if self.noise_filter_uuid is None:
             self.noise_filtered_magnetic_data = self.fully_calibrated_magnetic_data
+            self.force = self.noise_filtered_magnetic_data
         else:
             self.noise_filtered_magnetic_data = apply_noise_filtering(
                 self.fully_calibrated_magnetic_data, self.filter_coefficients
             )
 
-        self.compressed_magnetic_data: NDArray[(2, Any), int] = compress_filtered_magnetic_data(
-            self.noise_filtered_magnetic_data
-        )
-        self.compressed_voltage: NDArray[(2, Any), np.float32] = calculate_voltage_from_gmr(
-            self.compressed_magnetic_data
-        )
-        self.compressed_displacement: NDArray[(2, Any), np.float32] = calculate_displacement_from_voltage(
-            self.compressed_voltage
-        )
-        self.compressed_force: NDArray[(2, Any), np.float32] = calculate_force_from_displacement(
-            self.compressed_displacement, stiffness_factor=self.stiffness_factor, in_mm=False
-        )
+            self.compressed_magnetic_data: NDArray[(2, Any), int] = compress_filtered_magnetic_data(
+                self.noise_filtered_magnetic_data
+            )
+            self.compressed_voltage: NDArray[(2, Any), np.float32] = calculate_voltage_from_gmr(
+                self.compressed_magnetic_data
+            )
+            self.compressed_displacement: NDArray[(2, Any), np.float32] = calculate_displacement_from_voltage(
+                self.compressed_voltage
+            )
+            self.compressed_force: NDArray[(2, Any), np.float32] = calculate_force_from_displacement(
+                self.compressed_displacement, stiffness_factor=self.stiffness_factor, in_mm=False
+            )
 
-        self.voltage: NDArray[(2, Any), np.float32] = calculate_voltage_from_gmr(
-            self.noise_filtered_magnetic_data
-        )
-        self.displacement: NDArray[(2, Any), np.float64] = calculate_displacement_from_voltage(self.voltage)
-        self.force: NDArray[(2, Any), np.float64] = calculate_force_from_displacement(
-            self.displacement, stiffness_factor=self.stiffness_factor, in_mm=False
-        )
+            self.voltage: NDArray[(2, Any), np.float32] = calculate_voltage_from_gmr(
+                self.noise_filtered_magnetic_data
+            )
+            self.displacement: NDArray[(2, Any), np.float64] = calculate_displacement_from_voltage(
+                self.voltage
+            )
+            self.force: NDArray[(2, Any), np.float64] = calculate_force_from_displacement(
+                self.displacement, stiffness_factor=self.stiffness_factor, in_mm=False
+            )
 
     def get(self, key, default=None):
         try:
@@ -686,16 +684,6 @@ def load_files(
         baseline_well_files[well_file[WELL_INDEX_UUID]] = well_file  # type: ignore
 
     return tissue_well_files, baseline_well_files
-
-
-def _find_start_index(from_start: int, old_data: NDArray[(1, Any), int]) -> int:
-    start_index, time_from_start = 0, 0
-
-    while start_index + 1 < len(old_data) and from_start >= time_from_start:
-        time_from_start = old_data[start_index + 1] - old_data[0]
-        start_index += 1
-
-    return start_index - 1  # loop iterates 1 past the desired index, so subtract 1
 
 
 def _get_col_as_array(sheet: Worksheet, zero_based_row: int, zero_based_col: int) -> NDArray[(2, Any), float]:

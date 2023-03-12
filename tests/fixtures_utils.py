@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import csv
 import os
+from random import choice
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -19,6 +20,10 @@ PATH_TO_DATA_METRIC_FILES = os.path.join(PATH_OF_CURRENT_FILE, "data_files", "da
 
 TEST_SMALL_BETA_1_FILE_PATH = os.path.join(PATH_TO_H5_FILES, "v0.4.2", "SmallBeta1File.zip")
 TEST_SMALL_BETA_2_FILE_PATH = os.path.join(PATH_TO_H5_FILES, "stim", "SmallBeta2File-NoStim.zip")
+
+
+def rand_bool():
+    return choice([True, False])
 
 
 def _load_file(file_path: str) -> Tuple[List[str], List[str]]:

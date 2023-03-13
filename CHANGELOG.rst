@@ -1,6 +1,21 @@
 Changelog for Pulse3D
 =====================
 
+
+0.30.5 (2023-03-13)
+-------------------
+
+Changed:
+^^^^^^^^
+- Stim subprotocols no longer continue being draw if the run longer than expected
+- ``include_stim_protocols`` is now overrided to ``True`` if ``stim_waveform_format`` is given
+
+Fixed:
+^^^^^^
+- Beginning of stim delay now has slightly non-zero amplitude to combat an issue with excel dropping data
+  points in charts
+
+
 0.30.4 (2023-03-01)
 -------------------
 

@@ -138,7 +138,7 @@ def interpolate_stim_session(
         stim_status_updates = stim_status_updates[:, :-1]
 
     # Tanner (3/10/23): using a non-zero as the first value to fix an issue with excel dropping data points in charts
-    initial_delay_amplitude = _get_initial_delay_value(subprotocols)
+    initial_delay_amplitude = _get_initial_delay_value(subprotocols, stim_status_updates)
 
     session_waveform = np.empty((2, 0))
     for next_status_idx, (start_timepoint, subprotocol_idx) in enumerate(stim_status_updates.T, 1):
@@ -225,9 +225,15 @@ def realign_interpolated_stim_data(
     return adjusted_interpolated_stim_data
 
 
-def _get_initial_delay_value(subprotocols: List[Dict[str, int]]) -> float:
+def _get_initial_delay_value(
+    subprotocols: List[Dict[str, int]], stim_status_updates: NDArray[(2, Any), int]
+) -> float:
+    subprotocol_indices_in_recording = set(stim_status_updates[1])
+
     max_abs_charge_of_protocol = 0.0
-    for subprotocol in subprotocols:
+    for idx, subprotocol in enumerate(subprotocols):
+        if idx not in subprotocol_indices_in_recording:
+            continue
         max_abs_charge_of_protocol = max(
             max_abs_charge_of_protocol, _get_max_abs_charge_of_subprotocol(subprotocol)
         )

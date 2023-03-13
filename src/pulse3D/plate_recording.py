@@ -482,7 +482,6 @@ class PlateRecording:
                 continue
 
             stim_protocol = json.loads(wf[STIMULATION_PROTOCOL_UUID])
-            is_voltage = stim_protocol["stimulation_type"] == "V"
 
             try:
                 stim_sessions_waveforms = create_stim_session_waveforms(
@@ -490,12 +489,12 @@ class PlateRecording:
                     wf[STIMULATION_READINGS],
                     start_time_us,
                     end_time_us,
-                    is_voltage,
                 )
             except SubprotocolFormatIncompatibleWithInterpolationError:
                 log.info("Subprotocol format not supported by intperpolation")
                 return
 
+            is_voltage = stim_protocol["stimulation_type"] == "V"
             charge_conversion_factor = 1 if is_voltage else MILLI_TO_BASE_CONVERSION
 
             for waveform in stim_sessions_waveforms:

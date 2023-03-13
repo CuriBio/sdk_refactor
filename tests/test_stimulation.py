@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 import itertools
+from random import choice
 from random import randint
+from random import random
 
 import numpy as np
 from pulse3D import stimulation
-from pulse3D.constants import MILLI_TO_BASE_CONVERSION
 from pulse3D.constants import STIM_COMPLETE_SUBPROTOCOL_IDX
 from pulse3D.exceptions import SubprotocolFormatIncompatibleWithInterpolationError
 from pulse3D.stimulation import aggregate_timepoints
@@ -157,7 +158,7 @@ def test_create_interpolated_subprotocol_waveform__raises_error_if_subprotocol_i
             randint(0, 100),
             randint(100, 200),
             rand_bool(),
-            rand_bool(),
+            random(),
         )
 
 
@@ -169,15 +170,12 @@ def test_create_interpolated_subprotocol_waveform__raises_error_if_loop_given():
             randint(0, 100),
             randint(100, 200),
             rand_bool(),
-            rand_bool(),
+            random(),
         )
 
 
 @pytest.mark.parametrize("include_start_timepoint", [True, False])
-@pytest.mark.parametrize("is_voltage", [True, False])
-def test_create_interpolated_subprotocol_waveform__creates_delay_correctly(
-    include_start_timepoint, is_voltage, mocker
-):
+def test_create_interpolated_subprotocol_waveform__creates_delay_correctly(include_start_timepoint, mocker):
     mocked_truncate = mocker.patch.object(
         stimulation, "truncate_interpolated_subprotocol_waveform", autospec=True
     )
@@ -186,15 +184,19 @@ def test_create_interpolated_subprotocol_waveform__creates_delay_correctly(
 
     test_start_timepoint = randint(0, 100)
     test_stop_timepoint = randint(100, 200)
+    test_initial_delay_amplitude = choice([0.01, 0.1, 1.0, 10.0])
 
     actual_delay_arr = create_interpolated_subprotocol_waveform(
-        test_delay, test_start_timepoint, test_stop_timepoint, include_start_timepoint, is_voltage
+        test_delay,
+        test_start_timepoint,
+        test_stop_timepoint,
+        include_start_timepoint,
+        test_initial_delay_amplitude,
     )
     assert actual_delay_arr == mocked_truncate.return_value
 
-    expected_first_val = -(1 if is_voltage else MILLI_TO_BASE_CONVERSION) / 10
     expected_original_delay_arr = np.array(
-        [[test_start_timepoint, test_stop_timepoint], [expected_first_val, 0]]
+        [[test_start_timepoint, test_stop_timepoint], [test_initial_delay_amplitude, 0]]
     )
 
     mocked_truncate.assert_called_once()
@@ -398,7 +400,6 @@ def test_create_interpolated_subprotocol_waveform__creates_biphasic_waveform_cor
 def test_interpolate_stim_session__returns_empty_array_if_start_timepoint_is_greater_than_protocol_complete_status_of_stim_status_updates():
     test_start_timepoint = 0
     test_stop_timepoint = 100
-    test_is_voltage = rand_bool()
 
     actual_waveform_arr = interpolate_stim_session(
         [],  # not needed for this test
@@ -410,7 +411,6 @@ def test_interpolate_stim_session__returns_empty_array_if_start_timepoint_is_gre
         ),
         test_start_timepoint,
         test_stop_timepoint,
-        test_is_voltage,
     )
     np.testing.assert_array_equal(actual_waveform_arr, np.empty((2, 0)))
 
@@ -418,7 +418,6 @@ def test_interpolate_stim_session__returns_empty_array_if_start_timepoint_is_gre
 def test_interpolate_stim_session__returns_empty_array_if_stop_timepoint_is_less_than_first_timepoint_of_stim_status_updates():
     test_start_timepoint = 0
     test_stop_timepoint = 100
-    test_is_voltage = rand_bool()
 
     actual_waveform_arr = interpolate_stim_session(
         [],  # not needed for this test
@@ -433,7 +432,6 @@ def test_interpolate_stim_session__returns_empty_array_if_stop_timepoint_is_less
         ),
         test_start_timepoint,
         test_stop_timepoint,
-        test_is_voltage,
     )
     np.testing.assert_array_equal(actual_waveform_arr, np.empty((2, 0)))
 
@@ -459,6 +457,7 @@ def test_interpolate_stim_session__creates_full_waveform_correctly(final_subprot
     mocked_truncate = mocker.patch.object(
         stimulation, "truncate_interpolated_subprotocol_waveform", autospec=True
     )
+    mocked_get_initial = mocker.patch.object(stimulation, "_get_initial_delay_value", autospec=True)
 
     test_start_timepoint = randint(0, 100)
     test_stop_timepoint = randint(200, 300)
@@ -470,14 +469,9 @@ def test_interpolate_stim_session__creates_full_waveform_correctly(final_subprot
         )
 
     test_subprotocols = get_test_subprotocols()
-    test_is_voltage = rand_bool()
 
     actual_interpolated_session = interpolate_stim_session(
-        test_subprotocols,
-        test_stim_status_updates,
-        test_start_timepoint,
-        test_stop_timepoint,
-        test_is_voltage,
+        test_subprotocols, test_stim_status_updates, test_start_timepoint, test_stop_timepoint
     )
     assert actual_interpolated_session == mocked_truncate.return_value
 
@@ -487,10 +481,14 @@ def test_interpolate_stim_session__creates_full_waveform_correctly(final_subprot
             test_stim_status_updates[0, 0],
             test_stim_status_updates[0, 1],
             True,
-            test_is_voltage,
+            mocked_get_initial.return_value,
         ),
         mocker.call(
-            test_subprotocols[1], test_stim_status_updates[0, 1], test_stop_timepoint, False, test_is_voltage
+            test_subprotocols[1],
+            test_stim_status_updates[0, 1],
+            test_stop_timepoint,
+            False,
+            mocked_get_initial.return_value,
         ),
     ]
 
@@ -533,19 +531,17 @@ def test_create_stim_session_waveforms__creates_list_of_session_waveforms_correc
         test_final_timepoint -= 1
 
     test_subprotocols = get_test_subprotocols()
-    test_is_voltage = rand_bool()
 
     actual_waveforms = create_stim_session_waveforms(
         test_subprotocols,
         test_stim_status_updates,
         test_initial_timepoint,
         test_final_timepoint,
-        test_is_voltage,
     )
     assert actual_waveforms == [expected_mock_waveform_return]
 
     mocked_interpolate_stim_session.assert_called_once_with(
-        test_subprotocols, mocker.ANY, test_initial_timepoint, test_final_timepoint, test_is_voltage
+        test_subprotocols, mocker.ANY, test_initial_timepoint, test_final_timepoint
     )
     # have to make assertions on the stim_status_updates array separately
     np.testing.assert_array_equal(mocked_interpolate_stim_session.call_args[0][1], test_stim_status_updates)
@@ -581,14 +577,12 @@ def test_create_stim_session_waveforms__creates_list_of_session_waveforms_correc
     test_stim_status_updates = np.concatenate(test_session_arrs, axis=1)
 
     test_subprotocols = get_test_subprotocols()
-    test_is_voltage = rand_bool()
 
     actual_waveforms = create_stim_session_waveforms(
         test_subprotocols,
         test_stim_status_updates,
         test_initial_timepoint,
         test_final_timepoint,
-        test_is_voltage,
     )
     assert actual_waveforms == expected_mock_waveform_returns
 
@@ -599,7 +593,7 @@ def test_create_stim_session_waveforms__creates_list_of_session_waveforms_correc
     ]
 
     assert mocked_interpolate_stim_session.call_args_list == [
-        mocker.call(test_subprotocols, mocker.ANY, test_initial_timepoint, final_timepoint, test_is_voltage)
+        mocker.call(test_subprotocols, mocker.ANY, test_initial_timepoint, final_timepoint)
         for final_timepoint in expected_final_timepoints
     ]
     # have to make assertions on the stim_session_arrays_separately

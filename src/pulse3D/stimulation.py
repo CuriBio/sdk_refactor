@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import itertools
-import math
 from operator import ge
 from operator import gt
 from operator import le
@@ -100,15 +99,13 @@ def create_interpolated_subprotocol_waveform(
         )[1:-1]
         first_cycle_amplitudes = np.repeat([subprotocol.get(comp, 0) for comp in amplitude_components], 2)
         cycle_dur = first_cycle_timepoints[-1] - start_timepoint
-        # determine how many cycles this subprotocols actually ran for
-        actual_num_cycles = math.ceil((stop_timepoint - start_timepoint) / cycle_dur)
         # add repeated cycle with incremented timepoints
         all_cycles_timepoints = [
             t + (cycle_num * cycle_dur)
-            for cycle_num in range(actual_num_cycles)
+            for cycle_num in range(subprotocol["num_cycles"])
             for t in first_cycle_timepoints
         ]
-        all_cycles_amplitudes = list(first_cycle_amplitudes) * actual_num_cycles
+        all_cycles_amplitudes = list(first_cycle_amplitudes) * subprotocol["num_cycles"]
         # add initial pair if needed
         if include_start_timepoint:
             all_cycles_timepoints = [start_timepoint] + all_cycles_timepoints

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import itertools
-import math
 from random import randint
 
 import numpy as np
@@ -215,7 +214,7 @@ def test_create_interpolated_subprotocol_waveform__creates_monophasic_waveform_c
     test_biphasic_pulse = {"type": "monophasic"}
     test_biphasic_pulse["phase_one_charge"] = test_phase_one_charge = randint(10, 50)
     test_biphasic_pulse["postphase_interval"] = test_postphase_interval = randint(1, 100)
-    test_biphasic_pulse["num_cycles"] = randint(1, 5)
+    test_biphasic_pulse["num_cycles"] = test_num_cycles = randint(1, 5)
     test_biphasic_pulse["phase_one_duration"] = test_phase_one_duration = randint(1, 100)
 
     test_start_timepoint = randint(0, 100)
@@ -235,15 +234,12 @@ def test_create_interpolated_subprotocol_waveform__creates_monophasic_waveform_c
     )
     assert actual_pulse_arr == mocked_truncate.return_value
 
-    # num_cycles is ignored, total subprotocol duration is used instead to determine the number of cycles to create
-    expected_num_cycles = math.ceil((test_stop_timepoint - test_start_timepoint) / test_cycle_dur)
-
     expected_timepoints = [
         t + (cycle_num * test_cycle_dur)
-        for cycle_num in range(expected_num_cycles)
+        for cycle_num in range(test_num_cycles)
         for t in test_first_cycle_timepoints
     ]
-    expected_amplitudes = [test_phase_one_charge, test_phase_one_charge, 0, 0] * expected_num_cycles
+    expected_amplitudes = [test_phase_one_charge, test_phase_one_charge, 0, 0] * test_num_cycles
 
     if include_start_timepoint:
         expected_timepoints = [test_start_timepoint] + expected_timepoints
@@ -270,7 +266,7 @@ def test_create_interpolated_subprotocol_waveform__creates_biphasic_waveform_cor
     test_biphasic_pulse["phase_one_duration"] = test_phase_one_duration = randint(1, 100)
     test_biphasic_pulse["postphase_interval"] = test_postphase_interval = randint(1, 100)
     test_biphasic_pulse["interphase_interval"] = test_interphase_interval = randint(1, 100)
-    test_biphasic_pulse["num_cycles"] = randint(1, 5)
+    test_biphasic_pulse["num_cycles"] = test_num_cycles = randint(1, 5)
     test_biphasic_pulse["phase_two_charge"] = test_phase_two_charge = -randint(10, 50)
     test_biphasic_pulse["phase_one_charge"] = test_phase_one_charge = randint(10, 50)
 
@@ -302,12 +298,9 @@ def test_create_interpolated_subprotocol_waveform__creates_biphasic_waveform_cor
     )
     assert actual_pulse_arr == mocked_truncate.return_value
 
-    # num_cycles is ignored, total subprotocol duration is used instead to determine the number of cycles to create
-    expected_num_cycles = math.ceil((test_stop_timepoint - test_start_timepoint) / test_cycle_dur)
-
     expected_timepoints = [
         t + (cycle_num * test_cycle_dur)
-        for cycle_num in range(expected_num_cycles)
+        for cycle_num in range(test_num_cycles)
         for t in test_first_cycle_timepoints
     ]
     expected_amplitudes = [
@@ -319,7 +312,7 @@ def test_create_interpolated_subprotocol_waveform__creates_biphasic_waveform_cor
         test_phase_two_charge,
         0,
         0,
-    ] * expected_num_cycles
+    ] * test_num_cycles
     if include_start_timepoint:
         expected_timepoints = [test_start_timepoint] + expected_timepoints
         expected_amplitudes = [0] + expected_amplitudes
@@ -345,7 +338,7 @@ def test_create_interpolated_subprotocol_waveform__creates_biphasic_waveform_cor
     test_biphasic_pulse["phase_one_duration"] = test_phase_one_duration = randint(1, 100)
     test_biphasic_pulse["postphase_interval"] = test_postphase_interval = randint(1, 100)
     test_biphasic_pulse["interphase_interval"] = 0
-    test_biphasic_pulse["num_cycles"] = randint(1, 5)
+    test_biphasic_pulse["num_cycles"] = test_num_cycles = randint(1, 5)
     test_biphasic_pulse["phase_two_charge"] = test_phase_two_charge = -randint(10, 50)
     test_biphasic_pulse["phase_one_charge"] = test_phase_one_charge = randint(10, 50)
 
@@ -377,12 +370,9 @@ def test_create_interpolated_subprotocol_waveform__creates_biphasic_waveform_cor
     )
     assert actual_pulse_arr == mocked_truncate.return_value
 
-    # num_cycles is ignored, total subprotocol duration is used instead to determine the number of cycles to create
-    expected_num_cycles = math.ceil((test_stop_timepoint - test_start_timepoint) / test_cycle_dur)
-
     expected_timepoints = [
         t + (cycle_num * test_cycle_dur)
-        for cycle_num in range(expected_num_cycles)
+        for cycle_num in range(test_num_cycles)
         for t in test_first_cycle_timepoints
     ]
     expected_amplitudes = [
@@ -392,7 +382,7 @@ def test_create_interpolated_subprotocol_waveform__creates_biphasic_waveform_cor
         test_phase_two_charge,
         0,
         0,
-    ] * expected_num_cycles
+    ] * test_num_cycles
 
     if include_start_timepoint:
         expected_timepoints = [test_start_timepoint] + expected_timepoints

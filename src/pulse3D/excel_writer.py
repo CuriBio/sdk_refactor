@@ -233,8 +233,9 @@ def write_xlsx(
     first_wf = next(iter(plate_recording))
 
     if stim_waveform_format is not None:
-        if stim_waveform_format not in ("stacked", "overlayed"):
+        if stim_waveform_format not in ("stacked", "overlayed", None):
             raise ValueError(f"Invalid stim_waveform_format: {stim_waveform_format}")
+        include_stim_protocols = True
 
     # make sure windows bounds are floats
     start_time = float(start_time)

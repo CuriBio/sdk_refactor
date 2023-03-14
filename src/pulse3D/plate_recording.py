@@ -487,15 +487,14 @@ class PlateRecording:
                 log.info("Subprotocol format not supported by intperpolation")
                 return
 
-            charge_conversion_factor = (
-                MILLI_TO_BASE_CONVERSION if stim_protocol["stimulation_type"] == "C" else 1
-            )
+            is_voltage = stim_protocol["stimulation_type"] == "V"
+            charge_conversion_factor = 1 if is_voltage else MILLI_TO_BASE_CONVERSION
 
             for waveform in stim_sessions_waveforms:
                 if not waveform.shape[-1]:
                     continue
                 waveform[0] -= wf[TIME_INDICES][0]
-                waveform[1] //= charge_conversion_factor
+                waveform[1] /= charge_conversion_factor
                 wf.stim_sessions.append(waveform)
 
     def _load_dataframe(self, df: pd.DataFrame) -> None:

@@ -485,10 +485,7 @@ class PlateRecording:
 
             try:
                 stim_sessions_waveforms = create_stim_session_waveforms(
-                    stim_protocol["subprotocols"],
-                    wf[STIMULATION_READINGS],
-                    start_time_us,
-                    end_time_us,
+                    stim_protocol["subprotocols"], wf[STIMULATION_READINGS], start_time_us, end_time_us
                 )
             except SubprotocolFormatIncompatibleWithInterpolationError:
                 log.info("Subprotocol format not supported by intperpolation")

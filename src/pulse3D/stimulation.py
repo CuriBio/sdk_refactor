@@ -57,11 +57,7 @@ def remove_intermediate_interpolation_data(
 
 
 def create_interpolated_subprotocol_waveform(
-    subprotocol: Dict[str, int],
-    start_timepoint: int,
-    stop_timepoint: int,
-    include_start_timepoint: bool,
-    initial_delay_amplitude: float,
+    subprotocol: Dict[str, int], start_timepoint: int, stop_timepoint: int, include_start_timepoint: bool
 ) -> NDArray[(2, Any), float]:
     try:
         subprotocol_type = subprotocol["type"]
@@ -73,9 +69,7 @@ def create_interpolated_subprotocol_waveform(
 
     if subprotocol_type == "delay":
         # duration ignored here since stop timepoint is when the next subprotocol starts
-        interpolated_waveform_arr = np.array(
-            [[start_timepoint, stop_timepoint], [initial_delay_amplitude, 0]], dtype=float
-        )
+        interpolated_waveform_arr = np.array([[start_timepoint, stop_timepoint], [0, 0]], dtype=float)
     else:
         # postphase_amplitude and interphase_amplitude will never be present in the subprotocol dict, so 0 will be returned for them below
         time_components = ["phase_one_duration", "postphase_interval"]
@@ -137,9 +131,6 @@ def interpolate_stim_session(
         # 'protocol complete' is the final status update, which doesn't need a waveform created for it
         stim_status_updates = stim_status_updates[:, :-1]
 
-    # Tanner (3/10/23): using a non-zero as the first value to fix an issue with excel dropping data points in charts
-    initial_delay_amplitude = _get_initial_delay_value(subprotocols, stim_status_updates)
-
     session_waveform = np.empty((2, 0))
     for next_status_idx, (start_timepoint, subprotocol_idx) in enumerate(stim_status_updates.T, 1):
         is_final_status_update = next_status_idx == stim_status_updates.shape[-1]
@@ -152,11 +143,7 @@ def interpolate_stim_session(
         include_start_timepoint = next_status_idx == 1
 
         subprotocol_waveform = create_interpolated_subprotocol_waveform(
-            subprotocols[subprotocol_idx],
-            start_timepoint,
-            stop_timepoint,
-            include_start_timepoint,
-            initial_delay_amplitude,
+            subprotocols[subprotocol_idx], start_timepoint, stop_timepoint, include_start_timepoint
         )
 
         if not subprotocol_waveform.shape[-1]:
@@ -223,31 +210,3 @@ def realign_interpolated_stim_data(
             orignal_timepoints_list[old_idx] = None  # remove since there will be duplicate timepoints
             adjusted_interpolated_stim_data[new_idx] = orignal_stim_status_data[1, old_idx]
     return adjusted_interpolated_stim_data
-
-
-def _get_initial_delay_value(
-    subprotocols: List[Dict[str, int]], stim_status_updates: NDArray[(2, Any), int]
-) -> float:
-    subprotocol_indices_in_recording = set(stim_status_updates[1])
-
-    max_abs_charge_of_protocol = 0.0
-    for idx, subprotocol in enumerate(subprotocols):
-        if idx not in subprotocol_indices_in_recording:
-            continue
-        max_abs_charge_of_protocol = max(
-            max_abs_charge_of_protocol, _get_max_abs_charge_of_subprotocol(subprotocol)
-        )
-
-    if max_abs_charge_of_protocol == 0:
-        return 0
-
-    # initial value should be ~1/100 the max amplitude
-    initial_value = 1 / 100
-    while max_abs_charge_of_protocol >= 10:
-        max_abs_charge_of_protocol //= 10
-        initial_value *= 10
-    return initial_value
-
-
-def _get_max_abs_charge_of_subprotocol(subprotocol) -> float:
-    return max(abs(subprotocol.get("phase_one_charge", 0)), abs(subprotocol.get("phase_two_charge", 0)))

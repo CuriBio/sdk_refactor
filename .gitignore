@@ -60,8 +60,8 @@ pipeline_outputs/
 *.gz
 *.tsv
 *.csv
-*.xlsx
-tests/*.xlsx
+# only ignore xlsx in top level
+/*.xlsx
 tmp/
 
 # Cython

@@ -275,16 +275,16 @@ def write_xlsx(
     file_suffix = "full" if is_full_analysis else f"{start_time}-{end_time}"
     output_file_name = f"{input_file_name_no_ext}_{file_suffix}.xlsx"
 
-    if not plate_recording.is_optical_recording:
-        if first_wf.stiffness_override:
-            # reverse dict to use the stiffness factor as a key and get the label value
-            post_stiffness_factor = {v: k for k, v in POST_STIFFNESS_LABEL_TO_FACTOR.items()}[
-                first_wf.stiffness_factor
-            ]
-        else:
-            post_stiffness_factor = get_stiffness_label(get_experiment_id(first_wf[PLATE_BARCODE_UUID]))
+    if plate_recording.is_optical_recording:
+        post_stiffness_factor_label = NOT_APPLICABLE_LABEL
+    elif first_wf.stiffness_override:
+        # reverse dict to use the stiffness factor as a key and get the label value
+        post_stiffness_factor_label = {v: k for k, v in POST_STIFFNESS_LABEL_TO_FACTOR.items()}[
+            first_wf.stiffness_factor
+        ]
     else:
-        post_stiffness_factor = None
+        post_stiffness_factor_label = get_stiffness_label(get_experiment_id(first_wf[PLATE_BARCODE_UUID]))
+
     stim_barcode_display = first_wf.get(STIM_BARCODE_UUID)
     if stim_barcode_display is None or stim_barcode_display == str(NOT_APPLICABLE_H5_METADATA):
         stim_barcode_display = NOT_APPLICABLE_LABEL
@@ -303,7 +303,7 @@ def write_xlsx(
             "UTC Timestamp of Beginning of Recording",
             str(first_wf[UTC_BEGINNING_RECORDING_UUID].replace(tzinfo=None)),
         ),
-        ("", "Post Stiffness Factor", post_stiffness_factor),
+        ("", "Post Stiffness Factor", post_stiffness_factor_label),
         ("Well Grouping Information:", "", ""),
         ("", "PlateMap Name", plate_recording.platemap_name),
         *platemap_label_display_rows,
@@ -372,10 +372,9 @@ def write_xlsx(
         # window, interpolate, normalize, and scale data
         windowed_timepoints_us = interpolated_timepoints_us[start_idx:end_idx]
         interpolated_force = interp_data_fn(windowed_timepoints_us)
-        if plate_recording.is_optical_recording:
-            interpolated_force = interpolated_force - min(interpolated_force)
-        else:
-            interpolated_force = (interpolated_force - min(interpolated_force)) * MICRO_TO_BASE_CONVERSION
+        interpolated_force = interpolated_force - min(interpolated_force)
+        if not plate_recording.is_optical_recording:
+            interpolated_force *= MICRO_TO_BASE_CONVERSION
         interpolated_well_data = np.row_stack([windowed_timepoints_us, interpolated_force])
 
         # find the biggest activation twitch force over all

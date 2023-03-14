@@ -83,8 +83,6 @@ class WellFile:
         self.displacement: NDArray[(2, Any), np.float64]
         self.force: NDArray[(2, Any), np.float64]
         self.stim_sessions: List[NDArray[(2, Any), int]] = []
-        self.noise_filter_uuid = None
-        self.filter_coefficients = None
 
         if stiffness_factor not in (*POST_STIFFNESS_OVERRIDE_OPTIONS, None):
             raise ValueError(
@@ -165,13 +163,10 @@ class WellFile:
             self.stiffness_factor = None
             for uuid_ in (PLATEMAP_NAME_UUID, PLATEMAP_LABEL_UUID):
                 self[uuid_] = NOT_APPLICABLE_LABEL
-            # set tissue to force data without ADC or noise filtering
-            adj_raw_tissue_reading = self[TISSUE_SENSOR_READINGS].copy()
-            time_conversion = (
-                MICROSECONDS_PER_CENTIMILLISECOND if self.is_magnetic_data else MICRO_TO_BASE_CONVERSION
-            )
-            adj_raw_tissue_reading[0] *= time_conversion
-            self.force = adj_raw_tissue_reading
+            # skip all other transforms
+            self.force = self[TISSUE_SENSOR_READINGS].copy()
+            # timepoints still need to be in µs
+            self.force[0] *= MICRO_TO_BASE_CONVERSION
 
     def _load_data_from_h5_file(self, file_path: str) -> None:
         with h5py.File(file_path, "r") as h5_file:
@@ -247,7 +242,6 @@ class WellFile:
         self.noise_filtered_magnetic_data: NDArray[(2, Any), int]
         if self.noise_filter_uuid is None:
             self.noise_filtered_magnetic_data = self.fully_calibrated_magnetic_data
-            self.force = self.noise_filtered_magnetic_data
         else:
             self.noise_filtered_magnetic_data = apply_noise_filtering(
                 self.fully_calibrated_magnetic_data, self.filter_coefficients
@@ -345,7 +339,9 @@ class PlateRecording:
         self.path = path
         self.wells = []
         self._iter = 0
-        self.is_optical_recording = "xlsx" in self.path
+
+        # this may get overwritten later
+        self.is_optical_recording = False
 
         # Tanner (11/16/22): due to the needs of the scientists for the full analysis,
         # these params should only be used in the recording snapshot.

@@ -12,13 +12,17 @@ from stdlib_utils import get_current_file_abs_directory
 
 PATH_OF_CURRENT_FILE = get_current_file_abs_directory()
 
+PATH_TO_TEST_DATA_FILES = os.path.join(PATH_OF_CURRENT_FILE, "data_files")
 
-PATH_TO_MAGNET_FINDING_FILES = os.path.join(PATH_OF_CURRENT_FILE, "data_files", "magnet_finding")
-PATH_TO_H5_FILES = os.path.join(PATH_OF_CURRENT_FILE, "data_files", "h5")
-PATH_TO_DATA_METRIC_FILES = os.path.join(PATH_OF_CURRENT_FILE, "data_files", "data_metrics")
+PATH_TO_MAGNET_FINDING_FILES = os.path.join(PATH_TO_TEST_DATA_FILES, "magnet_finding")
+PATH_TO_H5_FILES = os.path.join(PATH_TO_TEST_DATA_FILES, "h5")
+PATH_TO_DATA_METRIC_FILES = os.path.join(PATH_TO_TEST_DATA_FILES, "data_metrics")
+PATH_TO_OPTICAL_FILES = os.path.join(PATH_TO_TEST_DATA_FILES, "optical")
 
 TEST_SMALL_BETA_1_FILE_PATH = os.path.join(PATH_TO_H5_FILES, "v0.4.2", "SmallBeta1File.zip")
 TEST_SMALL_BETA_2_FILE_PATH = os.path.join(PATH_TO_H5_FILES, "stim", "SmallBeta2File-NoStim.zip")
+
+TEST_OPTICAL_FILE_PATH = os.path.join(PATH_TO_OPTICAL_FILES, "test_file_1.xlsx")
 
 
 def _load_file(file_path: str) -> Tuple[List[str], List[str]]:

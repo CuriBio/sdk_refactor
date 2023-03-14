@@ -5,8 +5,9 @@ Changelog for Pulse3D
 -------------------
 
 Fixed:
-^^^^^^^^
-- Removed noise filtering and ADC calculation for xlsx optical files.
+^^^^^^
+- Removed noise filtering and other transforms on optical xlsx input files.
+
 
 0.30.4 (2023-03-01)
 -------------------
@@ -31,6 +32,7 @@ Added:
 Changed:
 ^^^^^^^^
 - Removed ``PlateRecording.write_time_force_csv``
+
 
 0.30.2 (2023-02-22)
 -------------------

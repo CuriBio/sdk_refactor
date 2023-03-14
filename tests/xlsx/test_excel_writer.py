@@ -20,6 +20,7 @@ from pulse3D.plate_recording import PlateRecording
 import pytest
 
 from ..fixtures_utils import PATH_TO_H5_FILES
+from ..fixtures_utils import TEST_OPTICAL_FILE_PATH
 from ..fixtures_utils import TEST_SMALL_BETA_1_FILE_PATH
 
 
@@ -103,6 +104,20 @@ def test_write_xlsx__runs_magnet_finding_alg_without_error():
     # done in the tests below.
 
     pr = PlateRecording(TEST_FILE_PATH)
+    output_file_name = write_xlsx(pr)
+
+    # this assertion isn't really necessary, but it's nice to make an assertion in a test that otherwise has none
+    assert isinstance(output_file_name, str)
+
+
+@pytest.mark.slow
+def test_write_xlsx__runs_optical_file_without_error():
+    # Tanner (12/8/22): do not add anything to this test, it is just meant to run a full analysis start to
+    # finish with no mocking on an optical file.
+    # Any and all param testing should be done in separate tests and make assertions on the xlsx output as is
+    # done in the tests below.
+
+    pr = PlateRecording(TEST_OPTICAL_FILE_PATH)
     output_file_name = write_xlsx(pr)
 
     # this assertion isn't really necessary, but it's nice to make an assertion in a test that otherwise has none

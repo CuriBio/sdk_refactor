@@ -1,6 +1,16 @@
 Changelog for Pulse3D
 =====================
 
+
+0.30.5 (2023-03-13)
+-------------------
+
+Changed:
+^^^^^^^^
+- Stim subprotocols no longer continue being draw if they run longer than expected
+- ``include_stim_protocols`` is now overrided to ``True`` if ``stim_waveform_format`` is given
+
+
 0.30.4 (2023-03-01)
 -------------------
 

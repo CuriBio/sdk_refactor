@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import itertools
-import math
 from operator import ge
 from operator import gt
 from operator import le
@@ -17,8 +16,8 @@ from .exceptions import SubprotocolFormatIncompatibleWithInterpolationError
 
 
 def truncate_interpolated_subprotocol_waveform(
-    waveform: NDArray[(2, Any), int], cutoff_timepoint: int, from_start: bool
-) -> NDArray[(2, Any), int]:
+    waveform: NDArray[(2, Any), float], cutoff_timepoint: float, from_start: bool
+) -> NDArray[(2, Any), float]:
     if not waveform.shape[-1]:
         return waveform
 
@@ -48,8 +47,8 @@ def truncate_interpolated_subprotocol_waveform(
 
 
 def remove_intermediate_interpolation_data(
-    stim_waveform: NDArray[(2, Any), int], timepoint: int
-) -> NDArray[(2, Any), int]:
+    stim_waveform: NDArray[(2, Any), float], timepoint: float
+) -> NDArray[(2, Any), float]:
     if not stim_waveform.shape[-1]:
         return stim_waveform
 
@@ -59,7 +58,7 @@ def remove_intermediate_interpolation_data(
 
 def create_interpolated_subprotocol_waveform(
     subprotocol: Dict[str, int], start_timepoint: int, stop_timepoint: int, include_start_timepoint: bool
-) -> NDArray[(2, Any), int]:
+) -> NDArray[(2, Any), float]:
     try:
         subprotocol_type = subprotocol["type"]
     except KeyError:
@@ -70,7 +69,7 @@ def create_interpolated_subprotocol_waveform(
 
     if subprotocol_type == "delay":
         # duration ignored here since stop timepoint is when the next subprotocol starts
-        interpolated_waveform_arr = np.array([[start_timepoint, stop_timepoint], [0, 0]], dtype=int)
+        interpolated_waveform_arr = np.array([[start_timepoint, stop_timepoint], [0, 0]], dtype=float)
     else:
         # postphase_amplitude and interphase_amplitude will never be present in the subprotocol dict, so 0 will be returned for them below
         time_components = ["phase_one_duration", "postphase_interval"]
@@ -93,21 +92,19 @@ def create_interpolated_subprotocol_waveform(
         )[1:-1]
         first_cycle_amplitudes = np.repeat([subprotocol.get(comp, 0) for comp in amplitude_components], 2)
         cycle_dur = first_cycle_timepoints[-1] - start_timepoint
-        # determine how many cycles this subprotocols actually ran for
-        actual_num_cycles = math.ceil((stop_timepoint - start_timepoint) / cycle_dur)
         # add repeated cycle with incremented timepoints
         all_cycles_timepoints = [
             t + (cycle_num * cycle_dur)
-            for cycle_num in range(actual_num_cycles)
+            for cycle_num in range(subprotocol["num_cycles"])
             for t in first_cycle_timepoints
         ]
-        all_cycles_amplitudes = list(first_cycle_amplitudes) * actual_num_cycles
+        all_cycles_amplitudes = list(first_cycle_amplitudes) * subprotocol["num_cycles"]
         # add initial pair if needed
         if include_start_timepoint:
             all_cycles_timepoints = [start_timepoint] + all_cycles_timepoints
             all_cycles_amplitudes = [0] + all_cycles_amplitudes
         # convert to array
-        interpolated_waveform_arr = np.array([all_cycles_timepoints, all_cycles_amplitudes], dtype=int)
+        interpolated_waveform_arr = np.array([all_cycles_timepoints, all_cycles_amplitudes], dtype=float)
 
     # truncate end of waveform at the stop timepoint
     interpolated_waveform_arr = truncate_interpolated_subprotocol_waveform(
@@ -122,7 +119,7 @@ def interpolate_stim_session(
     stim_status_updates: NDArray[(2, Any), int],
     session_start_timepoint: int,
     session_stop_timepoint: int,
-) -> NDArray[(2, Any), int]:
+) -> NDArray[(2, Any), float]:
     # if protocol starts after the session completes, return empty array
     if session_stop_timepoint <= stim_status_updates[0, 0]:
         return np.empty((2, 0))
@@ -194,14 +191,14 @@ def create_stim_session_waveforms(
     return interpolated_stim_sessions
 
 
-def aggregate_timepoints(timepoints_from_wells: List[NDArray[(1, Any), int]]) -> NDArray[(1, Any), int]:
+def aggregate_timepoints(timepoints_from_wells: List[NDArray[(1, Any), float]]) -> NDArray[(1, Any), float]:
     unique_timepoints = set(t for timepoints in timepoints_from_wells for t in timepoints)
-    return np.array(sorted(unique_timepoints), dtype=int)
+    return np.array(sorted(unique_timepoints), dtype=float)
 
 
 def realign_interpolated_stim_data(
-    new_timepoints: NDArray[(1, Any), int], orignal_stim_status_data: NDArray[(2, Any), int]
-) -> NDArray[(1, Any), int]:
+    new_timepoints: NDArray[(1, Any), float], orignal_stim_status_data: NDArray[(2, Any), float]
+) -> NDArray[(1, Any), float]:
     adjusted_interpolated_stim_data = np.full((len(new_timepoints)), np.NaN)
     orignal_timepoints_list = orignal_stim_status_data[0].tolist()
     for new_idx, new_t in enumerate(new_timepoints):

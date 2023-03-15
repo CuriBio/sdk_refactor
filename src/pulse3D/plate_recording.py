@@ -160,19 +160,13 @@ class WellFile:
             self.is_force_data = (
                 "y" in str(_get_excel_metadata_value(self._excel_sheet, TWITCHES_POINT_UP_UUID)).lower()
             )
-
-            self.noise_filter_uuid = (
-                TSP_TO_DEFAULT_FILTER_UUID[self.tissue_sampling_period] if self.is_magnetic_data else None
-            )
-            self.filter_coefficients = (
-                create_filter(self.noise_filter_uuid, self.tissue_sampling_period)
-                if self.noise_filter_uuid
-                else None
-            )
-
-            self.stiffness_factor = stiffness_factor if stiffness_factor else CARDIAC_STIFFNESS_FACTOR
-
-            self._load_magnetic_data()
+            self.stiffness_factor = None
+            for uuid_ in (PLATEMAP_NAME_UUID, PLATEMAP_LABEL_UUID):
+                self[uuid_] = NOT_APPLICABLE_LABEL
+            # skip all other transforms
+            self.force = self[TISSUE_SENSOR_READINGS].copy()
+            # timepoints still need to be in µs
+            self.force[0] *= MICRO_TO_BASE_CONVERSION
 
     def _load_data_from_h5_file(self, file_path: str) -> None:
         with h5py.File(file_path, "r") as h5_file:
@@ -345,6 +339,8 @@ class PlateRecording:
         self.path = path
         self.wells = []
         self._iter = 0
+
+        # this may get overwritten later
         self.is_optical_recording = False
 
         # Tanner (11/16/22): due to the needs of the scientists for the full analysis,
@@ -685,16 +681,6 @@ def load_files(
         baseline_well_files[well_file[WELL_INDEX_UUID]] = well_file  # type: ignore
 
     return tissue_well_files, baseline_well_files
-
-
-def _find_start_index(from_start: int, old_data: NDArray[(1, Any), int]) -> int:
-    start_index, time_from_start = 0, 0
-
-    while start_index + 1 < len(old_data) and from_start >= time_from_start:
-        time_from_start = old_data[start_index + 1] - old_data[0]
-        start_index += 1
-
-    return start_index - 1  # loop iterates 1 past the desired index, so subtract 1
 
 
 def _get_col_as_array(sheet: Worksheet, zero_based_row: int, zero_based_col: int) -> NDArray[(2, Any), float]:

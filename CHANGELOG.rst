@@ -2,6 +2,14 @@ Changelog for Pulse3D
 =====================
 
 
+0.31.0 (unreleased)
+-------------------
+
+Fixed:
+^^^^^^
+- Update magnet finding algorithm submodule to latest
+
+
 0.30.6 (unreleased)
 -------------------
 

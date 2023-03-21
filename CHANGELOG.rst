@@ -1,6 +1,13 @@
 Changelog for Pulse3D
 =====================
 
+0.32.1 (2020-03-21)
+-------------------
+
+Fixed:
+^^^^^^
+- Fixed to_dataframe method when reading new xlsx format.
+
 
 0.32.0 (2023-03-16)
 -------------------

@@ -556,7 +556,7 @@ class PlateRecording:
 
         data = {"Time (s)": pd.Series(interp_timepoints)}
 
-        output_stim_data = first_well.version >= VersionInfo.parse("1.0.0")
+        output_stim_data = not self.is_optical_recording and first_well.version >= VersionInfo.parse("1.0.0")
 
         # add stim timepoints
         if output_stim_data:

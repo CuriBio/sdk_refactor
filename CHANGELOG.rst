@@ -2,7 +2,19 @@ Changelog for Pulse3D
 =====================
 
 
-0.31.0 (unreleased)
+0.32.0 (2023-03-16)
+-------------------
+
+Added:
+^^^^^^
+- Accuracy improvements to the magnet finding algorithm
+
+Changed:
+^^^^^^^^
+- Removed ability to override default magnet finding alg positions. This a temporary change will be readded in a future release
+
+
+0.31.0 (2023-03-16)
 -------------------
 
 Fixed:
@@ -10,12 +22,12 @@ Fixed:
 - Update magnet finding algorithm submodule to latest
 
 
-0.30.6 (unreleased)
+0.30.6 (2023-03-14)
 -------------------
 
 Fixed:
 ^^^^^^
-- Removed noise filtering and other transforms on optical xlsx input files.
+- Removed noise filtering and other transforms on optical xlsx input files
 
 
 0.30.5 (2023-03-13)

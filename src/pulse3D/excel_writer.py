@@ -887,6 +887,7 @@ def create_waveform_charts(
 
     peaks, valleys = well_info["peaks_and_valleys"]
     log.info(f"Adding peak detection series for well {well_name}")
+    # breakpoint()
 
     for detector_type, indices in [("Peak", peaks), ("Valley", valleys)]:
         add_peak_detection_series(

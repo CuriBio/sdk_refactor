@@ -5,7 +5,7 @@ Changelog for Pulse3D
 
 Fixed:
 ^^^^^^
-- Fixed missing wells when reading metadata for optical files.
+- Skip reading metadata from missing wells when loading optical files.
 
 
 

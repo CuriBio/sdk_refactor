@@ -1,5 +1,13 @@
 Changelog for Pulse3D
 =====================
+0.32.2 (2020-03-23)
+-------------------
+
+Fixed:
+^^^^^^
+- Skip reading metadata from missing wells when loading optical files.
+
+
 
 0.32.1 (2020-03-21)
 -------------------

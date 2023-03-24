@@ -377,9 +377,7 @@ class PlateRecording:
             raise NoRecordingFilesLoadedError()
 
         # set up platemap info
-        first_avaliable_well = [
-            self.wells[well] for well in range(len(self.wells)) if self.wells[well] is not None
-        ][0]
+        first_avaliable_well = next(iter(self))
         self.platemap_name = first_avaliable_well[PLATEMAP_NAME_UUID]
         platemap_labels = defaultdict(list)
 

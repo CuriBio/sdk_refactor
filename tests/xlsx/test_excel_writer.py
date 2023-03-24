@@ -112,7 +112,6 @@ def test_write_xlsx__runs_magnet_finding_alg_without_error(patch_get_positions):
     assert isinstance(output_file_name, str)
 
 
-@pytest.mark.slow
 @pytest.mark.parametrize(
     "optical_file", [TEST_OPTICAL_FILE_ONE_PATH, TEST_OPTICAL_FILE_TWO_PATH, TEST_OPTICAL_FILE_THREE_PATH]
 )

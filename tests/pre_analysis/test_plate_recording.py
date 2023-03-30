@@ -299,7 +299,8 @@ def test_PlateRecording_include_stim_data_parameter(mocker, include_stim_data):
     )
     pr_created_from_h5 = PlateRecording(TEST_VAR_STIM_SESSIONS_FILE_PATH)
     existing_df = pr_created_from_h5.to_dataframe(include_stim_data=include_stim_data)
+    contains_NA = existing_df.isnull().any().any()
     if include_stim_data:
-        assert existing_df.isnull().any().any() is False
+        assert not contains_NA
     else:
-        assert existing_df.isnull().any().any() is True
+        assert contains_NA

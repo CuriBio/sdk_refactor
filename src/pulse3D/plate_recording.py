@@ -526,7 +526,7 @@ class PlateRecording:
                 stim_session = stim_session_raw[:, ~np.isnan(stim_session_raw[1])].astype(int)
                 wf.stim_sessions.append(stim_session)
 
-    def to_dataframe(self, ignore_stim_data=False) -> pd.DataFrame:
+    def to_dataframe(self, include_stim_data=True) -> pd.DataFrame:
         """Creates DataFrame from PlateRecording with all the data
         interpolated, normalized, and scaled. The returned dataframe contains
         one column for time in ms and one column for each well.
@@ -557,18 +557,17 @@ class PlateRecording:
 
         data = {"Time (s)": pd.Series(interp_timepoints)}
 
-        if not ignore_stim_data:
-            output_stim_data = first_well.version >= VersionInfo.parse(
-                MIN_FILE_VERSION_FOR_STIM_INTERPOLATION
-            )
+        output_stim_data = include_stim_data and first_well.version >= VersionInfo.parse(
+            MIN_FILE_VERSION_FOR_STIM_INTERPOLATION
+        )
 
-            # add stim timepoints
-            if output_stim_data:
-                aggregate_stim_timepoints_us = aggregate_timepoints(
-                    [session_data[0] for wf in self for session_data in wf.stim_sessions]
-                )
-                aggregate_stim_timepoints_us_for_plotting = np.repeat(aggregate_stim_timepoints_us, 2)
-                data["Stim Time (µs)"] = pd.Series(aggregate_stim_timepoints_us_for_plotting)
+        # add stim timepoints
+        if output_stim_data:
+            aggregate_stim_timepoints_us = aggregate_timepoints(
+                [session_data[0] for wf in self for session_data in wf.stim_sessions]
+            )
+            aggregate_stim_timepoints_us_for_plotting = np.repeat(aggregate_stim_timepoints_us, 2)
+            data["Stim Time (µs)"] = pd.Series(aggregate_stim_timepoints_us_for_plotting)
 
         # iterating over self.wells instead of using __iter__ so well_idx is preserved
         for well_idx, wf in enumerate(self.wells):
@@ -592,19 +591,17 @@ class PlateRecording:
 
             interp_force_newtons_normalized = (interp_force_unewtons - min_value) * MICRO_TO_BASE_CONVERSION
             data[well_name] = pd.Series(interp_force_newtons_normalized)
-
-            if not ignore_stim_data:
-                # add stim data
-                if output_stim_data:
-                    for i, session_data in enumerate(wf.stim_sessions):
-                        data[f"{well_name}__stim_{i}"] = pd.Series(
-                            realign_interpolated_stim_data(
-                                aggregate_stim_timepoints_us_for_plotting, session_data
-                            )
+            # add stim data
+            if output_stim_data and include_stim_data:
+                for i, session_data in enumerate(wf.stim_sessions):
+                    data[f"{well_name}__stim_{i}"] = pd.Series(
+                        realign_interpolated_stim_data(
+                            aggregate_stim_timepoints_us_for_plotting, session_data
                         )
+                    )
 
         df = pd.DataFrame(data)
-        if not output_stim_data:
+        if output_stim_data and include_stim_data:
             df.dropna(inplace=True)
 
         return df

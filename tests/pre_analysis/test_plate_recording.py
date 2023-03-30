@@ -287,3 +287,16 @@ def test_PlateRecording__overrides_h5_platemap_groups_if_well_groups_param_is_no
 
     # test full dict
     assert pr.platemap_labels == defaultdict(**new_well_groups)
+
+
+@pytest.mark.parametrize("include_stim_data", [True, False, None])
+def test_PlateRecording_include_stim_data_parameter(mocker, include_stim_data):
+    mocker.patch.object(
+        plate_recording,
+        "find_magnet_positions",
+        autospec=True,
+        side_effect=lambda x, *args, **kwargs: {"X": np.empty((x.shape[-1], 24))},
+    )
+    pr_created_from_h5 = PlateRecording(TEST_VAR_STIM_SESSIONS_FILE_PATH)
+    existing_df = pr_created_from_h5.to_dataframe(include_stim_data=include_stim_data)
+    assert existing_df.isnull().any().any() == False

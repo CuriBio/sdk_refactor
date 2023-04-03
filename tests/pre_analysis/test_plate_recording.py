@@ -304,3 +304,20 @@ def test_PlateRecording_include_stim_data_parameter(mocker, include_stim_data):
         assert contains_NA
     else:
         assert not contains_NA
+
+
+@pytest.mark.parametrize("include_stim_data", [True, False, None])
+def test_PlateRecording_include_stim_data_parameter2(mocker, include_stim_data):
+    mocker.patch.object(
+        plate_recording,
+        "find_magnet_positions",
+        autospec=True,
+        side_effect=lambda x, *args, **kwargs: {"X": np.empty((x.shape[-1], 24))},
+    )
+    pr_created_from_h5 = PlateRecording(TEST_TWO_STIM_SESSIONS_FILE_PATH)
+    existing_df = pr_created_from_h5.to_dataframe(include_stim_data=include_stim_data)
+    contains_NA = existing_df.isnull().any().any()
+    if include_stim_data:
+        assert contains_NA
+    else:
+        assert not contains_NA

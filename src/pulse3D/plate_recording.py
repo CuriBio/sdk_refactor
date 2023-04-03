@@ -560,11 +560,11 @@ class PlateRecording:
         output_stim_data = (
             not self.is_optical_recording
             and first_well.version >= VersionInfo.parse(MIN_FILE_VERSION_FOR_STIM_INTERPOLATION)
-            or include_stim_data
+            and include_stim_data
         )
 
         # add stim timepoints
-        if output_stim_data or include_stim_data:
+        if output_stim_data:
             aggregate_stim_timepoints_us = aggregate_timepoints(
                 [session_data[0] for wf in self for session_data in wf.stim_sessions]
             )
@@ -595,7 +595,7 @@ class PlateRecording:
             data[well_name] = pd.Series(interp_force_newtons_normalized)
 
             # add stim data
-            if output_stim_data or include_stim_data:
+            if "aggregate_stim_timepoints_us_for_plotting" in locals():
                 for i, session_data in enumerate(wf.stim_sessions):
                     data[f"{well_name}__stim_{i}"] = pd.Series(
                         realign_interpolated_stim_data(
@@ -604,7 +604,8 @@ class PlateRecording:
                     )
 
         df = pd.DataFrame(data)
-        if output_stim_data and include_stim_data:
+        stim_columns = df.filter(like="__stim_").columns
+        if len(stim_columns) == 0:
             df.dropna(inplace=True)
 
         return df

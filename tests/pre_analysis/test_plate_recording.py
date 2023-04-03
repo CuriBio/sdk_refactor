@@ -213,7 +213,7 @@ def test_PlateRecording__v1_data_loaded_from_dataframe_will_equal_original_well_
 
     pr_created_from_h5 = PlateRecording(rec_path)
 
-    existing_df = pr_created_from_h5.to_dataframe(include_stim_data=False)
+    existing_df = pr_created_from_h5.to_dataframe()
     # make sure data was actually written to the dataframe
     for col in existing_df:
         assert existing_df[col].shape > (2, 0), existing_df
@@ -301,6 +301,6 @@ def test_PlateRecording_include_stim_data_parameter(mocker, include_stim_data):
     existing_df = pr_created_from_h5.to_dataframe(include_stim_data=include_stim_data)
     contains_NA = existing_df.isnull().any().any()
     if include_stim_data:
-        assert not contains_NA
-    else:
         assert contains_NA
+    else:
+        assert not contains_NA

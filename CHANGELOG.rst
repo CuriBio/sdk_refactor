@@ -1,5 +1,14 @@
 Changelog for Pulse3D
 =====================
+
+0.32.3 (unreleased)
+-------------------
+
+Added:
+^^^^^^
+- Ability to ignore stim data in to_dataframe
+
+
 0.32.2 (2020-03-23)
 -------------------
 

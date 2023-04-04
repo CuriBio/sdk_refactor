@@ -595,7 +595,7 @@ class PlateRecording:
             data[well_name] = pd.Series(interp_force_newtons_normalized)
 
             # add stim data
-            if "aggregate_stim_timepoints_us_for_plotting" in locals():
+            if output_stim_data:
                 for i, session_data in enumerate(wf.stim_sessions):
                     data[f"{well_name}__stim_{i}"] = pd.Series(
                         realign_interpolated_stim_data(

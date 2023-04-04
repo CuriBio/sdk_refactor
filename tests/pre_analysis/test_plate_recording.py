@@ -21,6 +21,9 @@ import pytest
 
 from ..fixtures_utils import PATH_TO_H5_FILES
 from ..fixtures_utils import PATH_TO_MAGNET_FINDING_FILES
+from ..fixtures_utils import TEST_OPTICAL_FILE_ONE_PATH
+from ..fixtures_utils import TEST_OPTICAL_FILE_THREE_PATH
+from ..fixtures_utils import TEST_OPTICAL_FILE_TWO_PATH
 from ..fixtures_utils import TEST_SMALL_BETA_1_FILE_PATH
 from ..fixtures_utils import TEST_SMALL_BETA_2_FILE_PATH
 
@@ -289,32 +292,35 @@ def test_PlateRecording__overrides_h5_platemap_groups_if_well_groups_param_is_no
     assert pr.platemap_labels == defaultdict(**new_well_groups)
 
 
-@pytest.mark.parametrize("include_stim_data", [True, False, None])
-def test_PlateRecording_include_stim_data_parameter(mocker, include_stim_data):
+@pytest.mark.parametrize(
+    "include_stim_data,file",
+    [
+        (True, TEST_TWO_STIM_SESSIONS_FILE_PATH),
+        (False, TEST_TWO_STIM_SESSIONS_FILE_PATH),
+        (None, TEST_TWO_STIM_SESSIONS_FILE_PATH),
+        (True, TEST_TWO_STIM_SESSIONS_FILE_PATH),
+        (False, TEST_TWO_STIM_SESSIONS_FILE_PATH),
+        (None, TEST_TWO_STIM_SESSIONS_FILE_PATH),
+        (False, TEST_SMALL_BETA_1_FILE_PATH),
+        (None, TEST_SMALL_BETA_1_FILE_PATH),
+        (False, TEST_SMALL_BETA_2_FILE_PATH),
+        (None, TEST_SMALL_BETA_2_FILE_PATH),
+        (None, TEST_OPTICAL_FILE_ONE_PATH),
+        (False, TEST_OPTICAL_FILE_ONE_PATH),
+        (None, TEST_OPTICAL_FILE_TWO_PATH),
+        (False, TEST_OPTICAL_FILE_TWO_PATH),
+        (None, TEST_OPTICAL_FILE_THREE_PATH),
+        (False, TEST_OPTICAL_FILE_THREE_PATH),
+    ],
+)
+def test_PlateRecording_include_stim_data_parameter(mocker, include_stim_data, file):
     mocker.patch.object(
         plate_recording,
         "find_magnet_positions",
         autospec=True,
         side_effect=lambda x, *args, **kwargs: {"X": np.empty((x.shape[-1], 24))},
     )
-    pr_created_from_h5 = PlateRecording(TEST_VAR_STIM_SESSIONS_FILE_PATH)
-    existing_df = pr_created_from_h5.to_dataframe(include_stim_data=include_stim_data)
-    contains_NA = existing_df.isnull().any().any()
-    if include_stim_data:
-        assert contains_NA
-    else:
-        assert not contains_NA
-
-
-@pytest.mark.parametrize("include_stim_data", [True, False, None])
-def test_PlateRecording_include_stim_data_parameter2(mocker, include_stim_data):
-    mocker.patch.object(
-        plate_recording,
-        "find_magnet_positions",
-        autospec=True,
-        side_effect=lambda x, *args, **kwargs: {"X": np.empty((x.shape[-1], 24))},
-    )
-    pr_created_from_h5 = PlateRecording(TEST_TWO_STIM_SESSIONS_FILE_PATH)
+    pr_created_from_h5 = PlateRecording(file)
     existing_df = pr_created_from_h5.to_dataframe(include_stim_data=include_stim_data)
     contains_NA = existing_df.isnull().any().any()
     if include_stim_data:

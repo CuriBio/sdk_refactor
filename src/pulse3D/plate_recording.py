@@ -557,7 +557,8 @@ class PlateRecording:
 
         data = {"Time (s)": pd.Series(interp_timepoints)}
 
-        output_stim_data = (
+        # only attempt to output stim data if the file supports it and the caller requests it
+        attempt_to_output_stim_data = (
             not self.is_optical_recording
             and first_well.version >= VersionInfo.parse(MIN_FILE_VERSION_FOR_STIM_INTERPOLATION)
             and include_stim_data
@@ -565,12 +566,17 @@ class PlateRecording:
 
         # add stim timepoints
         aggregate_stim_timepoints_us = None
-        if output_stim_data:
+        if attempt_to_output_stim_data:
             aggregate_stim_timepoints_us = aggregate_timepoints(
                 [session_data[0] for wf in self for session_data in wf.stim_sessions]
             )
             aggregate_stim_timepoints_us_for_plotting = np.repeat(aggregate_stim_timepoints_us, 2)
             data["Stim Time (µs)"] = pd.Series(aggregate_stim_timepoints_us_for_plotting)
+
+        # only outputting stim data if an attempt to output stim data was made and the file actually has stim data in it
+        is_outputting_stim_data = (
+            aggregate_stim_timepoints_us is not None and aggregate_stim_timepoints_us.any()
+        )
 
         # iterating over self.wells instead of using __iter__ so well_idx is preserved
         for well_idx, wf in enumerate(self.wells):
@@ -596,7 +602,7 @@ class PlateRecording:
             data[well_name] = pd.Series(interp_force_newtons_normalized)
 
             # add stim data
-            if aggregate_stim_timepoints_us is not None:
+            if is_outputting_stim_data:
                 for i, session_data in enumerate(wf.stim_sessions):
                     data[f"{well_name}__stim_{i}"] = pd.Series(
                         realign_interpolated_stim_data(
@@ -605,7 +611,7 @@ class PlateRecording:
                     )
 
         df = pd.DataFrame(data)
-        if aggregate_stim_timepoints_us is None:
+        if not is_outputting_stim_data:
             df.dropna(inplace=True)
 
         return df

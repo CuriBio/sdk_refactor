@@ -22,8 +22,6 @@ import pytest
 from ..fixtures_utils import PATH_TO_H5_FILES
 from ..fixtures_utils import PATH_TO_MAGNET_FINDING_FILES
 from ..fixtures_utils import TEST_OPTICAL_FILE_ONE_PATH
-from ..fixtures_utils import TEST_OPTICAL_FILE_THREE_PATH
-from ..fixtures_utils import TEST_OPTICAL_FILE_TWO_PATH
 from ..fixtures_utils import TEST_SMALL_BETA_1_FILE_PATH
 from ..fixtures_utils import TEST_SMALL_BETA_2_FILE_PATH
 
@@ -276,6 +274,7 @@ def test_PlateRecording__overrides_h5_platemap_groups_if_well_groups_param_is_no
     )
 
     pr = PlateRecording(TEST_TWO_STIM_SESSIONS_FILE_PATH)
+
     # test full dict
     assert pr.platemap_labels == defaultdict(**{"label_one": ["A1", "C1"], "label_two": ["B1", "D1"]})
 
@@ -292,38 +291,38 @@ def test_PlateRecording__overrides_h5_platemap_groups_if_well_groups_param_is_no
     assert pr.platemap_labels == defaultdict(**new_well_groups)
 
 
+@pytest.mark.parametrize("test_include_stim_data", [True, False, None])
 @pytest.mark.parametrize(
-    "include_stim_data,file",
+    "test_file,recording_includes_stim_data",
     [
-        (True, TEST_TWO_STIM_SESSIONS_FILE_PATH),
-        (False, TEST_TWO_STIM_SESSIONS_FILE_PATH),
-        (None, TEST_TWO_STIM_SESSIONS_FILE_PATH),
-        (True, TEST_TWO_STIM_SESSIONS_FILE_PATH),
-        (False, TEST_TWO_STIM_SESSIONS_FILE_PATH),
-        (None, TEST_TWO_STIM_SESSIONS_FILE_PATH),
-        (False, TEST_SMALL_BETA_1_FILE_PATH),
-        (None, TEST_SMALL_BETA_1_FILE_PATH),
-        (False, TEST_SMALL_BETA_2_FILE_PATH),
-        (None, TEST_SMALL_BETA_2_FILE_PATH),
-        (None, TEST_OPTICAL_FILE_ONE_PATH),
-        (False, TEST_OPTICAL_FILE_ONE_PATH),
-        (None, TEST_OPTICAL_FILE_TWO_PATH),
-        (False, TEST_OPTICAL_FILE_TWO_PATH),
-        (None, TEST_OPTICAL_FILE_THREE_PATH),
-        (False, TEST_OPTICAL_FILE_THREE_PATH),
+        (TEST_TWO_STIM_SESSIONS_FILE_PATH, True),
+        (TEST_SMALL_BETA_1_FILE_PATH, False),
+        (TEST_SMALL_BETA_2_FILE_PATH, False),
+        (TEST_OPTICAL_FILE_ONE_PATH, False),
     ],
 )
-def test_PlateRecording_include_stim_data_parameter(mocker, include_stim_data, file):
+def test_PlateRecording__to_dataframe__drops_nan_values_when_no_stim_data_is_present(
+    mocker, test_include_stim_data, test_file, recording_includes_stim_data
+):
+    # mock so magnet finding alg doesn't run
     mocker.patch.object(
         plate_recording,
         "find_magnet_positions",
         autospec=True,
         side_effect=lambda x, *args, **kwargs: {"X": np.empty((x.shape[-1], 24))},
     )
-    pr_created_from_h5 = PlateRecording(file)
-    existing_df = pr_created_from_h5.to_dataframe(include_stim_data=include_stim_data)
-    contains_NA = existing_df.isnull().any().any()
-    if include_stim_data:
-        assert contains_NA
-    else:
-        assert not contains_NA
+
+    pr_created_from_h5 = PlateRecording(test_file)
+
+    kwargs = {}
+    if test_include_stim_data is not None:
+        kwargs["include_stim_data"] = test_include_stim_data
+
+    existing_df = pr_created_from_h5.to_dataframe(**kwargs)
+
+    stim_data_should_be_output = test_include_stim_data is not False and recording_includes_stim_data
+    # make sure to convert numpy bool to primitive bool type
+    df_contains_nan = bool(existing_df.isnull().any().any())
+
+    # if stim data is present, there will most likely be NaN values present, so making that assumption here
+    assert df_contains_nan is stim_data_should_be_output

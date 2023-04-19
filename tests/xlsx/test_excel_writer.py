@@ -98,7 +98,7 @@ def test_write_xlsx__runs_beta_1_file_without_error():
 
 
 @pytest.mark.slow
-def test_write_xlsx__runs_magnet_finding_alg_without_error(patch_get_positions):
+def test_write_xlsx__runs_magnet_finding_alg_without_error():
     # Tanner (12/8/22): do not add anything to this test, it is just meant to run a full analysis start to
     # finish with no mocking. This is specifically to make sure that there are no issues with using the magnet
     # finding alg since it is often mocked in other tests to make them run faster.

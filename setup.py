@@ -46,6 +46,7 @@ setup(
         "requests>=2.25.1",
         "semver>=2.13.0",
         "pandas>=1.3.4",
+        "polars>=0.17.5",
         'importlib-metadata >= 3.7.3 ; python_version < "3.8"',
     ],
     zip_safe=False,

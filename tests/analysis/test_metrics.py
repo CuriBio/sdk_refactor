@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import time
 import uuid
 
 import numpy as np
@@ -87,11 +88,15 @@ def test_metrics__TwitchAmplitude():
     # metric = metrics.TwitchAmplitude()
     # estimate = metric.fit(pv, w.force, twitch_indices)
 
+    # 18.37362500000017
+    start = time.perf_counter()
     mc = MetricCalculator(
         w.force, twitch_indices, pv, DEFAULT_TWITCH_WIDTH_PERCENTS, DEFAULT_BASELINE_WIDTHS, rounded=False
     )
+    amp = mc["twitch_amplitude"]
+    print("$$$", (time.perf_counter() - start) * 1000)
 
-    np.testing.assert_array_almost_equal(mc["twitch_amplitude"], expected)
+    np.testing.assert_array_almost_equal(amp, expected)
 
 
 def test_metrics__TwitchAUC():

@@ -7,6 +7,7 @@ If a new metric is requested, you must implement `fit`,
 
 # for hashing dataframes
 import abc
+import json
 from typing import Any
 from typing import Dict
 from typing import Optional
@@ -17,6 +18,7 @@ from uuid import UUID
 from nptyping import NDArray
 import numpy as np
 import pandas as pd
+import polars as pl
 from pandas import DataFrame
 from pandas import Series
 from pulse3D.transforms import get_time_window_indices
@@ -60,18 +62,27 @@ class MetricCalculator:
         return vals
 
     def _calculate_twitch_amplitude(self):
+        # TODO this needs to be set to the baseline width
         twitch_width = 90
 
         amplitudes: Dict[int, float] = dict()
 
-        for twitch_peak_idx, twitch_data in self["twitch_width_coordinates"].items():
+        {"peak_idx": int, "width": int, "data_type": str, "label": str, "val": float}
+
+        def foo():
+
+
+        # TODO need to mess around with polars DFs to figure out the best way to handle this
+
+        for twitch_data_series in self["twitch_width_coordinates"]:
+            twitch_peak_idx = int(twitch_data_series.name)
             twitch_peak_x, twitch_peak_y = self._filtered_data[:, twitch_peak_idx]
 
             # C10 in the metric definition diagram is the C point at 90% twitch width
-            c10x = twitch_data["time"]["contraction"][twitch_width]
-            c10y = twitch_data["force"]["contraction"][twitch_width]
-            r90x = twitch_data["time"]["relaxation"][twitch_width]
-            r90y = twitch_data["force"]["relaxation"][twitch_width]
+            c10x = twitch_data_series["time", "contraction", twitch_width]
+            c10y = twitch_data_series["force", "contraction", twitch_width]
+            r90x = twitch_data_series["time", "relaxation", twitch_width]
+            r90y = twitch_data_series["force", "relaxation", twitch_width]
 
             twitch_base_y = interpolate_y_for_x_between_two_points(twitch_peak_x, c10x, c10y, r90x, r90y)
             amplitude_y = twitch_peak_y - twitch_base_y
@@ -103,9 +114,10 @@ class MetricCalculator:
         return self.__calculate_twitch_width_and_coordinates()
 
     def __calculate_twitch_width_and_coordinates(self):
-        coordinate_dict: Dict[int, Dict[str, Dict[str, Any]]] = dict()
-
-        width_dict: Dict[int, Dict[int, Any]] = {twitch_index: {} for twitch_index in self._twitch_indices}
+        width_df = pl.DataFrame({}, schema={"peak_idx": int, "width": int, "val": float})
+        coordinate_df = pl.DataFrame(
+            {}, schema={"peak_idx": int, "width": int, "data_type": str, "label": str, "val": float}
+        )
 
         timepoints_arr = self._filtered_data[0]
         force_amplitudes_arr = self._filtered_data[1]
@@ -125,11 +137,6 @@ class MetricCalculator:
 
             rising_idx = iter_twitch_peak_idx - 1
             falling_idx = iter_twitch_peak_idx + 1
-
-            twitch_dict = {  # type: ignore
-                metric_type: {contraction_type: {} for contraction_type in ("contraction", "relaxation")}
-                for metric_type in ("force", "time")
-            }
 
             for iter_percent in self._twitch_width_percents:
                 rising_threshold = peak_force - (iter_percent / 100) * magnitude_of_rise
@@ -166,16 +173,30 @@ class MetricCalculator:
                     falling_threshold = int(round(falling_threshold, 0))
 
                 # fill width-value dictionary
-                width_dict[iter_twitch_peak_idx][iter_percent] = width_val / MICRO_TO_BASE_CONVERSION
-                twitch_dict["force"]["contraction"][iter_percent] = rising_threshold
-                twitch_dict["force"]["relaxation"][iter_percent] = falling_threshold
-                twitch_dict["time"]["contraction"][iter_percent] = interpolated_rising_timepoint
-                twitch_dict["time"]["relaxation"][iter_percent] = interpolated_falling_timepoint
+                width_df.vstack(
+                    pl.DataFrame(
+                        {
+                            "peak_idx": iter_twitch_peak_idx,
+                            "width": iter_percent,
+                            "val": width_val / MICRO_TO_BASE_CONVERSION,
+                        }
+                    ),
+                    in_place=True,
+                )
 
-            # fill coordinate value dictionary
-            coordinate_dict[iter_twitch_peak_idx] = twitch_dict
+                coordinate_dicts = [
+                    {"data_type": "time", "label": "contraction", "val": rising_threshold},
+                    {"data_type": "time", "label": "relaxation", "val": falling_threshold},
+                    {"data_type": "force", "label": "contraction", "val": rising_threshold},
+                    {"data_type": "force", "label": "relaxation", "val": falling_threshold},
+                ]
+                coordinate_dicts = [
+                    {"peak_idx": iter_twitch_peak_idx, "width": iter_percent, **d} for d in coordinate_dicts
+                ]
 
-        return {"twitch_width": width_dict, "twitch_width_coordinates": coordinate_dict}
+                coordinate_df.vstack(pl.DataFrame(coordinate_dicts), in_place=True)
+
+        return {"twitch_width": width_df, "twitch_width_coordinates": coordinate_df}
 
     def _calculate_twitch_contraction_velocity(self):
         return self.__calculate_twitch_velocity(True)
@@ -402,7 +423,7 @@ class TwitchAmplitude(BaseMetric):
         _, coordinates = TwitchWidth.calculate_twitch_widths(
             filtered_data=filtered_data,
             twitch_indices=twitch_indices,
-            twitch_width_percents=(twitch_width,),
+            twitch_width_percents=(twitch_width, 10),
             rounded=rounded,
             as_dict=True,  # Tanner (1/20/23): using as_dict=True here to speed this up. This calculation is performed in the MA Controller, so it must be as fast as possible
         )

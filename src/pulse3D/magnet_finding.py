@@ -33,7 +33,7 @@ def find_magnet_positions(
     if filter_inputs:
         fields = filter_raw_signal(fields)
 
-    output_dict = get_positions((fields.T - baseline).T)
+    output_dict = get_positions((fields.T - baseline).T, **initial_magnet_finding_params)  # type: ignore # mypy complaining about **
 
     if filter_outputs:
         for param, output_arr in output_dict.items():

@@ -1,29 +1,36 @@
 Changelog for Pulse3D
 =====================
 
-0.32.3 (unreleased)
+0.32.4 (2023-04-21)
+-------------------
+
+Changed:
+^^^^^^^^
+- Re-add ability to override default magnet finding alg positions
+
+
+0.32.3 (2023-04-04)
 -------------------
 
 Added:
 ^^^^^^
-- Ability to ignore stim data in to_dataframe
+- Ability to ignore stim data in ``to_dataframe``
 
 
-0.32.2 (2020-03-23)
+0.32.2 (2023-03-23)
 -------------------
 
 Fixed:
 ^^^^^^
-- Skip reading metadata from missing wells when loading optical files.
+- Skip reading metadata from missing wells when loading optical files
 
 
-
-0.32.1 (2020-03-21)
+0.32.1 (2023-03-21)
 -------------------
 
 Fixed:
 ^^^^^^
-- Fixed to_dataframe method when reading new xlsx format.
+- ``PlateRecording.to_dataframe`` when loaded from an xlsx input file
 
 
 0.32.0 (2023-03-16)

@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 from pandas import DataFrame
 from pandas import Series
+from pulse3D.transforms import get_time_window_indices
 
 from .compression_cy import interpolate_x_for_y_between_two_points
 from .compression_cy import interpolate_y_for_x_between_two_points
@@ -717,7 +718,6 @@ class TwitchIrregularity(BaseMetric):
     ) -> None:
         statistics_dict = self.create_statistics_df(metric=metrics[1:-1], rounded=self.rounded)
         statistics_dict["n"] += 2
-
         aggregate_dict[metric_id] = statistics_dict
 
     @staticmethod
@@ -824,8 +824,8 @@ class TwitchAUC(BaseMetric):
             start_timepoint = rising_x_values[iter_twitch_peak_idx][width_percent]
             stop_timepoint = falling_x_values[iter_twitch_peak_idx][width_percent]
 
-            auc_window = (filtered_data[0] >= start_timepoint) & (filtered_data[0] <= stop_timepoint)
-            auc_total = np.trapz(filtered_data[1, auc_window], dx=INTERPOLATED_DATA_PERIOD_SECONDS)
+            auc_window_indices = get_time_window_indices(filtered_data[0], start_timepoint, stop_timepoint)
+            auc_total = np.trapz(filtered_data[1, auc_window_indices], dx=INTERPOLATED_DATA_PERIOD_SECONDS)
 
             if self.rounded:
                 auc_total = int(round(auc_total, 0))
@@ -1027,3 +1027,30 @@ class TwitchPeakTime(BaseMetric):
         estimates = pd.DataFrame.from_dict(estimates_dict, orient="index")
 
         return estimates / MICRO_TO_BASE_CONVERSION
+
+
+class WellGroupMetric(BaseMetric):
+    """Calculate aggregrate group metrics."""
+
+    def __init__(
+        self,
+        **kwargs: Dict[str, Any],
+    ):
+        super().__init__(False, **kwargs)
+
+    def add_group_aggregate_metrics(
+        self, aggregate_df: DataFrame, metric_column: Tuple, metrics: pd.Series, metric_type
+    ) -> None:
+        """Get aggregate metrics for entire well group.
+
+        Args:
+            aggregate_df (DataFrame): DataFrame storing aggregate metrics for well group
+            metric_column (UUID, str): multi-index column in aggregate metrics dataframe
+            metrics (Union[NDArray[int], NDArray[float]]): estimates from all wells in single group
+            metric_type (str): scalar or by_width
+        """
+        aggregate_metrics = self.create_statistics_df(metrics.values, rounded=self.rounded)
+        if metric_type == "scalar":
+            aggregate_df[metric_column[0]] = aggregate_metrics
+        else:
+            aggregate_df[metric_column[0], metric_column[1]] = aggregate_metrics

@@ -1,6 +1,103 @@
 Changelog for Pulse3D
 =====================
 
+0.32.3 (unreleased)
+-------------------
+
+Added:
+^^^^^^
+- Ability to ignore stim data in to_dataframe
+
+
+0.32.2 (2020-03-23)
+-------------------
+
+Fixed:
+^^^^^^
+- Skip reading metadata from missing wells when loading optical files.
+
+
+
+0.32.1 (2020-03-21)
+-------------------
+
+Fixed:
+^^^^^^
+- Fixed to_dataframe method when reading new xlsx format.
+
+
+0.32.0 (2023-03-16)
+-------------------
+
+Added:
+^^^^^^
+- Accuracy improvements to the magnet finding algorithm
+
+Changed:
+^^^^^^^^
+- Removed ability to override default magnet finding alg positions. This a temporary change will be readded in a future release
+
+
+0.31.0 (2023-03-16)
+-------------------
+
+Fixed:
+^^^^^^
+- Update magnet finding algorithm submodule to latest
+
+
+0.30.6 (2023-03-14)
+-------------------
+
+Fixed:
+^^^^^^
+- Removed noise filtering and other transforms on optical xlsx input files
+
+
+0.30.5 (2023-03-13)
+-------------------
+
+Changed:
+^^^^^^^^
+- Stim subprotocols no longer continue being draw if they run longer than expected
+- ``include_stim_protocols`` is now overrided to ``True`` if ``stim_waveform_format`` is given
+
+
+
+0.30.4 (2023-03-01)
+-------------------
+
+Added:
+^^^^^^
+- Accuracy improvements to the magnet finding algorithm
+
+Changed:
+^^^^^^^^
+- Filtering of data is now applied prior to the magnet finding algorithm instead of after
+
+
+0.30.3 (2023-02-27)
+-------------------
+
+Added:
+^^^^^^
+- ``well_groups`` param added to ``PlateRecording`` to override the well groups in the H5 files
+- Added ``Platemap Group Metrics`` to the  ``aggregate-metrics`` sheet after individual well metrics
+
+Changed:
+^^^^^^^^
+- Removed ``PlateRecording.write_time_force_csv``
+
+
+0.30.2 (2023-02-22)
+-------------------
+
+Changed:
+^^^^^^^^
+- ``peak_detector`` will now remove timepoints from outside the window provided by ``start_time`` and
+  ``end_time`` before running the data through the peak finding algorithm. This is too ensure that problematic
+  data outside the window does not interfere with peak finding.
+
 
 0.30.1 (2023-02-07)
 -------------------
@@ -64,7 +161,7 @@ Added:
 
 0.28.0 (2022-11-16)
 -------------------
-- Accuracy and performance improvements to magnet finding alg
+- Accuracy and performance improvements to the magnet finding algorithm
 - ``PlateRecording``'s ``start_time`` and ``end_time`` parameters now take effect before running the magnet finding algorithm.
   These params are currently only intended to be used for recording snapshots. They have no effect on Beta 1 data
 - Removed ``use_mean_of_baseline`` from ``PlateRecording`` since the alternative is never used
@@ -92,7 +189,7 @@ Added:
 
 0.27.0 (2022-10-07)
 -------------------
-- Change magnet finding alg to account for 180 degree rotation of plates on V1 instrument
+- Change magnet finding algorithm to account for 180 degree rotation of plates on V1 instrument
 - Fix issue with trying to grab barcode from calibration files
 
 0.26.1 (2022-10-05)

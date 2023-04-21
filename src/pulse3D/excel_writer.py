@@ -2,6 +2,7 @@
 import datetime
 import json
 import logging
+import math
 import os
 import string
 from typing import Any
@@ -14,10 +15,12 @@ from typing import Union
 
 import numpy as np
 import pandas as pd
+from pulse3D.transforms import get_time_window_indices
 from scipy import interpolate
 
 from .constants import *
 from .exceptions import *
+from .metrics import WellGroupMetric
 from .peak_detection import concat
 from .peak_detection import data_metrics
 from .peak_detection import get_windowed_peaks_valleys
@@ -232,6 +235,7 @@ def write_xlsx(
     if stim_waveform_format is not None:
         if stim_waveform_format not in ("stacked", "overlayed"):
             raise ValueError(f"Invalid stim_waveform_format: {stim_waveform_format}")
+        include_stim_protocols = True
 
     # make sure windows bounds are floats
     start_time = float(start_time)
@@ -272,22 +276,22 @@ def write_xlsx(
     file_suffix = "full" if is_full_analysis else f"{start_time}-{end_time}"
     output_file_name = f"{input_file_name_no_ext}_{file_suffix}.xlsx"
 
-    if first_wf.stiffness_override:
+    if plate_recording.is_optical_recording:
+        post_stiffness_factor_label = NOT_APPLICABLE_LABEL
+    elif first_wf.stiffness_override:
         # reverse dict to use the stiffness factor as a key and get the label value
-        post_stiffness_factor = {v: k for k, v in POST_STIFFNESS_LABEL_TO_FACTOR.items()}[
+        post_stiffness_factor_label = {v: k for k, v in POST_STIFFNESS_LABEL_TO_FACTOR.items()}[
             first_wf.stiffness_factor
         ]
     else:
-        post_stiffness_factor = get_stiffness_label(get_experiment_id(first_wf[PLATE_BARCODE_UUID]))
+        post_stiffness_factor_label = get_stiffness_label(get_experiment_id(first_wf[PLATE_BARCODE_UUID]))
 
     stim_barcode_display = first_wf.get(STIM_BARCODE_UUID)
     if stim_barcode_display is None or stim_barcode_display == str(NOT_APPLICABLE_H5_METADATA):
         stim_barcode_display = NOT_APPLICABLE_LABEL
 
     platemap_label_display_rows = [
-        ("", label, ", ".join(well_names))
-        for label, well_names in plate_recording.platemap_labels.items()
-        if label != NOT_APPLICABLE_LABEL
+        ("", label, ", ".join(well_names)) for label, well_names in plate_recording.platemap_labels.items()
     ]
 
     # create metadata sheet format as DataFrame
@@ -300,7 +304,7 @@ def write_xlsx(
             "UTC Timestamp of Beginning of Recording",
             str(first_wf[UTC_BEGINNING_RECORDING_UUID].replace(tzinfo=None)),
         ),
-        ("", "Post Stiffness Factor", post_stiffness_factor),
+        ("", "Post Stiffness Factor", post_stiffness_factor_label),
         ("Well Grouping Information:", "", ""),
         ("", "PlateMap Name", plate_recording.platemap_name),
         *platemap_label_display_rows,
@@ -363,13 +367,15 @@ def write_xlsx(
         start_idx = max(window_start_idx, well_start_idx)
         end_idx = min(window_end_idx, well_end_idx)
 
-        # TODO make this a function
+        # TODO make this a function?
         # fit interpolation function on recorded data
         interp_data_fn = interpolate.interp1d(*well_file.force)
         # window, interpolate, normalize, and scale data
         windowed_timepoints_us = interpolated_timepoints_us[start_idx:end_idx]
         interpolated_force = interp_data_fn(windowed_timepoints_us)
-        interpolated_force = (interpolated_force - min(interpolated_force)) * MICRO_TO_BASE_CONVERSION
+        interpolated_force = interpolated_force - min(interpolated_force)
+        if not plate_recording.is_optical_recording:
+            interpolated_force *= MICRO_TO_BASE_CONVERSION
         interpolated_well_data = np.row_stack([windowed_timepoints_us, interpolated_force])
 
         # find the biggest activation twitch force over all
@@ -425,6 +431,12 @@ def write_xlsx(
 
         recording_plotting_info.append(well_info)
 
+    group_metrics_list = _get_agg_group_metrics(
+        well_data=recording_plotting_info,
+        well_groups=plate_recording.platemap_labels,
+        twitch_widths_range=twitch_width_percents,
+    )
+
     continuous_waveforms_df = _create_continuous_waveforms_df(
         interpolated_well_data[0], recording_plotting_info
     )
@@ -434,7 +446,7 @@ def write_xlsx(
         max_y = None
     elif max_y is None:
         # if y-axis normalization enabled but no max Y given, then set it to the max twitch force across all wells
-        max_y = int(max_force_of_recording)
+        max_y = math.ceil(max_force_of_recording)
 
     # Tanner (12/15/22): setting min to zero right now since the tissue data will never be < 0. If this ever needs to change, may want to also take the new min into account when setting the y2 axis bounds for stim data
     y_axis_bounds = {"tissue": {"max": max_y, "min": 0}}
@@ -454,6 +466,7 @@ def write_xlsx(
         include_stim_protocols=include_stim_protocols,
         twitch_widths=twitch_widths,
         baseline_widths_to_use=baseline_widths_to_use,
+        group_metrics_list=group_metrics_list,
     )
 
     log.info("Done")
@@ -546,7 +559,7 @@ def _get_stim_plotting_data(
         for waveform in wf.stim_sessions:
             stim_session_idx += 1
             stim_waveforms_dict[f"{well_name} - Stim Session {stim_session_idx}"] = waveform[
-                :, (start_time_us <= waveform[0]) & (waveform[0] <= end_time_us)
+                :, get_time_window_indices(waveform[0], start_time_us, end_time_us)
             ]
 
     stim_timepoints_aggregate_us = aggregate_timepoints(
@@ -593,6 +606,7 @@ def _write_xlsx(
     include_stim_protocols: bool = False,
     twitch_widths: Tuple[int, ...] = DEFAULT_TWITCH_WIDTHS,
     baseline_widths_to_use: Tuple[int, ...] = DEFAULT_BASELINE_WIDTHS,
+    group_metrics_list: List[Dict[str, Any]] = [],
 ):
     log.info(f"Writing {output_file_name}")
     with pd.ExcelWriter(output_file_name) as writer:
@@ -624,7 +638,9 @@ def _write_xlsx(
                 stim_plotting_info,
             )
 
-        _write_aggregate_metrics(writer, recording_plotting_info, twitch_widths, baseline_widths_to_use)
+        _write_aggregate_metrics(
+            writer, recording_plotting_info, twitch_widths, baseline_widths_to_use, group_metrics_list
+        )
 
         num_metrics = _write_per_twitch_metrics(
             writer, recording_plotting_info, twitch_widths, baseline_widths_to_use
@@ -719,9 +735,13 @@ def _write_stim_waveforms(writer, stim_waveform_df):
     )
 
 
-def _write_aggregate_metrics(writer, recording_plotting_info, twitch_widths, baseline_widths_to_use):
+def _write_aggregate_metrics(
+    writer, recording_plotting_info, twitch_widths, baseline_widths_to_use, group_metrics_list
+):
     log.info("Writing aggregate metrics.")
-    aggregate_df = aggregate_metrics_df(recording_plotting_info, twitch_widths, baseline_widths_to_use)
+    aggregate_df = aggregate_metrics_df(
+        recording_plotting_info, twitch_widths, baseline_widths_to_use, group_metrics_list
+    )
     aggregate_df.to_excel(writer, sheet_name="aggregate-metrics", index=False, header=False)
 
 
@@ -897,6 +917,7 @@ def aggregate_metrics_df(
     recording_plotting_info: List[Dict[Any, Any]],
     widths: Tuple[int, ...] = DEFAULT_TWITCH_WIDTHS,
     baseline_widths_to_use: Tuple[int, ...] = DEFAULT_BASELINE_WIDTHS,
+    group_metrics_list: List[Dict[str, Any]] = [],
 ):
     """Combine aggregate metrics for each well into single DataFrame.
 
@@ -904,6 +925,8 @@ def aggregate_metrics_df(
         recording_plotting_info (list): list of data metrics and metadata associated with each well
         widths (tuple of ints, optional): twitch-widths to return data for.
         baseline_widths_to_use: twitch widths to use as baseline metrics
+        group_metrics_list: list of dictionaries with label name and metrics dataframe.
+
     Returns:
         df (DataFrame): aggregate data frame of all metric aggregate measures
     """
@@ -917,9 +940,22 @@ def aggregate_metrics_df(
         for well_info in recording_plotting_info
     ]
 
+    # add group metrics if groups present, else ignore
+    num_of_groups = len(group_metrics_list)
+    if num_of_groups > 0:
+        well_names_row += ["", "", "Platemap Group Metrics"] + ["" for _ in range(num_of_groups)]
+        description_row += ["", "", "Label Name"] + [gr["name"] for gr in group_metrics_list]
+        num_twitches_row += ["" for _ in range(num_of_groups + 3)]
+
     df = pd.DataFrame(data=[well_names_row, description_row, num_twitches_row, [""]])
 
-    combined = pd.concat([well_info["metrics"][1] for well_info in recording_plotting_info])
+    individual_well_metrics = [well_info["metrics"][1] for well_info in recording_plotting_info]
+    group_metrics = [gr["metrics"] for gr in group_metrics_list]
+    #  need three empty columns between individual well metrics and group metrics for separation and titles
+    empty_aggregate_df = init_dfs(twitch_widths_range=widths)["aggregate"]
+    empty_column = concat([empty_aggregate_df[j] for j in empty_aggregate_df.keys()], axis=1)
+
+    combined = pd.concat([*individual_well_metrics, *[empty_column for _ in range(3)], *group_metrics])
     for metric_id in ALL_METRICS:
         if metric_id in (WIDTH_UUID, RELAXATION_TIME_UUID, CONTRACTION_TIME_UUID):
             for width in widths:
@@ -1028,3 +1064,36 @@ def per_twitch_df(
     df = pd.concat(series_list, axis=1).T
     df.fillna("", inplace=True)
     return df, num_per_twitch_metrics
+
+
+def _get_agg_group_metrics(well_data, well_groups, twitch_widths_range):
+    all_group_metrics = []
+
+    for label, wells in well_groups.items():
+        # group metrics is list of dataframes for well groups
+        group_metrics = [w["metrics"] for w in well_data if w["well_name"] in wells]
+        first_aggregate_well_data = group_metrics[0]
+        combined_df = first_aggregate_well_data[0]
+
+        for group in group_metrics[1:]:
+            combined_df = pd.concat([combined_df, group[0]])
+
+        dfs = init_dfs(twitch_widths_range=twitch_widths_range)
+        aggregate_dfs = dfs["aggregate"]
+
+        for col in combined_df.columns:
+            metric_type = "scalar" if col[0] in CALCULATED_METRICS["scalar"] else "by_width"
+            aggregate_df_to_use = aggregate_dfs[metric_type]
+            WellGroupMetric().add_group_aggregate_metrics(
+                aggregate_df=aggregate_df_to_use,
+                metric_column=col,
+                metrics=combined_df[col],
+                metric_type=metric_type,
+            )
+
+        concat_aggregate_df = concat(
+            [aggregate_dfs[metric_type] for metric_type in aggregate_dfs.keys()], axis=1
+        )
+        all_group_metrics.append({"name": label, "metrics": concat_aggregate_df})
+
+    return all_group_metrics

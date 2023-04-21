@@ -7,6 +7,7 @@ import logging
 import os
 import tempfile
 from typing import Any
+from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Union
@@ -46,7 +47,6 @@ from .utils import get_experiment_id
 from .utils import get_stiffness_factor
 from .utils import get_well_name_from_h5
 from .utils import truncate
-from .utils import truncate_float
 
 log = logging.getLogger(__name__)
 
@@ -160,19 +160,13 @@ class WellFile:
             self.is_force_data = (
                 "y" in str(_get_excel_metadata_value(self._excel_sheet, TWITCHES_POINT_UP_UUID)).lower()
             )
-
-            self.noise_filter_uuid = (
-                TSP_TO_DEFAULT_FILTER_UUID[self.tissue_sampling_period] if self.is_magnetic_data else None
-            )
-            self.filter_coefficients = (
-                create_filter(self.noise_filter_uuid, self.tissue_sampling_period)
-                if self.noise_filter_uuid
-                else None
-            )
-
-            self.stiffness_factor = stiffness_factor if stiffness_factor else CARDIAC_STIFFNESS_FACTOR
-
-            self._load_magnetic_data()
+            self.stiffness_factor = None
+            for uuid_ in (PLATEMAP_NAME_UUID, PLATEMAP_LABEL_UUID):
+                self[uuid_] = NOT_APPLICABLE_LABEL
+            # skip all other transforms
+            self.force = self[TISSUE_SENSOR_READINGS].copy()
+            # timepoints still need to be in µs
+            self.force[0] *= MICRO_TO_BASE_CONVERSION
 
     def _load_data_from_h5_file(self, file_path: str) -> None:
         with h5py.File(file_path, "r") as h5_file:
@@ -340,10 +334,13 @@ class PlateRecording:
         # TODO unit test the stiffness factor (auto and override), inverted_post_magnet_wells
         stiffness_factor: Optional[int] = None,
         inverted_post_magnet_wells: Optional[List[str]] = None,
+        well_groups: Optional[Dict[str, List[str]]] = None,
     ):
         self.path = path
         self.wells = []
         self._iter = 0
+
+        # this may get overwritten later
         self.is_optical_recording = False
 
         # Tanner (11/16/22): due to the needs of the scientists for the full analysis,
@@ -380,12 +377,24 @@ class PlateRecording:
             raise NoRecordingFilesLoadedError()
 
         # set up platemap info
-        self.platemap_name = self.wells[0][PLATEMAP_NAME_UUID]
-
+        first_avaliable_well = next(iter(self))
+        self.platemap_name = first_avaliable_well[PLATEMAP_NAME_UUID]
         platemap_labels = defaultdict(list)
+
         for well_file in self:
-            label = well_file[PLATEMAP_LABEL_UUID]
-            platemap_labels[label].append(well_file[WELL_NAME_UUID])
+            if well_groups is None:
+                label = well_file[PLATEMAP_LABEL_UUID]
+                # only add to platemap_labels if label has been assigned
+                if label != NOT_APPLICABLE_LABEL:
+                    platemap_labels[label].append(well_file[WELL_NAME_UUID])
+            else:
+                # default all labels to NA first
+                well_file[PLATEMAP_LABEL_UUID] = NOT_APPLICABLE_LABEL
+                for label, well_names in well_groups.items():
+                    if well_file[WELL_NAME_UUID] in well_names:
+                        well_file[PLATEMAP_LABEL_UUID] = label
+                        platemap_labels[label].append(well_file[WELL_NAME_UUID])
+
         self.platemap_labels = dict(platemap_labels)
 
         # currently file versions 1.0.0 and above must have all their data processed together
@@ -479,15 +488,14 @@ class PlateRecording:
                 log.info("Subprotocol format not supported by intperpolation")
                 return
 
-            charge_conversion_factor = (
-                MILLI_TO_BASE_CONVERSION if stim_protocol["stimulation_type"] == "C" else 1
-            )
+            is_voltage = stim_protocol["stimulation_type"] == "V"
+            charge_conversion_factor = 1 if is_voltage else MILLI_TO_BASE_CONVERSION
 
             for waveform in stim_sessions_waveforms:
                 if not waveform.shape[-1]:
                     continue
                 waveform[0] -= wf[TIME_INDICES][0]
-                waveform[1] //= charge_conversion_factor
+                waveform[1] /= charge_conversion_factor
                 wf.stim_sessions.append(waveform)
 
     def _load_dataframe(self, df: pd.DataFrame) -> None:
@@ -518,28 +526,7 @@ class PlateRecording:
                 stim_session = stim_session_raw[:, ~np.isnan(stim_session_raw[1])].astype(int)
                 wf.stim_sessions.append(stim_session)
 
-    def write_time_force_csv(self, output_dir: str):
-        # get recording name
-        recording_name = os.path.splitext(os.path.basename(self.path))[0]
-        output_path = os.path.join(output_dir, f"{recording_name}.csv")
-
-        # set indexes to time points
-        truncated_time_sec = [
-            truncate_float(ms / MICRO_TO_BASE_CONVERSION, 2) for ms in self.wells[0].force[0]
-        ]
-
-        force_data = dict({"Time (s)": pd.Series(truncated_time_sec)})
-
-        for well in self:
-            well_name = well.get(WELL_NAME_UUID, None)
-            force_data[well_name] = pd.Series(well.force[1])
-
-        time_recording_df = pd.DataFrame(force_data)
-        time_recording_df.to_csv(output_path, index=False)
-
-        return time_recording_df, output_path
-
-    def to_dataframe(self) -> pd.DataFrame:
+    def to_dataframe(self, include_stim_data=True) -> pd.DataFrame:
         """Creates DataFrame from PlateRecording with all the data
         interpolated, normalized, and scaled. The returned dataframe contains
         one column for time in ms and one column for each well.
@@ -570,15 +557,26 @@ class PlateRecording:
 
         data = {"Time (s)": pd.Series(interp_timepoints)}
 
-        output_stim_data = first_well.version >= VersionInfo.parse("1.0.0")
+        # only attempt to output stim data if the file supports it and the caller requests it
+        attempt_to_output_stim_data = (
+            not self.is_optical_recording
+            and first_well.version >= VersionInfo.parse(MIN_FILE_VERSION_FOR_STIM_INTERPOLATION)
+            and include_stim_data
+        )
 
         # add stim timepoints
-        if output_stim_data:
+        aggregate_stim_timepoints_us = None
+        if attempt_to_output_stim_data:
             aggregate_stim_timepoints_us = aggregate_timepoints(
                 [session_data[0] for wf in self for session_data in wf.stim_sessions]
             )
             aggregate_stim_timepoints_us_for_plotting = np.repeat(aggregate_stim_timepoints_us, 2)
             data["Stim Time (µs)"] = pd.Series(aggregate_stim_timepoints_us_for_plotting)
+
+        # only outputting stim data if an attempt to output stim data was made and the file actually has stim data in it
+        is_outputting_stim_data = (
+            aggregate_stim_timepoints_us is not None and aggregate_stim_timepoints_us.any()
+        )
 
         # iterating over self.wells instead of using __iter__ so well_idx is preserved
         for well_idx, wf in enumerate(self.wells):
@@ -604,7 +602,7 @@ class PlateRecording:
             data[well_name] = pd.Series(interp_force_newtons_normalized)
 
             # add stim data
-            if output_stim_data:
+            if is_outputting_stim_data:
                 for i, session_data in enumerate(wf.stim_sessions):
                     data[f"{well_name}__stim_{i}"] = pd.Series(
                         realign_interpolated_stim_data(
@@ -613,16 +611,16 @@ class PlateRecording:
                     )
 
         df = pd.DataFrame(data)
-        if not output_stim_data:
+        if not is_outputting_stim_data:
             df.dropna(inplace=True)
 
         return df
 
     @staticmethod
-    def from_dataframe(path, df: pd.DataFrame):
+    def from_dataframe(path, **kwargs):
         # only allowed for one recording at a time assuming a user would only ever pass a dataframe to one recording
         log.info(f"Loading recording from file {os.path.basename(path)}")
-        yield PlateRecording(path, recording_df=df)
+        yield PlateRecording(path, **kwargs)
 
     @staticmethod
     def from_directory(path, **kwargs):
@@ -695,16 +693,6 @@ def load_files(
         baseline_well_files[well_file[WELL_INDEX_UUID]] = well_file  # type: ignore
 
     return tissue_well_files, baseline_well_files
-
-
-def _find_start_index(from_start: int, old_data: NDArray[(1, Any), int]) -> int:
-    start_index, time_from_start = 0, 0
-
-    while start_index + 1 < len(old_data) and from_start >= time_from_start:
-        time_from_start = old_data[start_index + 1] - old_data[0]
-        start_index += 1
-
-    return start_index - 1  # loop iterates 1 past the desired index, so subtract 1
 
 
 def _get_col_as_array(sheet: Worksheet, zero_based_row: int, zero_based_col: int) -> NDArray[(2, Any), float]:

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import csv
 import os
+from random import choice
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -12,13 +13,23 @@ from stdlib_utils import get_current_file_abs_directory
 
 PATH_OF_CURRENT_FILE = get_current_file_abs_directory()
 
+PATH_TO_TEST_DATA_FILES = os.path.join(PATH_OF_CURRENT_FILE, "data_files")
 
-PATH_TO_MAGNET_FINDING_FILES = os.path.join(PATH_OF_CURRENT_FILE, "data_files", "magnet_finding")
-PATH_TO_H5_FILES = os.path.join(PATH_OF_CURRENT_FILE, "data_files", "h5")
-PATH_TO_DATA_METRIC_FILES = os.path.join(PATH_OF_CURRENT_FILE, "data_files", "data_metrics")
+PATH_TO_MAGNET_FINDING_FILES = os.path.join(PATH_TO_TEST_DATA_FILES, "magnet_finding")
+PATH_TO_H5_FILES = os.path.join(PATH_TO_TEST_DATA_FILES, "h5")
+PATH_TO_DATA_METRIC_FILES = os.path.join(PATH_TO_TEST_DATA_FILES, "data_metrics")
+PATH_TO_OPTICAL_FILES = os.path.join(PATH_TO_TEST_DATA_FILES, "optical")
 
 TEST_SMALL_BETA_1_FILE_PATH = os.path.join(PATH_TO_H5_FILES, "v0.4.2", "SmallBeta1File.zip")
 TEST_SMALL_BETA_2_FILE_PATH = os.path.join(PATH_TO_H5_FILES, "stim", "SmallBeta2File-NoStim.zip")
+
+TEST_OPTICAL_FILE_ONE_PATH = os.path.join(PATH_TO_OPTICAL_FILES, "OPTICAL_TEST_FILE_ONE.xlsx")
+TEST_OPTICAL_FILE_TWO_PATH = os.path.join(PATH_TO_OPTICAL_FILES, "OPTICAL_TEST_FILE_TWO.xlsx")
+TEST_OPTICAL_FILE_THREE_PATH = os.path.join(PATH_TO_OPTICAL_FILES, "OPTICAL_TEST_FILE_THREE.xlsx")
+
+
+def rand_bool():
+    return choice([True, False])
 
 
 def _load_file(file_path: str) -> Tuple[List[str], List[str]]:

@@ -25,6 +25,8 @@ log = logging.getLogger(__name__)
 def peak_detector(
     filtered_magnetic_signal: NDArray[(2, Any), int],
     twitches_point_up: bool = True,
+    start_time: float = 0,
+    end_time: float = np.inf,
     prominence_factors: Tuple[Union[int, float], Union[int, float]] = DEFAULT_PROMINENCE_FACTORS,
     width_factors: Tuple[Union[int, float], Union[int, float]] = DEFAULT_WIDTH_FACTORS,
 ) -> Tuple[List[int], List[int]]:
@@ -33,8 +35,8 @@ def peak_detector(
     Args:
         filtered_magnetic_signal: a 2D array of the magnetic signal vs time data after it has gone through noise cancellation and interpolation. It is assumed that the time values are in microseconds
         twitches_point_up: whether in the incoming data stream the biological twitches are pointing up (in the positive direction) or down
-        start_time (float): start time of windowed analysis, in seconds. Default value = 0 seconds.
-        end_time (float): end time of windowed analysis, in seconds.  Default value = Inf seconds.
+        start_time (float): start time of windowed analysis, in seconds. Default value = 0 seconds. Useful for when a window is not already applied to the data
+        end_time (float): end time of windowed analysis, in seconds.  Default value = Inf seconds. Useful for when a window is not already applied to the data
         prominence_factors: (int/float, int/float) scaling factors for peak/valley prominences.  Larger values make peak-finding more flexible by reducing minimum-required prominence
         width_factors: (int/float, int/float) scaling factors for peak/valley widths.  Larger values make peak-finding more flexible by reducing minimum-required width
 
@@ -45,15 +47,19 @@ def peak_detector(
     width_factors = _format_factors(width_factors)
     prominence_factors = _format_factors(prominence_factors)
 
+    # apply window
+    window_indices = get_time_window_indices(filtered_magnetic_signal[0], start_time, end_time)
+    windowed_signal = filtered_magnetic_signal[:, window_indices]
+
     # interpolated data points are required, meaning that the time steps should all be the same, so using the first one
-    sampling_period_us = filtered_magnetic_signal[0, 1] - filtered_magnetic_signal[0, 0]
+    sampling_period_us = windowed_signal[0, 1] - windowed_signal[0, 0]
 
     max_possible_twitch_freq = 7
     min_required_samples_between_twitches = int(
         round((1 / max_possible_twitch_freq) * MICRO_TO_BASE_CONVERSION / sampling_period_us, 0),
     )
 
-    magnetic_signal = filtered_magnetic_signal[1, :]
+    magnetic_signal = windowed_signal[1, :]
     # find required height of peaks
     max_prominence = abs(np.max(magnetic_signal) - np.min(magnetic_signal))
 
@@ -66,19 +72,31 @@ def peak_detector(
         prominence=max_prominence / prominence_factors[0],
     )
 
-    valley_indices, properties = signal.find_peaks(
+    valley_indices, valley_properties = signal.find_peaks(
         magnetic_signal * valley_invertor_factor,
         width=min_required_samples_between_twitches / width_factors[1],
         distance=min_required_samples_between_twitches,
         prominence=max_prominence / prominence_factors[1],
     )
-    left_ips = properties["left_ips"]
-    right_ips = properties["right_ips"]
 
+    _fix_peak_finding_results(magnetic_signal, valley_indices, valley_properties)
+
+    # indices are only valid with the given window, so adjust to match original signal
+    peak_indices += window_indices[0]
+    valley_indices += window_indices[0]
+
+    return peak_indices, valley_indices
+
+
+def _fix_peak_finding_results(magnetic_signal, valley_indices, valley_properties) -> None:
     # Patches error in B6 file for when two valleys are found in a single valley. If this is true left_bases, right_bases, prominences, and raw magnetic sensor data will also be equivalent to their previous value. This if statement indicates that the valley should be disregarded if the interpolated values on left and right intersection points of a horizontal line at the an evaluation height are equivalent. This would mean that the left and right sides of the peak and its neighbor peak align, indicating that it just one peak rather than two.
     # https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.peak_widths.html#scipy.signal.peak_widths
 
     # Tanner (10/28/21): be careful modifying any of this while loop, it is currently not unit tested
+
+    left_ips = valley_properties["left_ips"]
+    right_ips = valley_properties["right_ips"]
+
     i = 1
     while i < len(valley_indices):
         if left_ips[i] == left_ips[i - 1] and right_ips[i] == right_ips[i - 1]:  # pragma: no cover
@@ -95,8 +113,6 @@ def peak_detector(
                 right_ips = np.delete(right_ips, i - 1)
         else:
             i += 1
-
-    return peak_indices, valley_indices
 
 
 def _format_factors(factors):
@@ -399,12 +415,12 @@ def get_windowed_peaks_valleys(
         peaks: NDArray of peak indices
         valleys: NDArray of valley indices
     """
-    windowed_indices = end_idx - start_idx
+    windowed_end_idx = end_idx - start_idx - 1
     # remove up to starting index to make start time index 0
     sub_peaks = np.subtract(peaks, start_idx)
     sub_valleys = np.subtract(valleys, start_idx)
     # remove indices greater than max windowed index
-    filtered_peaks = np.where((sub_peaks < windowed_indices) & (sub_peaks >= 0))[0]
-    filtered_valleys = np.where((sub_valleys < windowed_indices) & (sub_valleys >= 0))[0]
+    peak_window_indices = get_time_window_indices(sub_peaks, 0, windowed_end_idx)
+    valley_window_indices = get_time_window_indices(sub_valleys, 0, windowed_end_idx)
     # grab indices from original sub peaks and valleys
-    return sub_peaks[filtered_peaks], sub_valleys[filtered_valleys]
+    return sub_peaks[peak_window_indices], sub_valleys[valley_window_indices]

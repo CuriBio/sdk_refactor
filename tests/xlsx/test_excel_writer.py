@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import math
 import os
 from random import choice
 from random import randint
@@ -19,6 +20,9 @@ from pulse3D.plate_recording import PlateRecording
 import pytest
 
 from ..fixtures_utils import PATH_TO_H5_FILES
+from ..fixtures_utils import TEST_OPTICAL_FILE_ONE_PATH
+from ..fixtures_utils import TEST_OPTICAL_FILE_THREE_PATH
+from ..fixtures_utils import TEST_OPTICAL_FILE_TWO_PATH
 from ..fixtures_utils import TEST_SMALL_BETA_1_FILE_PATH
 
 
@@ -102,6 +106,22 @@ def test_write_xlsx__runs_magnet_finding_alg_without_error():
     # done in the tests below.
 
     pr = PlateRecording(TEST_FILE_PATH)
+    output_file_name = write_xlsx(pr, stim_waveform_format="stacked")
+
+    # this assertion isn't really necessary, but it's nice to make an assertion in a test that otherwise has none
+    assert isinstance(output_file_name, str)
+
+
+@pytest.mark.parametrize(
+    "optical_file", [TEST_OPTICAL_FILE_ONE_PATH, TEST_OPTICAL_FILE_TWO_PATH, TEST_OPTICAL_FILE_THREE_PATH]
+)
+def test_write_xlsx__runs_optical_file_without_error(optical_file):
+    # Tanner (12/8/22): do not add anything to this test, it is just meant to run a full analysis start to
+    # finish with no mocking on an optical file.
+    # Any and all param testing should be done in separate tests and make assertions on the xlsx output as is
+    # done in the tests below.
+
+    pr = PlateRecording(optical_file)
     output_file_name = write_xlsx(pr)
 
     # this assertion isn't really necessary, but it's nice to make an assertion in a test that otherwise has none
@@ -134,7 +154,7 @@ def test_write_xlsx__sets_tissue_y_axis_correctly_based_on_normalize_y_axis_and_
             tissue_waveform_data = pd.read_excel(
                 output_filepath, sheet_name="continuous-waveforms", usecols=list(range(1, 25))
             )
-            expected_max = int(max([max(tissue_waveform_data[col]) for col in tissue_waveform_data]))
+            expected_max = math.ceil(max([max(tissue_waveform_data[col]) for col in tissue_waveform_data]))
 
     expected_tissue_chart_bounds = {"max": expected_max, "min": 0}
 

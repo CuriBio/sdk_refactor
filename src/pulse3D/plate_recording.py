@@ -27,6 +27,8 @@ from xlsxwriter.utility import xl_cell_to_rowcol
 
 from .compression_cy import compress_filtered_magnetic_data
 from .constants import *
+from .exceptions import DuplicateWellsFoundError
+from .exceptions import IncorrectOpticalFileFormatError
 from .exceptions import NoRecordingFilesLoadedError
 from .exceptions import SubprotocolFormatIncompatibleWithInterpolationError
 from .magnet_finding import find_magnet_positions
@@ -55,9 +57,7 @@ class MantarrayH5FileCreator(h5py.File):
     """Creates an H5 file with the basic format/layout."""
 
     def __init__(
-        self,
-        file_name: str,
-        file_format_version: str = CURRENT_BETA2_HDF5_FILE_FORMAT_VERSION,
+        self, file_name: str, file_format_version: str = CURRENT_BETA2_HDF5_FILE_FORMAT_VERSION
     ) -> None:
         super().__init__(
             file_name,
@@ -339,7 +339,6 @@ class PlateRecording:
         self.path = path
         self.wells = []
         self._iter = 0
-
         # this may get overwritten later
         self.is_optical_recording = False
 
@@ -359,14 +358,16 @@ class PlateRecording:
             with tempfile.TemporaryDirectory() as tmpdir:
                 zf = zipfile.ZipFile(path)
                 zf.extractall(path=tmpdir)
-                self.wells, calibration_recordings = load_files(
-                    tmpdir, stiffness_factor, inverted_post_magnet_wells
-                )
+
+                if glob.glob(os.path.join(tmpdir, "**", "*.h5"), recursive=True):
+                    self.wells, calibration_recordings = load_files(
+                        tmpdir, stiffness_factor, inverted_post_magnet_wells
+                    )
+                else:
+                    for file_path in glob.glob(os.path.join(tmpdir, "**", "*.xlsx"), recursive=True):
+                        self._load_optical_well_file(file_path, stiffness_factor)
         elif self.path.endswith(".xlsx"):  # optical file
-            self.is_optical_recording = True
-            well_file = WellFile(self.path, stiffness_factor=stiffness_factor)
-            self.wells = [None] * (well_file[WELL_INDEX_UUID] + 1)
-            self.wells[well_file[WELL_INDEX_UUID]] = well_file
+            self._load_optical_well_file(self.path, stiffness_factor)
         else:  # .h5 files
             self.wells, calibration_recordings = load_files(
                 self.path, stiffness_factor, inverted_post_magnet_wells
@@ -526,6 +527,25 @@ class PlateRecording:
                 stim_session = stim_session_raw[:, ~np.isnan(stim_session_raw[1])].astype(int)
                 wf.stim_sessions.append(stim_session)
 
+    def _load_optical_well_file(self, file_path: str, stiffness_factor: int | None):
+        self.is_optical_recording = True
+        if not self.wells:
+            # TODO parameterize number of wells here, set to 24 max for now
+            self.wells = [None] * 24
+
+        # check if xlsx is correct format and not pulse3d output file
+        if _get_num_of_sheets(file_path) > 1:
+            raise IncorrectOpticalFileFormatError(
+                f"Incorrect number of sheets found for file {os.path.basename(file_path)}"
+            )
+
+        well_file = WellFile(file_path, stiffness_factor=stiffness_factor)
+        # check if user attempts to upload multiple files for the same well
+        if self.wells[well_file[WELL_INDEX_UUID]] is not None:
+            raise DuplicateWellsFoundError(f"Duplicate well found for {well_file[WELL_NAME_UUID]}")
+
+        self.wells[well_file[WELL_INDEX_UUID]] = well_file
+
     def to_dataframe(self, include_stim_data=True) -> pd.DataFrame:
         """Creates DataFrame from PlateRecording with all the data
         interpolated, normalized, and scaled. The returned dataframe contains
@@ -626,14 +646,6 @@ class PlateRecording:
     def from_directory(path, **kwargs):
         # multi zip files
         for zf in glob.glob(os.path.join(path, "*.zip"), recursive=True):
-            zip_file = zipfile.ZipFile(zf)
-            # check if this is a zip of optical files
-            if ".xlsx" in zip_file.namelist()[0]:
-                with tempfile.TemporaryDirectory() as tmpdir:
-                    zip_file.extractall(path=tmpdir)
-                    for optical_file in os.scandir(tmpdir):
-                        yield PlateRecording(optical_file.path, **kwargs)
-                return
             log.info(f"Loading recording from file {zf}")
             yield PlateRecording(zf, **kwargs)
 
@@ -711,6 +723,11 @@ def _get_single_sheet(file_name: str) -> Any:
     return work_book[work_book.sheetnames[0]]
 
 
+def _get_num_of_sheets(file_path: str) -> Any:
+    work_book = load_workbook(file_path)
+    return len(work_book.sheetnames)
+
+
 def _get_cell_value(sheet: Worksheet, zero_based_row: int, zero_based_col: int) -> Optional[str]:
     result = sheet.cell(row=zero_based_row + 1, column=zero_based_col + 1).value
     if result is None:
@@ -751,6 +768,10 @@ def _load_optical_file_attrs(sheet: Worksheet):
 
     twenty_four_well = LabwareDefinition(row_count=4, column_count=6)
     well_name = _get_excel_metadata_value(sheet, WELL_NAME_UUID)
+
+    # some provided sample xlsx files contained well names like A001 and B001
+    if well_name is not None:
+        well_name = well_name.replace("0", "")
 
     attrs = {
         FILE_FORMAT_VERSION_METADATA_KEY: NOT_APPLICABLE_LABEL,

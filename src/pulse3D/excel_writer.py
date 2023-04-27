@@ -621,8 +621,7 @@ def _write_xlsx(
         wb = writer.book
         snapshot_sheet = wb.add_worksheet("continuous-waveform-snapshot")
         full_sheet = wb.add_worksheet("full-continuous-waveform-plots")
-
-        for well_info in recording_plotting_info:
+        for rec_info_idx, well_info in enumerate(recording_plotting_info):
             log.info(f'Creating waveform charts for well {well_info["well_name"]}')
             create_waveform_charts(
                 y_axis_bounds,
@@ -633,6 +632,7 @@ def _write_xlsx(
                 snapshot_sheet,
                 full_sheet,
                 stim_plotting_info,
+                rec_info_idx,  # used to remove whitespace in full-continuous-waveform-plots
             )
 
         _write_aggregate_metrics(
@@ -754,6 +754,7 @@ def create_waveform_charts(
     snapshot_sheet,
     full_sheet,
     stim_plotting_info,
+    rec_info_idx,
 ):
     well_idx = well_info["well_index"]
     well_name = well_info["well_name"]
@@ -901,9 +902,9 @@ def create_waveform_charts(
     if stim_chart_format == "stacked":
         cells_per_well += STIM_CHART_HEIGHT_CELLS
         if stim_chart.series:
-            full_sheet.insert_chart(1 + CHART_HEIGHT_CELLS + well_idx * cells_per_well, 1, stim_chart)
+            full_sheet.insert_chart(1 + CHART_HEIGHT_CELLS + rec_info_idx * cells_per_well, 1, stim_chart)
 
-    full_sheet.insert_chart(1 + well_idx * cells_per_well, 1, full_chart)
+    full_sheet.insert_chart(1 + rec_info_idx * cells_per_well, 1, full_chart)
 
 
 def aggregate_metrics_df(

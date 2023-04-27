@@ -527,7 +527,7 @@ class PlateRecording:
                 stim_session = stim_session_raw[:, ~np.isnan(stim_session_raw[1])].astype(int)
                 wf.stim_sessions.append(stim_session)
 
-    def _load_optical_well_file(self, file_path: str, stiffness_factor: int | None):
+    def _load_optical_well_file(self, file_path: str, stiffness_factor: Union[int, None]):
         self.is_optical_recording = True
         if not self.wells:
             # TODO parameterize number of wells here, set to 24 max for now

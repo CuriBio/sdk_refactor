@@ -124,10 +124,7 @@ def create_force_frequency_relationship_charts(
         {
             "categories": f"='{PER_TWITCH_METRICS_SHEET_NAME}'!$B${well_row + 7}:${last_column}${well_row + 7}",
             "values": f"='{PER_TWITCH_METRICS_SHEET_NAME}'!$B${well_row + 5}:${last_column}${well_row + 5}",
-            "marker": {
-                "type": "diamond",
-                "size": 7,
-            },
+            "marker": {"type": "diamond", "size": 7},
             "line": {"none": True},
         }
     )
@@ -661,11 +658,7 @@ def _write_xlsx(
 
             log.info(f"Creating frequency vs time chart for well {well_info['well_name']}")
             create_frequency_vs_time_charts(
-                freq_vs_time_sheet,
-                freq_vs_time_chart,
-                well_info,
-                num_data_points,
-                num_metrics,
+                freq_vs_time_sheet, freq_vs_time_chart, well_info, num_data_points, num_metrics
             )
 
             log.info(f"Creating force frequency relationship chart for well {well_info['well_name']}")
@@ -767,12 +760,12 @@ def create_waveform_charts(
 
     # maximum snapshot size is 10 seconds
     snapshot_lower_x_bound = well_info["tissue_data"][0, 0]
-    snapshot_upper_x_bound = min(well_info["tissue_data"][0, -1], CHART_MAXIMUM_SNAPSHOT_LENGTH_SECS)
-
+    snapshot_upper_x_bound = min(
+        well_info["tissue_data"][0, -1], snapshot_lower_x_bound + CHART_MAXIMUM_SNAPSHOT_LENGTH_SECS
+    )
     df_column = continuous_waveforms_df.columns.get_loc(f"{well_name} - Active Twitch Force (μN)")
 
     well_column = xl_col_to_name(df_column)
-
     # plot snapshot of waveform
     snapshot_plot_params = plotting_parameters(snapshot_upper_x_bound - snapshot_lower_x_bound)
 

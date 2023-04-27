@@ -27,9 +27,7 @@ from ..fixtures_utils import TEST_SMALL_BETA_1_FILE_PATH
 
 
 TEST_FILE_PATH = os.path.join(
-    PATH_TO_H5_FILES,
-    "v1.1.0",
-    "ML2022126006_Position 1 Baseline_2022_06_15_004655.zip",
+    PATH_TO_H5_FILES, "v1.1.0", "ML2022126006_Position 1 Baseline_2022_06_15_004655.zip"
 )
 TEST_OLD_FILE_WITH_STIM_PROTOCOLS_PATH = os.path.join(
     PATH_TO_H5_FILES, "stim", "ML22001000-2__2022_11_17_233136.zip"
@@ -219,6 +217,21 @@ def test_write_xlsx__uses_custom_start_and_end_time_values_correctly(patch_get_p
 
     np.testing.assert_almost_equal(tissue_waveform_timepoints[0], test_start_time, decimal=1)
     np.testing.assert_almost_equal(tissue_waveform_timepoints[-1], test_end_time, decimal=1)
+
+
+@pytest.mark.parametrize(
+    "test_start_time,test_end_time, expected_width",
+    [[0.0, 33.0, 10], [15.0, 30.0, 10], [5.0, 10.0, 4.99], [25.0, 27.0, 1.9899999999999984]],
+)
+def test_write_xlsx__correctly_sets_snapshot_width_when_using_custom_start_and_end_time_values(
+    patch_get_positions, mocker, test_start_time, test_end_time, expected_width
+):
+    snapshot_plotter = mocker.spy(excel_writer, "plotting_parameters")
+
+    pr = PlateRecording(TEST_FILE_PATH)
+    write_xlsx(pr, start_time=test_start_time, end_time=test_end_time)
+
+    snapshot_plotter.assert_any_call(expected_width)
 
 
 def test_write_xlsx__correctly_handles_default_twitch_widths(patch_get_positions, tmp_dir_for_xlsx):

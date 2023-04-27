@@ -28,26 +28,14 @@ from .exceptions import UnrecognizedFilterUuidError
 
 
 FILTER_CHARACTERISTICS: Dict[uuid.UUID, Dict[str, Union[str, float, int]]] = {
-    BESSEL_BANDPASS_UUID: {
-        "filter_type": "bessel",
-        "order": 4,
-        "high_pass_hz": 0.1,
-        "low_pass_hz": 10,
-    },
+    BESSEL_BANDPASS_UUID: {"filter_type": "bessel", "order": 4, "high_pass_hz": 0.1, "low_pass_hz": 10},
     BESSEL_LOWPASS_10_UUID: {"filter_type": "bessel", "order": 4, "low_pass_hz": 10},
     BESSEL_LOWPASS_30_UUID: {"filter_type": "bessel", "order": 4, "low_pass_hz": 30},
-    BUTTERWORTH_LOWPASS_30_UUID: {
-        "filter_type": "butterworth",
-        "order": 4,
-        "low_pass_hz": 30,
-    },
+    BUTTERWORTH_LOWPASS_30_UUID: {"filter_type": "butterworth", "order": 4, "low_pass_hz": 30},
 }
 
 
-def create_filter(
-    filter_uuid: uuid.UUID,
-    sample_period_microseconds: int,
-) -> NDArray[(Any, Any), float]:
+def create_filter(filter_uuid: uuid.UUID, sample_period_microseconds: int) -> NDArray[(Any, Any), float]:
     """Create a filter to apply to data streams.
 
     Args:
@@ -134,9 +122,7 @@ def noise_cancellation(
     return tissue_gmr_reading
 
 
-def apply_empty_plate_calibration(
-    noise_cancelled_gmr: NDArray[(2, Any), int],
-) -> NDArray[(2, Any), int]:
+def apply_empty_plate_calibration(noise_cancelled_gmr: NDArray[(2, Any), int]) -> NDArray[(2, Any), int]:
     """Apply the result of an empty plate calibration.
 
     Actual empty plate calibration will be performed once information obtained from Jason.
@@ -151,8 +137,7 @@ def apply_empty_plate_calibration(
 
 
 def apply_noise_filtering(
-    fully_calibrated_gmr: NDArray[(2, Any), int],
-    scipy_filter_sos_coefficients: NDArray[(Any, Any), float],
+    fully_calibrated_gmr: NDArray[(2, Any), int], scipy_filter_sos_coefficients: NDArray[(Any, Any), float]
 ) -> NDArray[(2, Any), int]:
     """Apply the result of an empty plate calibration.
 
@@ -199,7 +184,7 @@ def calculate_voltage_from_gmr(
 
 
 def calculate_displacement_from_voltage(
-    voltage_data: NDArray[(2, Any), np.float64],
+    voltage_data: NDArray[(2, Any), np.float64]
 ) -> NDArray[(2, Any), np.float64]:
     """Convert voltage to displacement.
 

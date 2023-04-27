@@ -1,6 +1,14 @@
 Changelog for Pulse3D
 =====================
 
+0.32.5 (2023-04-27)
+-------------------
+
+Fixed:
+^^^^^^
+- Correctly calculate upper x bound for snapshot graphs in ``create_waveform_charts``
+
+
 0.32.4 (2023-04-21)
 -------------------
 

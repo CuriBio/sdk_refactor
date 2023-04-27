@@ -56,7 +56,7 @@ def peak_detector(
 
     max_possible_twitch_freq = 7
     min_required_samples_between_twitches = int(
-        round((1 / max_possible_twitch_freq) * MICRO_TO_BASE_CONVERSION / sampling_period_us, 0),
+        round((1 / max_possible_twitch_freq) * MICRO_TO_BASE_CONVERSION / sampling_period_us, 0)
     )
 
     magnetic_signal = windowed_signal[1, :]
@@ -124,7 +124,7 @@ def _format_factors(factors):
 
 
 def find_twitch_indices(
-    peak_and_valley_indices: Tuple[NDArray[int], NDArray[int]],
+    peak_and_valley_indices: Tuple[NDArray[int], NDArray[int]]
 ) -> Dict[int, Dict[UUID, Optional[int]]]:
     """Find twitches that can be analyzed.
 

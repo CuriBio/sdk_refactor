@@ -1,6 +1,14 @@
 Changelog for Pulse3D
 =====================
 
+0.32.6 (2023-04-28)
+-------------------
+
+Added:
+^^^^^^
+- Ability to ``PlateRecording`` to handle zip file containing multiple optical xlsx files
+
+
 0.32.5 (2023-04-27)
 -------------------
 

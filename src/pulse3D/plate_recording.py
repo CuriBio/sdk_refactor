@@ -363,11 +363,10 @@ class PlateRecording:
                     self.wells, calibration_recordings = load_files(
                         tmpdir, stiffness_factor, inverted_post_magnet_wells
                     )
-                else:
-                    for file_path in glob.glob(os.path.join(tmpdir, "**", "*.xlsx"), recursive=True):
-                        self._load_optical_well_file(file_path, stiffness_factor)
+                elif xlsx_files := glob.glob(os.path.join(tmpdir, "*.xlsx"), recursive=True):
+                    self._load_optical_well_files(xlsx_files, stiffness_factor)
         elif self.path.endswith(".xlsx"):  # optical file
-            self._load_optical_well_file(self.path, stiffness_factor)
+            self._load_optical_well_files([self.path], stiffness_factor)
         else:  # .h5 files
             self.wells, calibration_recordings = load_files(
                 self.path, stiffness_factor, inverted_post_magnet_wells
@@ -527,24 +526,25 @@ class PlateRecording:
                 stim_session = stim_session_raw[:, ~np.isnan(stim_session_raw[1])].astype(int)
                 wf.stim_sessions.append(stim_session)
 
-    def _load_optical_well_file(self, file_path: str, stiffness_factor: Union[int, None]):
+    def _load_optical_well_files(self, file_paths: List[str], stiffness_factor: Union[int, None]):
         self.is_optical_recording = True
         if not self.wells:
             # TODO parameterize number of wells here, set to 24 max for now
             self.wells = [None] * 24
 
-        # check if xlsx is correct format and not pulse3d output file
-        if _get_num_of_sheets(file_path) > 1:
-            raise IncorrectOpticalFileFormatError(
-                f"Incorrect number of sheets found for file {os.path.basename(file_path)}"
-            )
+        for xlsx_path in file_paths:
+            # check if xlsx is correct format and not pulse3d output file
+            if _get_num_of_sheets(xlsx_path) > 1:
+                raise IncorrectOpticalFileFormatError(
+                    f"Incorrect number of sheets found for file {os.path.basename(xlsx_path)}"
+                )
 
-        well_file = WellFile(file_path, stiffness_factor=stiffness_factor)
-        # check if user attempts to upload multiple files for the same well
-        if self.wells[well_file[WELL_INDEX_UUID]] is not None:
-            raise DuplicateWellsFoundError(f"Duplicate well found for {well_file[WELL_NAME_UUID]}")
+            well_file = WellFile(xlsx_path, stiffness_factor=stiffness_factor)
+            # check if user attempts to upload multiple files for the same well
+            if self.wells[well_file[WELL_INDEX_UUID]] is not None:
+                raise DuplicateWellsFoundError(f"Duplicate well found for {well_file[WELL_NAME_UUID]}")
 
-        self.wells[well_file[WELL_INDEX_UUID]] = well_file
+            self.wells[well_file[WELL_INDEX_UUID]] = well_file
 
     def to_dataframe(self, include_stim_data=True) -> pd.DataFrame:
         """Creates DataFrame from PlateRecording with all the data

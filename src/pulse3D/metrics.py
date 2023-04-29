@@ -121,7 +121,7 @@ class TwitchAmplitude(BaseMetric):
         **kwargs: Dict[str, Any],
     ):
         super().__init__(rounded=rounded, **kwargs)
-        self.baseline_widths = baseline_widths_to_use
+        self.baseline_widths = [100 - baseline_widths_to_use[0], baseline_widths_to_use[1]]
 
     def fit(
         self,
@@ -177,8 +177,8 @@ class TwitchAmplitude(BaseMetric):
             twitch_peak_x, twitch_peak_y = filtered_data[:, twitch_peak_idx]
 
             # C10 in the metric definition diagram is the C point at 90% twitch width
-            c10x = twitch_data["time"]["contraction"][100 - baseline_widths[0]]
-            c10y = twitch_data["force"]["contraction"][100 - baseline_widths[0]]
+            c10x = twitch_data["time"]["contraction"][baseline_widths[0]]
+            c10y = twitch_data["force"]["contraction"][baseline_widths[0]]
             r90x = twitch_data["time"]["relaxation"][baseline_widths[1]]
             r90y = twitch_data["force"]["relaxation"][baseline_widths[1]]
 
@@ -527,7 +527,7 @@ class TwitchAUC(BaseMetric):
         **kwargs: Dict[str, Any],
     ):
         super().__init__(rounded=rounded, **kwargs)
-        self.baseline_widths = baseline_widths_to_use
+        self.baseline_widths = [100 - baseline_widths_to_use[0], baseline_widths_to_use[1]]
 
     def fit(
         self,
@@ -584,7 +584,7 @@ class TwitchAUC(BaseMetric):
         falling_x_values = coordinate_df["time"]["relaxation"].T.to_dict()
 
         for iter_twitch_peak_idx in twitch_indices.keys():
-            start_timepoint = rising_x_values[iter_twitch_peak_idx][100 - baseline_widths[0]]
+            start_timepoint = rising_x_values[iter_twitch_peak_idx][baseline_widths[0]]
             stop_timepoint = falling_x_values[iter_twitch_peak_idx][baseline_widths[1]]
 
             auc_window_indices = get_time_window_indices(filtered_data[0], start_timepoint, stop_timepoint)

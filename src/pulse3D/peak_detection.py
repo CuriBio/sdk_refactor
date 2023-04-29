@@ -225,8 +225,8 @@ def data_metrics(
 
     # Kristian (10/26/21): dictionary of metric functions. this could probably be made cleaner at some point
     metric_mapper: Dict[UUID, BaseMetric] = {
-        AMPLITUDE_UUID: TwitchAmplitude(rounded=rounded),
-        AUC_UUID: TwitchAUC(rounded=rounded, twitch_width_percents=twitch_width_percents),
+        AMPLITUDE_UUID: TwitchAmplitude(rounded=rounded, baseline_widths_to_use=baseline_widths_to_use),
+        AUC_UUID: TwitchAUC(rounded=rounded, baseline_widths_to_use=baseline_widths_to_use),
         BASELINE_TO_PEAK_UUID: TwitchPeakTime(
             rounded=rounded,
             is_contraction=True,
@@ -238,7 +238,7 @@ def data_metrics(
         CONTRACTION_VELOCITY_UUID: TwitchVelocity(
             rounded=rounded, is_contraction=True, twitch_width_percents=twitch_width_percents
         ),
-        FRACTION_MAX_UUID: TwitchFractionAmplitude(),
+        FRACTION_MAX_UUID: TwitchFractionAmplitude(baseline_widths_to_use=baseline_widths_to_use),
         IRREGULARITY_INTERVAL_UUID: TwitchIrregularity(rounded=rounded),
         PEAK_TO_BASELINE_UUID: TwitchPeakTime(
             rounded=rounded,

@@ -586,7 +586,7 @@ class TwitchAUC(BaseMetric):
         for iter_twitch_peak_idx in twitch_indices.keys():
             start_timepoint = rising_x_values[iter_twitch_peak_idx][baseline_widths[0]]
             stop_timepoint = falling_x_values[iter_twitch_peak_idx][baseline_widths[1]]
-
+            print("1: ", start_timepoint, stop_timepoint)
             auc_window_indices = get_time_window_indices(filtered_data[0], start_timepoint, stop_timepoint)
             auc_total = np.trapz(filtered_data[1, auc_window_indices], dx=INTERPOLATED_DATA_PERIOD_SECONDS)
 

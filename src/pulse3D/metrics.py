@@ -134,7 +134,7 @@ class TwitchAmplitude(BaseMetric):
             twitch_indices=twitch_indices,
             filtered_data=filtered_data,
             rounded=self.rounded,
-            baseline_widths=self.baseline_widths,
+            baseline_widths=tuple(self.baseline_widths),
         )
 
         return amplitudes
@@ -539,7 +539,7 @@ class TwitchAUC(BaseMetric):
         _, coordinates = TwitchWidth.calculate_twitch_widths(
             filtered_data=filtered_data,
             twitch_indices=twitch_indices,
-            twitch_width_percents=self.baseline_widths,
+            twitch_width_percents=tuple(self.baseline_widths),
             rounded=self.rounded,
         )
 
@@ -547,7 +547,7 @@ class TwitchAUC(BaseMetric):
             twitch_indices=twitch_indices,
             filtered_data=filtered_data,
             coordinate_df=coordinates,
-            baseline_widths=self.baseline_widths,
+            baseline_widths=tuple(self.baseline_widths),
         )
         return auc
 

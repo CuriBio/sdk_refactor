@@ -121,6 +121,7 @@ class TwitchAmplitude(BaseMetric):
         **kwargs: Dict[str, Any],
     ):
         super().__init__(rounded=rounded, **kwargs)
+        # C10 in the metric definition diagram is the C point at 90% twitch width
         self.baseline_widths = [100 - baseline_widths_to_use[0], baseline_widths_to_use[1]]
 
     def fit(
@@ -176,7 +177,6 @@ class TwitchAmplitude(BaseMetric):
         for twitch_peak_idx, twitch_data in coordinates.items():
             twitch_peak_x, twitch_peak_y = filtered_data[:, twitch_peak_idx]
 
-            # C10 in the metric definition diagram is the C point at 90% twitch width
             c10x = twitch_data["time"]["contraction"][baseline_widths[0]]
             c10y = twitch_data["force"]["contraction"][baseline_widths[0]]
             r90x = twitch_data["time"]["relaxation"][baseline_widths[1]]
@@ -527,6 +527,7 @@ class TwitchAUC(BaseMetric):
         **kwargs: Dict[str, Any],
     ):
         super().__init__(rounded=rounded, **kwargs)
+        # C10 in the metric definition diagram is the C point at 90% twitch width
         self.baseline_widths = [100 - baseline_widths_to_use[0], baseline_widths_to_use[1]]
 
     def fit(

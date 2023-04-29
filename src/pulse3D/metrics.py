@@ -158,6 +158,8 @@ class TwitchAmplitude(BaseMetric):
             filtered_data: a 2D array of the time and value (magnetic, voltage, displacement, force)
                 data after it has gone through noise filtering
 
+            baseline_widths: tuple twitch widths to use as baseline metrics
+
         Returns:
             Pandas Series of float values representing the amplitude of each twitch
         """
@@ -385,17 +387,15 @@ class TwitchVelocity(BaseMetric):
         self,
         rounded: bool = False,
         is_contraction: bool = True,
-        twitch_width_percents: Tuple[int, ...] = DEFAULT_TWITCH_WIDTH_PERCENTS,
+        baseline_widths_to_use: Tuple[int, ...] = DEFAULT_BASELINE_WIDTHS,
         **kwargs: Dict[str, Any],
     ):
         super().__init__(rounded=rounded, **kwargs)
 
-        self.twitch_width_percents = twitch_width_percents
+        self.baseline_widths = baseline_widths_to_use
 
-        velocity_start = min(self.twitch_width_percents)
-        velocity_end = max(self.twitch_width_percents)
-        self.velocity_index_start = self.twitch_width_percents.index(velocity_start)
-        self.velocity_index_end = self.twitch_width_percents.index(velocity_end)
+        self.velocity_start = self.baseline_widths[0]
+        self.velocity_end = self.baseline_widths[1]
 
         self.is_contraction = is_contraction
 
@@ -409,7 +409,7 @@ class TwitchVelocity(BaseMetric):
         _, coordinates = TwitchWidth.calculate_twitch_widths(
             filtered_data=filtered_data,
             twitch_indices=twitch_indices,
-            twitch_width_percents=tuple(self.twitch_width_percents),
+            twitch_width_percents=self.baseline_widths,
             rounded=self.rounded,
         )
 
@@ -441,14 +441,11 @@ class TwitchVelocity(BaseMetric):
         """
         coord_type = "contraction" if is_contraction else "relaxation"
 
-        twitch_base = self.twitch_width_percents[self.velocity_index_end]
-        twitch_top = self.twitch_width_percents[self.velocity_index_start]
+        Y_end = coordinate_df["force", coord_type, self.velocity_start]
+        Y_start = coordinate_df["force", coord_type, self.velocity_end]
 
-        Y_end = coordinate_df["force", coord_type, twitch_top]
-        Y_start = coordinate_df["force", coord_type, twitch_base]
-
-        X_end = coordinate_df["time", coord_type, twitch_top]
-        X_start = coordinate_df["time", coord_type, twitch_base]
+        X_end = coordinate_df["time", coord_type, self.velocity_start]
+        X_start = coordinate_df["time", coord_type, self.velocity_end]
 
         # change in force / change in time
         velocity = abs((Y_end - Y_start) / (X_end - X_start))
@@ -575,6 +572,8 @@ class TwitchAUC(BaseMetric):
                 way down to the nearby valleys, the second key is a UUID representing either the
                 value of the width, or the rising or falling coordinates. The final value is either
                 an int representing the width value or a tuple of ints for the x/y coordinates
+
+            baseline_widths: tuple twitch widths to use as baseline metrics
 
         Returns:
             Pandas Series of floats representing area under the curve for each twitch

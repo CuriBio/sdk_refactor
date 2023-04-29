@@ -236,7 +236,7 @@ def data_metrics(
             rounded=rounded, is_contraction=True, twitch_width_percents=twitch_width_percents
         ),
         CONTRACTION_VELOCITY_UUID: TwitchVelocity(
-            rounded=rounded, is_contraction=True, twitch_width_percents=twitch_width_percents
+            rounded=rounded, is_contraction=True, baseline_widths_to_use=baseline_widths_to_use
         ),
         FRACTION_MAX_UUID: TwitchFractionAmplitude(baseline_widths_to_use=baseline_widths_to_use),
         IRREGULARITY_INTERVAL_UUID: TwitchIrregularity(rounded=rounded),
@@ -248,7 +248,9 @@ def data_metrics(
         RELAXATION_TIME_UUID: TwitchPeakTime(
             rounded=rounded, is_contraction=False, twitch_width_percents=twitch_width_percents
         ),
-        RELAXATION_VELOCITY_UUID: TwitchVelocity(rounded=rounded, is_contraction=False),
+        RELAXATION_VELOCITY_UUID: TwitchVelocity(
+            rounded=rounded, is_contraction=False, baseline_widths_to_use=baseline_widths_to_use
+        ),
         TWITCH_FREQUENCY_UUID: TwitchFrequency(rounded=rounded),
         TWITCH_PERIOD_UUID: TwitchPeriod(rounded=rounded),
         WIDTH_UUID: TwitchWidth(rounded=rounded, twitch_width_percents=twitch_width_percents),

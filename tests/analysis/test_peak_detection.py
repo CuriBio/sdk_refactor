@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 from random import randint
 
 import numpy as np
@@ -13,9 +14,11 @@ from pulse3D.constants import SUBSEQUENT_VALLEY_INDEX_UUID
 from pulse3D.exceptions import TooFewPeaksDetectedError
 from pulse3D.exceptions import TwoPeaksInARowError
 from pulse3D.exceptions import TwoValleysInARowError
+from pulse3D.nb_peak_detection import noise_based_peak_finding
 from pulse3D.peak_detection import find_twitch_indices
 from pulse3D.peak_detection import peak_detector
 import pytest
+from stdlib_utils import get_current_file_abs_directory
 
 
 PROMINENCE_FACTORS = (4, 4)
@@ -144,6 +147,26 @@ def test_peak_detection__handles_window_correctly(mocker):
     expected_slice = slice(test_start_time, test_end_time + 1)
     np.testing.assert_array_equal(test_data[1, expected_slice], mocked_find_peaks.call_args_list[0][0][0])
     np.testing.assert_array_equal(-test_data[1, expected_slice], mocked_find_peaks.call_args_list[1][0][0])
+
+
+@pytest.mark.parametrize("test_file", [1, 2])
+def test_noise_based_peak_detection(test_file):
+    peak_finding_folder = os.path.join(
+        get_current_file_abs_directory(), os.pardir, "data_files", "peak_finding"
+    )
+
+    test_file_path = os.path.join(peak_finding_folder, "waveforms", f"waveform_{test_file}.npy")
+    test_waveform = np.load(test_file_path)
+
+    # TODO keep a copy of the original alg somewhere in the test folder and test directly against that instead of using these new files
+    peaks, valleys = noise_based_peak_finding(test_waveform, relative_prom_factor=0.2)
+
+    np.testing.assert_array_equal(
+        peaks, np.load(os.path.join(peak_finding_folder, "results", f"noise_based_peaks_{test_file}.npy"))
+    )
+    np.testing.assert_array_equal(
+        valleys, np.load(os.path.join(peak_finding_folder, "results", f"noise_based_valleys_{test_file}.npy"))
+    )
 
 
 def test_find_twitch_indices__raises_error_if_not_enough_peaks_given():

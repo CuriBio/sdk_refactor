@@ -112,14 +112,6 @@ repos:
     hooks:
       - id: flake8
 
-  - repo: https://github.com/PyCQA/pydocstyle
-    # black seems to be working on formatting docstrings, but use this for now
-    rev: 6.0.0 # pick a git hash / tag to point to
-    hooks:
-      - id: pydocstyle
-        args:
-          - --ignore=D100,D101,D102,D103,D104,D105,D106,D107,D203,D407,D408,D409,D406,D413,D213,D400,D401,D415,D205
-
   - repo: https://github.com/NanoSurface-Biomedical/pre-commit-pylint
     rev: "5a76725fa664ca733db485598da5c8460cf3347f" # pick a git hash / tag to point to
     hooks:

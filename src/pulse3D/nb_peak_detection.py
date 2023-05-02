@@ -1,25 +1,30 @@
 # -*- coding: utf-8 -*-
 """Detecting peak and valleys of incoming Mantarray data."""
 
+from typing import Optional
+
 import numpy as np
 from scipy import signal
 from scipy.optimize import curve_fit
+
+from .constants import DEFAULT_NB_HEIGHT_FACTOR
+from .constants import DEFAULT_NB_NOISE_PROMINENCE_FACTOR
+from .constants import DEFAULT_NB_RELATIVE_PROMINENCE_FACTOR
+from .constants import DEFAULT_NB_WIDTH_FACTORS
 
 
 def quadratic(x, a, b, c):
     return a * (x**2) + b * x + c
 
 
-# TODO rename this
-# TODO group the factors into dicts, one containing the peak-only factors and the other containing the valley-only factors. Or maybe just prefix the args with peak_ or valley_
+# TODO ? prefix args with peak_ or valley_ so it's more clear which they affect
 def noise_based_peak_finding(
     tissue_data,
-    prom_factor=2.5,
-    width_factor=(0, 5),
-    height_factor=0,
-    max_frequency=100,
-    # relative_prom_factor=0.2,
-    relative_prom_factor=None,
+    noise_prominence_factor=DEFAULT_NB_NOISE_PROMINENCE_FACTOR,
+    relative_prominence_factor: Optional[float] = DEFAULT_NB_RELATIVE_PROMINENCE_FACTOR,
+    width_factors=DEFAULT_NB_WIDTH_FACTORS,
+    height_factor=DEFAULT_NB_HEIGHT_FACTOR,
+    max_frequency: Optional[float] = None,
     valley_search_size=1,
     upslope_length=7,
     upslope_noise_allowance=1,
@@ -32,7 +37,7 @@ def noise_based_peak_finding(
     tissue_data : pd.Series/np.array
         Time axis of the given waveform, units are relevant to valley_search_size and so should be known by the user
         The waveform to be analysed, this should be a tuple, list, pd.Series, or np.array containing Y values for the waveform
-    prom_factor : float
+    prominence_factor : float
         The default is 2.5. Adjusting this changes the prominence of a given peak required to be considered. This value is used as a factor to multiply the peak to peak noise estimate and so can be
         considered as the minimum SNR of a peak required to be detected
     width_factor : tuple
@@ -43,7 +48,7 @@ def noise_based_peak_finding(
         The default is 100. This value defines how often a peak in the waveform is found in the units of the time axis. eg. A max frequency of 1 finds only 1 peak every unit of the time axis
         Note if this is set higher than the sample frequency then it is rest to the sample frequency to find a max of one peak per sample ie every point can be a peak
 
-    relative_prom_factor : float
+    relative_prominence_factor : float
         If specified, also take the prominence of a peak relative to the tallest peak into consideration. If this falls below the noise-based prominence threshold, that will be used instead.
 
     valley_search_size : float
@@ -70,11 +75,15 @@ def noise_based_peak_finding(
     default_noise = 10
     default_prom = 5
 
-    # extract sample frequency from time_axis
+    # extract sample frequency from time_axis (assumes sampling freq is constant)
     sample_freq = 1 / (time_axis[1] - time_axis[0])
 
-    # if max freq is greater than the sample freq, use sample freq instead
-    max_frequency = min(max_frequency, sample_freq)
+    if max_frequency:
+        # if max freq is greater than the sampling freq, use sampling freq instead
+        max_frequency = min(max_frequency, sample_freq)
+    else:
+        # no max freq given, use sampling freq
+        max_frequency = sample_freq
 
     # find peaks with this estimated amplitude
     peaks, _ = signal.find_peaks(waveform, prominence=default_prom * default_noise)
@@ -115,17 +124,17 @@ def noise_based_peak_finding(
     )
 
     # use either set prominence or calculate the relative prominence factor
-    if relative_prom_factor:
+    if relative_prominence_factor:
         max_peak_prom = (waveform.max() - waveform.min()) / noise_amplitude_from_data
-        relative_prom = max_peak_prom * relative_prom_factor
+        relative_prom = max_peak_prom * relative_prominence_factor
         # compare relative prom to static prom factor and use the larger value
-        prom_factor = max(relative_prom, prom_factor)
+        noise_prominence_factor = max(relative_prom, noise_prominence_factor)
 
     # refind peaks with the identified peak to peak values and user defined limits
     peaks, _ = signal.find_peaks(
         waveform,
-        prominence=prom_factor * noise_amplitude_from_data,
-        width=(width_factor[0] * sample_freq, width_factor[1] * sample_freq),
+        prominence=noise_prominence_factor * noise_amplitude_from_data,
+        width=(width_factors[0] * sample_freq, width_factors[1] * sample_freq),
         height=height_factor,
         distance=sample_freq // max_frequency,
     )

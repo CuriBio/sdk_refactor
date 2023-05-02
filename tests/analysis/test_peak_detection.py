@@ -4,6 +4,7 @@ from random import randint
 
 import numpy as np
 from pulse3D import peak_detection
+from pulse3D.constants import DEFAULT_NB_RELATIVE_PROMINENCE_FACTOR
 from pulse3D.constants import MICRO_TO_BASE_CONVERSION
 from pulse3D.constants import MIN_NUMBER_PEAKS
 from pulse3D.constants import MIN_NUMBER_VALLEYS
@@ -159,7 +160,9 @@ def test_noise_based_peak_detection(test_file):
     test_waveform = np.load(test_file_path)
 
     # TODO keep a copy of the original alg somewhere in the test folder and test directly against that instead of using these new files
-    peaks, valleys = noise_based_peak_finding(test_waveform, relative_prom_factor=0.2)
+    peaks, valleys = noise_based_peak_finding(
+        test_waveform, relative_prominence_factor=DEFAULT_NB_RELATIVE_PROMINENCE_FACTOR
+    )
 
     np.testing.assert_array_equal(
         peaks, np.load(os.path.join(peak_finding_folder, "results", f"noise_based_peaks_{test_file}.npy"))

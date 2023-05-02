@@ -324,12 +324,13 @@ def test_PlateRecording__to_dataframe__drops_nan_values_when_no_stim_data_is_pre
 
     existing_df = pr_created_from_h5.to_dataframe(**kwargs)
 
-    stim_data_should_be_output = test_include_stim_data is not False and recording_includes_stim_data
     # make sure to convert numpy bool to primitive bool type
     df_contains_nan = bool(existing_df.isnull().any().any())
 
     # if stim data is present, there will most likely be NaN values present, so making that assumption here
+    stim_data_should_be_output = test_include_stim_data is not False and recording_includes_stim_data
     assert df_contains_nan is stim_data_should_be_output
+    assert ("Stim Time (µs)" in existing_df.columns) is stim_data_should_be_output
 
 
 def test_PlateRecording__raises_error_when_duplicate_wells_found_in_optical_files():

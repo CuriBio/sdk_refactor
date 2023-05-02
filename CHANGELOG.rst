@@ -1,6 +1,14 @@
 Changelog for Pulse3D
 =====================
 
+0.32.7 (2023-05-03)
+-------------------
+
+Fixed:
+^^^^^^
+- Issue with ``to_dataframe`` outputting an empty DF when ``include_stim_data=True`` and no stim data present
+
+
 0.32.6 (2023-04-28)
 -------------------
 

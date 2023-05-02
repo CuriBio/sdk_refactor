@@ -205,6 +205,10 @@ def write_xlsx(
     relative_prominence_factor: Union[int, float] = DEFAULT_NB_RELATIVE_PROMINENCE_FACTOR,
     width_factors: Tuple[Union[int, float], Union[int, float]] = DEFAULT_NB_WIDTH_FACTORS,
     height_factor: Union[int, float] = DEFAULT_NB_HEIGHT_FACTOR,
+    max_frequency=None,
+    valley_search_size=DEFAULT_NB_VALLEY_SEARCH_SIZE,
+    upslope_length=DEFAULT_NB_UPSLOPE_SIZE,
+    upslope_noise_allowance=DEFAULT_NB_UPSLOPE_NOISE_ALLOWANCE_SIZE,
     peaks_valleys: Dict[str, List[List[int]]] = None,
     include_stim_protocols: bool = False,
     stim_waveform_format: Optional[Union[Literal["stacked"], Literal["overlayed"]]] = None,
@@ -393,6 +397,10 @@ def write_xlsx(
                     relative_prominence_factor=relative_prominence_factor,
                     width_factors=width_factors,
                     height_factor=height_factor,
+                    max_frequency=max_frequency,
+                    valley_search_size=valley_search_size,
+                    upslope_length=upslope_length,
+                    upslope_noise_allowance=upslope_noise_allowance,
                 )
             else:
                 # convert peak and valley lists into a format compatible with find_twitch_indices

@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """Detecting peak and valleys of incoming Mantarray data."""
 
+from typing import Any
 from typing import Optional
 
+from nptyping import NDArray
 import numpy as np
 from scipy import signal
 from scipy.optimize import curve_fit
@@ -19,7 +21,7 @@ def quadratic(x, a, b, c):
 
 # TODO ? prefix args with peak_ or valley_ so it's more clear which they affect
 def noise_based_peak_finding(
-    tissue_data,
+    tissue_data: NDArray[(2, Any), float],
     noise_prominence_factor=DEFAULT_NB_NOISE_PROMINENCE_FACTOR,
     relative_prominence_factor: Optional[float] = DEFAULT_NB_RELATIVE_PROMINENCE_FACTOR,
     width_factors=DEFAULT_NB_WIDTH_FACTORS,
@@ -30,42 +32,24 @@ def noise_based_peak_finding(
     upslope_noise_allowance=1,
 ):
     """
+    Args:
+        tissue_data: Waveform Amplitude (force/displacement/etc.) v. Time array
+        noise_prominence_factor: The minimum required SNR of a peak
+        relative_prominence_factor: If specified, the prominence of each peak relative to the tallest peak will be taken into consideration.
+            If this falls below the noise-based prominence threshold determined by `noise_prominence_factor`, that will be used instead.
+        width_factor: The minimum and maximum width of a peak required to be considered. Should be given in the same unit of time as the Time values in `tissue_data`
+        height_factor: The minimum height of a peak required to be considered. This should be given in the unit of measure as the Waveform Amplitude values in `tissue_data`
+        max_frequency: The maximum frequency (Hz) at which a peak can occur. Specifically, this is used to calculate the minimum required distance between adjacent peaks.
+            For example, if the value given is 1, then at most peaks will occur at 1Hz. In other words, the peaks will be no closer than 1 second.
+            If not specified, the sampling frequency is used instead, which means that every point can be considered a peak.
+            If a value is given that exceeds the sampling frequency, the sampling frequency is used instead.
+        valley_search_size: The search distance before a peak used to find a valley (given in the units of the time axis).
+            If this window includes a previous peak then for that peak the window will automatically be shortened
+        upslope_length: The number of samples through which the waveform values must continuously rise in order to be considered an upslope
+        upslope_noise_allowance: The number of points in the upslope which are not increases which can be tolerated within a single upslope
 
-    Parameters
-    ----------
-    TODO clean this up
-    tissue_data : pd.Series/np.array
-        Time axis of the given waveform, units are relevant to valley_search_size and so should be known by the user
-        The waveform to be analysed, this should be a tuple, list, pd.Series, or np.array containing Y values for the waveform
-    prominence_factor : float
-        The default is 2.5. Adjusting this changes the prominence of a given peak required to be considered. This value is used as a factor to multiply the peak to peak noise estimate and so can be
-        considered as the minimum SNR of a peak required to be detected
-    width_factor : tuple
-        The default is (0,5). The minimum and maximum width of a peak required to be considered. This should be given in the units of the time axis
-    height_factor : int
-        The default is 0. The minimum height of a peak required to be considered. This should be given in the units of the waveform Y axis
-    max_frequency: int
-        The default is 100. This value defines how often a peak in the waveform is found in the units of the time axis. eg. A max frequency of 1 finds only 1 peak every unit of the time axis
-        Note if this is set higher than the sample frequency then it is rest to the sample frequency to find a max of one peak per sample ie every point can be a peak
-
-    relative_prominence_factor : float
-        If specified, also take the prominence of a peak relative to the tallest peak into consideration. If this falls below the noise-based prominence threshold, that will be used instead.
-
-    valley_search_size : float
-        The default is 1. TThe search distance before a peak used to find a valley (given in the units of the time axis).
-        If this window includes a previous peak then for that peak the window will automatically be shortened
-    upslope_length : int
-        The default is 7. The number of samples through which the waveform values must continuously rise in order to be considered an upslope
-    upslope_noise_allowance : float
-        The default is 1. This is the number of points in the upslope which are not increases which can be tolerated within a single upslope
-
-    Returns
-    -------
-    peaks : np.array
-        1-D array of peak indicies.
-    valleys: np.array
-        1-D array of valley indicies.
-
+    Returns:
+        A tuple containing an of the indices of the peaks and an array of the indices of valleys
     """
     time_axis, waveform = tissue_data
 

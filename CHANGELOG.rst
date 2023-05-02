@@ -1,6 +1,14 @@
 Changelog for Pulse3D
 =====================
 
+0.33.0 (2023-05-01)
+-------------------
+
+Fixed:
+^^^^^^
+- Correct use of baseline widths in Twitch AUC, Twitch Amplitude, and Twitch Velocities
+
+
 0.32.6 (2023-04-28)
 -------------------
 

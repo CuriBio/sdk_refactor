@@ -21,7 +21,7 @@ def noise_based_peak_finding(
     # relative_prom_factor=0.2,
     relative_prom_factor=None,
     valley_search_size=1,
-    # upslope_length=7,
+    upslope_length=7,
     upslope_noise_allowance=1,
 ):
     """
@@ -32,26 +32,26 @@ def noise_based_peak_finding(
     tissue_data : pd.Series/np.array
         Time axis of the given waveform, units are relevant to valley_search_size and so should be known by the user
         The waveform to be analysed, this should be a tuple, list, pd.Series, or np.array containing Y values for the waveform
-    prom_factor : float, optional
+    prom_factor : float
         The default is 2.5. Adjusting this changes the prominence of a given peak required to be considered. This value is used as a factor to multiply the peak to peak noise estimate and so can be
         considered as the minimum SNR of a peak required to be detected
-    width_factor : tuple, optional
-        The default is (0.01,5). The minimum and maximum width of a peak required to be considered. This should be given in the units of the time axis
-    max_frequency: int, optional
+    width_factor : tuple
+        The default is (0,5). The minimum and maximum width of a peak required to be considered. This should be given in the units of the time axis
+    height_factor : int
+        The default is 0. The minimum height of a peak required to be considered. This should be given in the units of the waveform Y axis
+    max_frequency: int
         The default is 100. This value defines how often a peak in the waveform is found in the units of the time axis. eg. A max frequency of 1 finds only 1 peak every unit of the time axis
         Note if this is set higher than the sample frequency then it is rest to the sample frequency to find a max of one peak per sample ie every point can be a peak
-    height_factor : int, optional
-        The default is 0. The minimum height of a peak required to be considered. This should be given in the units of the waveform Y axis
 
     relative_prom_factor : float
         If specified, also take the prominence of a peak relative to the tallest peak into consideration. If this falls below the noise-based prominence threshold, that will be used instead.
 
-    valley_search_size : float, optional
+    valley_search_size : float
         The default is 1. TThe search distance before a peak used to find a valley (given in the units of the time axis).
         If this window includes a previous peak then for that peak the window will automatically be shortened
-    upslope_length : int, optional
+    upslope_length : int
         The default is 7. The number of samples through which the waveform values must continuously rise in order to be considered an upslope
-    upslope_noise_allowance : float, optional
+    upslope_noise_allowance : float
         The default is 1. This is the number of points in the upslope which are not increases which can be tolerated within a single upslope
 
     Returns
@@ -59,14 +59,12 @@ def noise_based_peak_finding(
     peaks : np.array
         1-D array of peak indicies.
     valleys: np.array
-        2-D array of valley indicies and list of valley magnitude values.
-    properties : dict
-        Dictionary of variables passed to the function, split into peak and valley sub dictionaries
+        1-D array of valley indicies.
 
     """
     time_axis, waveform = tissue_data
 
-    # TODO split into subfunction, one for finding peaks and the other for finding valleys
+    # TODO split into subfunctions, one for finding peaks and the other for finding valleys
 
     # set estimate of peak to peak noise amplitude is 10uN for average recording
     default_noise = 10
@@ -81,7 +79,7 @@ def noise_based_peak_finding(
     # find peaks with this estimated amplitude
     peaks, _ = signal.find_peaks(waveform, prominence=default_prom * default_noise)
 
-    # if first attempt finds no peaks as they are too small retry with smaller prominence
+    # if first attempt finds no peaks as they are too small, retry with smaller prominence
     # this approach should return a list of peak indices even if no true peaks exist as it will terminate at a prominence of 1.
     correction_factor = 1
     while len(peaks) == 0 and correction_factor <= default_prom:
@@ -129,7 +127,7 @@ def noise_based_peak_finding(
         prominence=prom_factor * noise_amplitude_from_data,
         width=(width_factor[0] * sample_freq, width_factor[1] * sample_freq),
         height=height_factor,
-        distance=int(sample_freq / max_frequency),
+        distance=sample_freq // max_frequency,
     )
 
     if len(peaks) == 0:
@@ -137,7 +135,6 @@ def noise_based_peak_finding(
 
     # TODO what is this doing?
     segment_size = int(valley_search_size * sample_freq)
-
     while len(peaks) != 0 and peaks[0] - segment_size < 0:
         peaks = np.delete(peaks, 0)
 
@@ -168,7 +165,7 @@ def noise_based_peak_finding(
         [
             i
             for i in np.split(upslope, np.where(np.diff(upslope) > (1 + upslope_noise_allowance))[0] + 1)
-            if len(i) >= 7
+            if len(i) >= upslope_length
         ]
         for upslope in upslope_indices
     ]

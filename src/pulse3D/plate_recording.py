@@ -591,12 +591,13 @@ class PlateRecording:
                 [session_data[0] for wf in self for session_data in wf.stim_sessions]
             )
             aggregate_stim_timepoints_us_for_plotting = np.repeat(aggregate_stim_timepoints_us, 2)
-            data["Stim Time (µs)"] = pd.Series(aggregate_stim_timepoints_us_for_plotting)
 
         # only outputting stim data if an attempt to output stim data was made and the file actually has stim data in it
         is_outputting_stim_data = (
             aggregate_stim_timepoints_us is not None and aggregate_stim_timepoints_us.any()
         )
+        if is_outputting_stim_data:
+            data["Stim Time (µs)"] = pd.Series(aggregate_stim_timepoints_us_for_plotting)
 
         # iterating over self.wells instead of using __iter__ so well_idx is preserved
         for well_idx, wf in enumerate(self.wells):

@@ -23,6 +23,7 @@ from pulse3D.transforms import get_time_window_indices
 
 from .compression_cy import interpolate_x_for_y_between_two_points
 from .compression_cy import interpolate_y_for_x_between_two_points
+from .constants import DEFAULT_BASELINE_WIDTHS
 from .constants import DEFAULT_TWITCH_WIDTH_PERCENTS
 from .constants import INTERPOLATED_DATA_PERIOD_SECONDS
 from .constants import MICRO_TO_BASE_CONVERSION
@@ -113,8 +114,15 @@ class BaseMetric:
 class TwitchAmplitude(BaseMetric):
     """Calculate the amplitude for each twitch."""
 
-    def __init__(self, rounded: bool = False, **kwargs: Dict[str, Any]):
+    def __init__(
+        self,
+        rounded: bool = False,
+        baseline_widths_to_use: Tuple[int, ...] = DEFAULT_BASELINE_WIDTHS,
+        **kwargs: Dict[str, Any],
+    ):
         super().__init__(rounded=rounded, **kwargs)
+        # C10 in the metric definition diagram is the C point at 90% twitch width
+        self.baseline_widths = [100 - baseline_widths_to_use[0], baseline_widths_to_use[1]]
 
     def fit(
         self,
@@ -123,9 +131,11 @@ class TwitchAmplitude(BaseMetric):
         twitch_indices: Dict[int, Dict[UUID, Optional[int]]],
         **kwargs: Dict[str, Any],
     ) -> Series:
-
         amplitudes = self.calculate_amplitudes(
-            twitch_indices=twitch_indices, filtered_data=filtered_data, rounded=self.rounded
+            twitch_indices=twitch_indices,
+            filtered_data=filtered_data,
+            rounded=self.rounded,
+            baseline_widths=tuple(self.baseline_widths),
         )
 
         return amplitudes
@@ -134,6 +144,7 @@ class TwitchAmplitude(BaseMetric):
     def calculate_amplitudes(
         twitch_indices: Dict[int, Dict[UUID, Optional[int]]],
         filtered_data: NDArray[(2, Any), int],
+        baseline_widths: Tuple[int, ...],
         rounded: bool = False,
     ) -> Series:
         """Get the amplitudes for all twitches.
@@ -148,15 +159,15 @@ class TwitchAmplitude(BaseMetric):
             filtered_data: a 2D array of the time and value (magnetic, voltage, displacement, force)
                 data after it has gone through noise filtering
 
+            baseline_widths: tuple twitch widths to use as baseline metrics
+
         Returns:
             Pandas Series of float values representing the amplitude of each twitch
         """
-        twitch_width = 90
-
         _, coordinates = TwitchWidth.calculate_twitch_widths(
             filtered_data=filtered_data,
             twitch_indices=twitch_indices,
-            twitch_width_percents=(twitch_width,),
+            twitch_width_percents=baseline_widths,
             rounded=rounded,
             as_dict=True,  # Tanner (1/20/23): using as_dict=True here to speed this up. This calculation is performed in the MA Controller, so it must be as fast as possible
         )
@@ -166,11 +177,10 @@ class TwitchAmplitude(BaseMetric):
         for twitch_peak_idx, twitch_data in coordinates.items():
             twitch_peak_x, twitch_peak_y = filtered_data[:, twitch_peak_idx]
 
-            # C10 in the metric definition diagram is the C point at 90% twitch width
-            c10x = twitch_data["time"]["contraction"][twitch_width]
-            c10y = twitch_data["force"]["contraction"][twitch_width]
-            r90x = twitch_data["time"]["relaxation"][twitch_width]
-            r90y = twitch_data["force"]["relaxation"][twitch_width]
+            c10x = twitch_data["time"]["contraction"][baseline_widths[0]]
+            c10y = twitch_data["force"]["contraction"][baseline_widths[0]]
+            r90x = twitch_data["time"]["relaxation"][baseline_widths[1]]
+            r90y = twitch_data["force"]["relaxation"][baseline_widths[1]]
 
             twitch_base_y = interpolate_y_for_x_between_two_points(twitch_peak_x, c10x, c10y, r90x, r90y)
             amplitude_y = twitch_peak_y - twitch_base_y
@@ -184,8 +194,10 @@ class TwitchAmplitude(BaseMetric):
 class TwitchFractionAmplitude(TwitchAmplitude):
     """Calculate the fraction of max amplitude for each twitch."""
 
-    def __init__(self, **kwargs: Dict[str, Any]):
-        super().__init__(rounded=False, **kwargs)
+    def __init__(
+        self, baseline_widths_to_use: Tuple[int, ...] = DEFAULT_BASELINE_WIDTHS, **kwargs: Dict[str, Any]
+    ):
+        super().__init__(rounded=False, baseline_widths_to_use=baseline_widths_to_use, **kwargs)
 
     def fit(
         self,
@@ -375,17 +387,15 @@ class TwitchVelocity(BaseMetric):
         self,
         rounded: bool = False,
         is_contraction: bool = True,
-        twitch_width_percents: Tuple[int, ...] = DEFAULT_TWITCH_WIDTH_PERCENTS,
+        baseline_widths_to_use: Tuple[int, ...] = DEFAULT_BASELINE_WIDTHS,
         **kwargs: Dict[str, Any],
     ):
         super().__init__(rounded=rounded, **kwargs)
 
-        self.twitch_width_percents = twitch_width_percents
+        self.baseline_widths = baseline_widths_to_use
 
-        velocity_start = min(self.twitch_width_percents)
-        velocity_end = max(self.twitch_width_percents)
-        self.velocity_index_start = self.twitch_width_percents.index(velocity_start)
-        self.velocity_index_end = self.twitch_width_percents.index(velocity_end)
+        self.velocity_start = self.baseline_widths[0]
+        self.velocity_end = self.baseline_widths[1]
 
         self.is_contraction = is_contraction
 
@@ -399,7 +409,7 @@ class TwitchVelocity(BaseMetric):
         _, coordinates = TwitchWidth.calculate_twitch_widths(
             filtered_data=filtered_data,
             twitch_indices=twitch_indices,
-            twitch_width_percents=tuple(self.twitch_width_percents),
+            twitch_width_percents=self.baseline_widths,
             rounded=self.rounded,
         )
 
@@ -431,14 +441,11 @@ class TwitchVelocity(BaseMetric):
         """
         coord_type = "contraction" if is_contraction else "relaxation"
 
-        twitch_base = self.twitch_width_percents[self.velocity_index_end]
-        twitch_top = self.twitch_width_percents[self.velocity_index_start]
+        Y_end = coordinate_df["force", coord_type, self.velocity_start]
+        Y_start = coordinate_df["force", coord_type, self.velocity_end]
 
-        Y_end = coordinate_df["force", coord_type, twitch_top]
-        Y_start = coordinate_df["force", coord_type, twitch_base]
-
-        X_end = coordinate_df["time", coord_type, twitch_top]
-        X_start = coordinate_df["time", coord_type, twitch_base]
+        X_end = coordinate_df["time", coord_type, self.velocity_start]
+        X_start = coordinate_df["time", coord_type, self.velocity_end]
 
         # change in force / change in time
         velocity = abs((Y_end - Y_start) / (X_end - X_start))
@@ -451,7 +458,6 @@ class TwitchIrregularity(BaseMetric):
     """Calculate irregularity of each twitch."""
 
     def __init__(self, rounded: bool = False, **kwargs: Dict[str, Any]):
-
         super().__init__(rounded=rounded, **kwargs)
 
     def fit(
@@ -517,13 +523,12 @@ class TwitchAUC(BaseMetric):
     def __init__(
         self,
         rounded: bool = False,
-        twitch_width_percents: Tuple[int, ...] = DEFAULT_TWITCH_WIDTH_PERCENTS,
+        baseline_widths_to_use: Tuple[int, ...] = DEFAULT_BASELINE_WIDTHS,
         **kwargs: Dict[str, Any],
     ):
-
         super().__init__(rounded=rounded, **kwargs)
-
-        self.twitch_width_percents = twitch_width_percents
+        # C10 in the metric definition diagram is the C point at 90% twitch width
+        self.baseline_widths = [100 - baseline_widths_to_use[0], baseline_widths_to_use[1]]
 
     def fit(
         self,
@@ -535,12 +540,15 @@ class TwitchAUC(BaseMetric):
         _, coordinates = TwitchWidth.calculate_twitch_widths(
             filtered_data=filtered_data,
             twitch_indices=twitch_indices,
-            twitch_width_percents=tuple(self.twitch_width_percents),
+            twitch_width_percents=tuple(self.baseline_widths),
             rounded=self.rounded,
         )
 
         auc = self.calculate_area_under_curve(
-            twitch_indices=twitch_indices, filtered_data=filtered_data, coordinate_df=coordinates
+            twitch_indices=twitch_indices,
+            filtered_data=filtered_data,
+            coordinate_df=coordinates,
+            baseline_widths=tuple(self.baseline_widths),
         )
         return auc
 
@@ -549,6 +557,7 @@ class TwitchAUC(BaseMetric):
         twitch_indices: Dict[int, Dict[UUID, Optional[int]]],
         filtered_data: NDArray[(2, Any), int],
         coordinate_df: DataFrame,
+        baseline_widths: Tuple[int, ...],
     ) -> Series:
         """Calculate the area under the curve (AUC) for twitches.
 
@@ -565,18 +574,19 @@ class TwitchAUC(BaseMetric):
                 value of the width, or the rising or falling coordinates. The final value is either
                 an int representing the width value or a tuple of ints for the x/y coordinates
 
+            baseline_widths: tuple twitch widths to use as baseline metrics
+
         Returns:
             Pandas Series of floats representing area under the curve for each twitch
         """
-        width_percent = 90  # what percent of repolarization to use as the bottom limit for calculating AUC
         estimates_dict: Dict[int, Union[int, float]] = dict()
 
         rising_x_values = coordinate_df["time"]["contraction"].T.to_dict()
         falling_x_values = coordinate_df["time"]["relaxation"].T.to_dict()
 
         for iter_twitch_peak_idx in twitch_indices.keys():
-            start_timepoint = rising_x_values[iter_twitch_peak_idx][width_percent]
-            stop_timepoint = falling_x_values[iter_twitch_peak_idx][width_percent]
+            start_timepoint = rising_x_values[iter_twitch_peak_idx][baseline_widths[0]]
+            stop_timepoint = falling_x_values[iter_twitch_peak_idx][baseline_widths[1]]
 
             auc_window_indices = get_time_window_indices(filtered_data[0], start_timepoint, stop_timepoint)
             auc_total = np.trapz(filtered_data[1, auc_window_indices], dx=INTERPOLATED_DATA_PERIOD_SECONDS)
@@ -704,12 +714,7 @@ class TwitchPeakTime(BaseMetric):
 
         return time_difference
 
-    def add_aggregate_metrics(
-        self,
-        aggregate_df: DataFrame,
-        metric_id: UUID,
-        metrics: DataFrame,
-    ) -> None:
+    def add_aggregate_metrics(self, aggregate_df: DataFrame, metric_id: UUID, metrics: DataFrame) -> None:
         for iter_percent in self.twitch_width_percents:
             estimates = metrics[iter_percent]
             aggregate_estimates = self.create_statistics_df(estimates, rounded=self.rounded)
@@ -768,7 +773,6 @@ class TwitchPeakTime(BaseMetric):
 
         estimates_dict = {twitch_index: {} for twitch_index in twitch_indices.keys()}  # type: ignore
         for iter_twitch_idx in twitch_indices.keys():
-
             for iter_percent in self.twitch_width_percents:
                 percent = iter_percent
                 if is_contraction:
@@ -786,12 +790,7 @@ class TwitchPeakTime(BaseMetric):
 class TwitchPeakToBaseline(BaseMetric):
     """Calculate full contraction or full relaxation time."""
 
-    def __init__(
-        self,
-        rounded: bool = False,
-        is_contraction: bool = True,
-        **kwargs: Dict[str, Any],
-    ):
+    def __init__(self, rounded: bool = False, is_contraction: bool = True, **kwargs: Dict[str, Any]):
         super().__init__(rounded=rounded, **kwargs)
         self.is_contraction = is_contraction
 
@@ -822,10 +821,7 @@ class TwitchPeakToBaseline(BaseMetric):
 class WellGroupMetric(BaseMetric):
     """Calculate aggregrate group metrics."""
 
-    def __init__(
-        self,
-        **kwargs: Dict[str, Any],
-    ):
+    def __init__(self, **kwargs: Dict[str, Any]):
         super().__init__(False, **kwargs)
 
     def add_group_aggregate_metrics(

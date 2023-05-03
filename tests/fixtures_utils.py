@@ -18,14 +18,21 @@ PATH_TO_TEST_DATA_FILES = os.path.join(PATH_OF_CURRENT_FILE, "data_files")
 PATH_TO_MAGNET_FINDING_FILES = os.path.join(PATH_TO_TEST_DATA_FILES, "magnet_finding")
 PATH_TO_H5_FILES = os.path.join(PATH_TO_TEST_DATA_FILES, "h5")
 PATH_TO_DATA_METRIC_FILES = os.path.join(PATH_TO_TEST_DATA_FILES, "data_metrics")
-PATH_TO_OPTICAL_FILES = os.path.join(PATH_TO_TEST_DATA_FILES, "optical")
 
 TEST_SMALL_BETA_1_FILE_PATH = os.path.join(PATH_TO_H5_FILES, "v0.4.2", "SmallBeta1File.zip")
 TEST_SMALL_BETA_2_FILE_PATH = os.path.join(PATH_TO_H5_FILES, "stim", "SmallBeta2File-NoStim.zip")
 
+PATH_TO_OPTICAL_FILES = os.path.join(PATH_TO_TEST_DATA_FILES, "optical")
 TEST_OPTICAL_FILE_ONE_PATH = os.path.join(PATH_TO_OPTICAL_FILES, "OPTICAL_TEST_FILE_ONE.xlsx")
 TEST_OPTICAL_FILE_TWO_PATH = os.path.join(PATH_TO_OPTICAL_FILES, "OPTICAL_TEST_FILE_TWO.xlsx")
 TEST_OPTICAL_FILE_THREE_PATH = os.path.join(PATH_TO_OPTICAL_FILES, "OPTICAL_TEST_FILE_THREE.xlsx")
+
+PATH_TO_ZIPPED_OPTICAL_FILES = os.path.join(PATH_TO_OPTICAL_FILES, "zipped_optical")
+TEST_OPTICAL_FILE_DUPLICATES = os.path.join(PATH_TO_ZIPPED_OPTICAL_FILES, "duplicates_optical.zip")
+TEST_OPTICAL_FILE_NO_DUPLICATES = os.path.join(PATH_TO_ZIPPED_OPTICAL_FILES, "no_duplicates_optical.zip")
+TEST_OPTICAL_FILE_CONTAINS_OUTPUT_XLSX = os.path.join(
+    PATH_TO_ZIPPED_OPTICAL_FILES, "contains_output_xlsx.zip"
+)
 
 
 def rand_bool():

@@ -14,6 +14,8 @@ from pulse3D.constants import TISSUE_SAMPLING_PERIOD_UUID
 from pulse3D.constants import TWENTY_FOUR_WELL_PLATE
 from pulse3D.constants import WELL_INDEX_UUID
 from pulse3D.constants import WELL_NAME_UUID
+from pulse3D.exceptions import DuplicateWellsFoundError
+from pulse3D.exceptions import IncorrectOpticalFileFormatError
 from pulse3D.magnet_finding import format_well_file_data
 from pulse3D.plate_recording import PlateRecording
 from pulse3D.plate_recording import WellFile
@@ -21,6 +23,8 @@ import pytest
 
 from ..fixtures_utils import PATH_TO_H5_FILES
 from ..fixtures_utils import PATH_TO_MAGNET_FINDING_FILES
+from ..fixtures_utils import TEST_OPTICAL_FILE_CONTAINS_OUTPUT_XLSX
+from ..fixtures_utils import TEST_OPTICAL_FILE_DUPLICATES
 from ..fixtures_utils import TEST_OPTICAL_FILE_ONE_PATH
 from ..fixtures_utils import TEST_SMALL_BETA_1_FILE_PATH
 from ..fixtures_utils import TEST_SMALL_BETA_2_FILE_PATH
@@ -320,9 +324,22 @@ def test_PlateRecording__to_dataframe__drops_nan_values_when_no_stim_data_is_pre
 
     existing_df = pr_created_from_h5.to_dataframe(**kwargs)
 
-    stim_data_should_be_output = test_include_stim_data is not False and recording_includes_stim_data
     # make sure to convert numpy bool to primitive bool type
     df_contains_nan = bool(existing_df.isnull().any().any())
 
     # if stim data is present, there will most likely be NaN values present, so making that assumption here
+    stim_data_should_be_output = test_include_stim_data is not False and recording_includes_stim_data
     assert df_contains_nan is stim_data_should_be_output
+    assert ("Stim Time (µs)" in existing_df.columns) is stim_data_should_be_output
+
+
+def test_PlateRecording__raises_error_when_duplicate_wells_found_in_optical_files():
+    with pytest.raises(DuplicateWellsFoundError, match="Duplicate well found for A1"):
+        PlateRecording(TEST_OPTICAL_FILE_DUPLICATES)
+
+
+def test_PlateRecording__raises_error_when_xlsx_output_found_in_zipped_optical_files():
+    with pytest.raises(
+        IncorrectOpticalFileFormatError, match="Incorrect number of sheets found for file xlsx_test_full.xlsx"
+    ):
+        PlateRecording(TEST_OPTICAL_FILE_CONTAINS_OUTPUT_XLSX)

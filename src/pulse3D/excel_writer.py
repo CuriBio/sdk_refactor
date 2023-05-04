@@ -346,6 +346,7 @@ def write_xlsx(
         metrics = tuple(
             concat([dfs[k][j] for j in dfs[k].keys()], axis=1) for k in ("per_twitch", "aggregate")
         )
+        peaks_and_valleys = (np.array([]), np.array([]))
 
         if well_file is None:
             continue
@@ -391,8 +392,14 @@ def write_xlsx(
 
             if peaks_valleys is None:
                 log.info("No user defined peaks and valleys were found, so finding peaks now")
+
+                # noise based peak finding requires the time values to be in seconds
+                well_data_for_peak_finding = np.array(
+                    [interpolated_well_data[0] / MICRO_TO_BASE_CONVERSION, interpolated_well_data[1]]
+                )
+
                 peaks_and_valleys = noise_based_peak_finding(
-                    interpolated_well_data,
+                    well_data_for_peak_finding,
                     noise_prominence_factor=noise_prominence_factor,
                     relative_prominence_factor=relative_prominence_factor,
                     width_factors=width_factors,

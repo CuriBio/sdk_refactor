@@ -40,22 +40,20 @@ def noise_based_peak_finding(
 ):
     """
     Args:
-        tissue_data: Waveform Amplitude (force/displacement/etc.) v. Time array
+        tissue_data: Waveform Amplitude (force/displacement/etc.) v. Time array. Time values should be in seconds. Data should be interpolated and normalized
         noise_prominence_factor: The minimum required SNR of a peak
         relative_prominence_factor: If specified, the prominence of each peak relative to the tallest peak will be taken into consideration.
             If this falls below the noise-based prominence threshold determined by `noise_prominence_factor`, that will be used instead.
-        width_factor: The minimum and maximum width of a peak required to be considered. This should be given in the same unit of time as the Time values in `tissue_data`
+        width_factor: The minimum and maximum width in seconds of a peak required to be considered
         height_factor: The minimum height of a peak required to be considered. This should be given in the unit of measure as the Waveform Amplitude values in `tissue_data`
         max_frequency: The maximum frequency (Hz) at which a peak can occur. Specifically, this is used to calculate the minimum required distance between adjacent peaks.
             For example, if the value given is 1, then at most peaks will occur at 1Hz. In other words, the peaks will be no closer than 1 second.
             If not specified, the sampling frequency is used instead, which means that every point can be considered a peak.
             If a value is given that exceeds the sampling frequency, the sampling frequency is used instead.
-        valley_search_size: The search distance before a peak used to find a valley (given in the units of the time axis).
+        valley_search_size: The duration of time in seconds prior to a peak in which to search for a valley.
             If this window includes a previous peak then for that peak the window will automatically be shortened
-        upslope_duration: The min duration of time through which the waveform values must continuously rise in order to be considered an upslope.
-            This should be given in the same unit of time as the Time values in `tissue_data`
-        upslope_noise_allowance_duration: The max duration of time in the upslope in which there is an amplitude decrease which can be tolerated within a single upslope.
-            This should be given in the same unit of time as the Time values in `tissue_data`
+        upslope_duration: The min duration of time in seconds through which the waveform values must continuously rise in order to be considered an upslope.
+        upslope_noise_allowance_duration: The max duration of time in seconds in the upslope in which there is an amplitude decrease which can be tolerated within a single upslope.
 
     Returns:
         A tuple containing an of the indices of the peaks and an array of the indices of valleys

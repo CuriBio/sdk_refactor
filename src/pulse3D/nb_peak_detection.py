@@ -3,16 +3,23 @@
 
 from typing import Any
 from typing import Optional
+from typing import Tuple
 
 from nptyping import NDArray
 import numpy as np
+from pulse3D.exceptions import InvalidValleySearchDurationError
+from pulse3D.exceptions import TooFewPeaksDetectedError
 from scipy import signal
 from scipy.optimize import curve_fit
 
 from .constants import DEFAULT_NB_HEIGHT_FACTOR
 from .constants import DEFAULT_NB_NOISE_PROMINENCE_FACTOR
 from .constants import DEFAULT_NB_RELATIVE_PROMINENCE_FACTOR
+from .constants import DEFAULT_NB_UPSLOPE_DUR
+from .constants import DEFAULT_NB_UPSLOPE_NOISE_ALLOWANCE_DUR
+from .constants import DEFAULT_NB_VALLEY_SEARCH_DUR
 from .constants import DEFAULT_NB_WIDTH_FACTORS
+from .constants import MIN_NUMBER_PEAKS
 
 
 def quadratic(x, a, b, c):
@@ -22,14 +29,14 @@ def quadratic(x, a, b, c):
 # TODO ? prefix args with peak_ or valley_ so it's more clear which they affect
 def noise_based_peak_finding(
     tissue_data: NDArray[(2, Any), float],
-    noise_prominence_factor=DEFAULT_NB_NOISE_PROMINENCE_FACTOR,
+    noise_prominence_factor: float = DEFAULT_NB_NOISE_PROMINENCE_FACTOR,
     relative_prominence_factor: Optional[float] = DEFAULT_NB_RELATIVE_PROMINENCE_FACTOR,
-    width_factors=DEFAULT_NB_WIDTH_FACTORS,
-    height_factor=DEFAULT_NB_HEIGHT_FACTOR,
+    width_factors: Tuple[float, float] = DEFAULT_NB_WIDTH_FACTORS,
+    height_factor: float = DEFAULT_NB_HEIGHT_FACTOR,
     max_frequency: Optional[float] = None,
-    valley_search_size=1,
-    upslope_length=7,
-    upslope_noise_allowance=1,
+    valley_search_size: float = DEFAULT_NB_VALLEY_SEARCH_DUR,
+    upslope_duration: float = DEFAULT_NB_UPSLOPE_DUR,
+    upslope_noise_allowance_duration: float = DEFAULT_NB_UPSLOPE_NOISE_ALLOWANCE_DUR,
 ):
     """
     Args:
@@ -37,7 +44,7 @@ def noise_based_peak_finding(
         noise_prominence_factor: The minimum required SNR of a peak
         relative_prominence_factor: If specified, the prominence of each peak relative to the tallest peak will be taken into consideration.
             If this falls below the noise-based prominence threshold determined by `noise_prominence_factor`, that will be used instead.
-        width_factor: The minimum and maximum width of a peak required to be considered. Should be given in the same unit of time as the Time values in `tissue_data`
+        width_factor: The minimum and maximum width of a peak required to be considered. This should be given in the same unit of time as the Time values in `tissue_data`
         height_factor: The minimum height of a peak required to be considered. This should be given in the unit of measure as the Waveform Amplitude values in `tissue_data`
         max_frequency: The maximum frequency (Hz) at which a peak can occur. Specifically, this is used to calculate the minimum required distance between adjacent peaks.
             For example, if the value given is 1, then at most peaks will occur at 1Hz. In other words, the peaks will be no closer than 1 second.
@@ -45,8 +52,10 @@ def noise_based_peak_finding(
             If a value is given that exceeds the sampling frequency, the sampling frequency is used instead.
         valley_search_size: The search distance before a peak used to find a valley (given in the units of the time axis).
             If this window includes a previous peak then for that peak the window will automatically be shortened
-        upslope_length: The number of samples through which the waveform values must continuously rise in order to be considered an upslope
-        upslope_noise_allowance: The number of points in the upslope which are not increases which can be tolerated within a single upslope
+        upslope_duration: The min duration of time through which the waveform values must continuously rise in order to be considered an upslope.
+            This should be given in the same unit of time as the Time values in `tissue_data`
+        upslope_noise_allowance_duration: The max duration of time in the upslope in which there is an amplitude decrease which can be tolerated within a single upslope.
+            This should be given in the same unit of time as the Time values in `tissue_data`
 
     Returns:
         A tuple containing an of the indices of the peaks and an array of the indices of valleys
@@ -55,10 +64,6 @@ def noise_based_peak_finding(
 
     # TODO split into subfunctions, one for finding peaks and the other for finding valleys
 
-    # set estimate of peak to peak noise amplitude is 10uN for average recording
-    default_noise = 10
-    default_prom = 5
-
     # extract sample frequency from time_axis (assumes sampling freq is constant)
     sample_freq = 1 / (time_axis[1] - time_axis[0])
 
@@ -66,8 +71,12 @@ def noise_based_peak_finding(
         # if max freq is greater than the sampling freq, use sampling freq instead
         max_frequency = min(max_frequency, sample_freq)
     else:
-        # no max freq given, use sampling freq
+        # if no max freq given, use sampling freq
         max_frequency = sample_freq
+
+    # set estimate of peak to peak noise amplitude is 10uN for average recording
+    default_noise = 10
+    default_prom = 5
 
     # find peaks with this estimated amplitude
     peaks, _ = signal.find_peaks(waveform, prominence=default_prom * default_noise)
@@ -83,9 +92,8 @@ def noise_based_peak_finding(
     # use peaks to extract waveform segments from which noise data can be extracted - control over this could be given to the user if required
     segment_size = 10
 
-    while peaks[-1] + segment_size > len(
-        waveform
-    ):  # possible bug deletes only peak and you get a len(list) == 0
+    while peaks[-1] + segment_size > len(waveform):
+        # possible bug deletes only peak and you get a len(list) == 0
         peaks = np.delete(peaks, -1)
 
     noise_segements = np.array([[waveform[i] for i in range(peak, peak + segment_size)] for peak in peaks])
@@ -123,16 +131,18 @@ def noise_based_peak_finding(
         distance=sample_freq // max_frequency,
     )
 
-    if len(peaks) == 0:
-        return np.array([]), np.array([])
+    if (num_peaks := len(peaks)) < MIN_NUMBER_PEAKS:
+        raise TooFewPeaksDetectedError(
+            f"A minimum of {MIN_NUMBER_PEAKS} peaks is required to extract twitch metrics, however only {num_peaks} peak(s) were detected."
+        )
 
-    # TODO what is this doing?
+    # the valley search size of the initial peak must not extend back beyond the initial timepoint, so remove any peaks that are too close to the start
     segment_size = int(valley_search_size * sample_freq)
     while len(peaks) != 0 and peaks[0] - segment_size < 0:
         peaks = np.delete(peaks, 0)
 
     if len(peaks) == 0:
-        return np.array([]), np.array([])
+        raise InvalidValleySearchDurationError()
 
     # generate localised search windows based on peak positions
     padded_peaks = np.pad(peaks, (1, 0), constant_values=0)
@@ -152,13 +162,18 @@ def noise_based_peak_finding(
         for peak, segment in zip(peaks, search_windows)
     ]
 
+    upslope_num_samples = upslope_duration * sample_freq
+    upslope_noise_allowance_num_samples = upslope_noise_allowance_duration * sample_freq
+
     # identify areas where waveform increases sample after sample for a minimum stretch, default to min in search area if no areas found
     upslope_indices = [np.where(np.diff(segment) > 0)[0] for segment in valley_segments]
     upslope_indices = [
         [
             i
-            for i in np.split(upslope, np.where(np.diff(upslope) > (1 + upslope_noise_allowance))[0] + 1)
-            if len(i) >= upslope_length
+            for i in np.split(
+                upslope, np.where(np.diff(upslope) > (1 + upslope_noise_allowance_num_samples))[0] + 1
+            )
+            if len(i) >= upslope_num_samples
         ]
         for upslope in upslope_indices
     ]

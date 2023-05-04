@@ -1,6 +1,15 @@
 Changelog for Pulse3D
 =====================
 
+0.33.1 (2023-05-04)
+-------------------
+
+Added:
+^^^^^^
+
+- Changes from 0.32.7
+
+
 0.33.0 (2023-05-01)
 -------------------
 
@@ -12,7 +21,7 @@ Fixed:
 0.32.7 (2023-05-02)
 -------------------
 
-**NOTE**: The date on this release is correct, it was released after 0.33.0
+**NOTE**: The date on this release is correct, it was released after 0.33.0, so 0.33.0 does not include these changes
 
 Fixed:
 ^^^^^^

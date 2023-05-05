@@ -87,6 +87,11 @@ def noise_based_peak_finding(
 
         correction_factor += 1
 
+    if (num_peaks := len(peaks)) < MIN_NUMBER_PEAKS:
+        raise TooFewPeaksDetectedError(
+            f"A minimum of {MIN_NUMBER_PEAKS} peaks is required to extract twitch metrics, however only {num_peaks} peak(s) were detected."
+        )
+
     # use peaks to extract waveform segments from which noise data can be extracted - control over this could be given to the user if required
     segment_size = 10
 

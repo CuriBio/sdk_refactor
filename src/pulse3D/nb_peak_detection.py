@@ -34,7 +34,7 @@ def noise_based_peak_finding(
     width_factors: Tuple[float, float] = DEFAULT_NB_WIDTH_FACTORS,
     height_factor: float = DEFAULT_NB_HEIGHT_FACTOR,
     max_frequency: Optional[float] = None,
-    valley_search_size: float = DEFAULT_NB_VALLEY_SEARCH_DUR,
+    valley_search_duration: float = DEFAULT_NB_VALLEY_SEARCH_DUR,
     upslope_duration: float = DEFAULT_NB_UPSLOPE_DUR,
     upslope_noise_allowance_duration: float = DEFAULT_NB_UPSLOPE_NOISE_ALLOWANCE_DUR,
 ):
@@ -50,7 +50,7 @@ def noise_based_peak_finding(
             For example, if the value given is 1, then at most peaks will occur at 1Hz. In other words, the peaks will be no closer than 1 second.
             If not specified, the sampling frequency is used instead, which means that every point can be considered a peak.
             If a value is given that exceeds the sampling frequency, the sampling frequency is used instead.
-        valley_search_size: The duration of time in seconds prior to a peak in which to search for a valley.
+        valley_search_duration: The duration of time in seconds prior to a peak in which to search for a valley.
             If this window includes a previous peak then for that peak the window will automatically be shortened
         upslope_duration: The min duration of time in seconds through which the waveform values must continuously rise in order to be considered an upslope.
         upslope_noise_allowance_duration: The max duration of time in seconds in the upslope in which there is an amplitude decrease which can be tolerated within a single upslope.
@@ -140,7 +140,7 @@ def noise_based_peak_finding(
         )
 
     # the valley search size of the initial peak must not extend back beyond the initial timepoint, so remove any peaks that are too close to the start
-    segment_size = int(valley_search_size * sample_freq)
+    segment_size = int(valley_search_duration * sample_freq)
     while len(peaks) != 0 and peaks[0] - segment_size < 0:
         peaks = np.delete(peaks, 0)
 

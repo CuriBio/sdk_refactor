@@ -206,7 +206,7 @@ def write_xlsx(
     width_factors: Tuple[Union[int, float], Union[int, float]] = DEFAULT_NB_WIDTH_FACTORS,
     height_factor: Union[int, float] = DEFAULT_NB_HEIGHT_FACTOR,
     max_frequency=None,
-    valley_search_size=DEFAULT_NB_VALLEY_SEARCH_DUR,
+    valley_search_duration=DEFAULT_NB_VALLEY_SEARCH_DUR,
     upslope_duration=DEFAULT_NB_UPSLOPE_DUR,
     upslope_noise_allowance_duration=DEFAULT_NB_UPSLOPE_NOISE_ALLOWANCE_DUR,
     peaks_valleys: Dict[str, List[List[int]]] = None,
@@ -405,7 +405,7 @@ def write_xlsx(
                     width_factors=width_factors,
                     height_factor=height_factor,
                     max_frequency=max_frequency,
-                    valley_search_size=valley_search_size,
+                    valley_search_duration=valley_search_duration,
                     upslope_duration=upslope_duration,
                     upslope_noise_allowance_duration=upslope_noise_allowance_duration,
                 )

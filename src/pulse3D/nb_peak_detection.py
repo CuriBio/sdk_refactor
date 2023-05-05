@@ -21,6 +21,11 @@ from .constants import DEFAULT_NB_VALLEY_SEARCH_DUR
 from .constants import DEFAULT_NB_WIDTH_FACTORS
 from .constants import MIN_NUMBER_PEAKS
 
+INITIAL_PEAK_STARTING_PROM = 5
+# set estimate of peak to peak noise amplitude is 10uN for average recording
+INITIAL_PEAK_NOISE_ESTIMATE = 10
+DEFAULT_NOISE_SEGMENT_DURATION = 0.1
+
 
 def quadratic(x, a, b, c):
     return a * (x**2) + b * x + c
@@ -65,27 +70,15 @@ def noise_based_peak_finding(
     # extract sample frequency from time_axis (assumes sampling freq is constant)
     sample_freq = 1 / (time_axis[1] - time_axis[0])
 
-    if max_frequency:
-        # if max freq is greater than the sampling freq, use sampling freq instead
-        max_frequency = min(max_frequency, sample_freq)
-    else:
-        # if no max freq given, use sampling freq
-        max_frequency = sample_freq
+    max_frequency = min(max_frequency, sample_freq) if max_frequency else sample_freq
 
-    # set estimate of peak to peak noise amplitude is 10uN for average recording
-    default_noise = 10
-    default_prom = 5
-
-    # find peaks with this estimated amplitude
-    peaks, _ = signal.find_peaks(waveform, prominence=default_prom * default_noise)
-
-    # if first attempt finds no peaks as they are too small, retry with smaller prominence
-    # this approach should return a list of peak indices even if no true peaks exist as it will terminate at a prominence of 1.
-    correction_factor = 1
-    while len(peaks) == 0 and correction_factor <= default_prom:
-        peaks, _ = signal.find_peaks(waveform, prominence=(default_prom - correction_factor) * default_noise)
-
-        correction_factor += 1
+    # Attempt to find peaks with a lower prominence each iteration until a non-zero number of peaks are found
+    # this approach should return a list of peak indices even if no true peaks exist as it will terminate at
+    # a noise prominence of 1, meaning even noise spikes will be considered peaks
+    for prom in range(INITIAL_PEAK_STARTING_PROM, 0, -1):
+        peaks, _ = signal.find_peaks(waveform, prominence=prom * INITIAL_PEAK_NOISE_ESTIMATE)
+        if len(peaks) > 0:
+            break
 
     if (num_peaks := len(peaks)) < MIN_NUMBER_PEAKS:
         raise TooFewPeaksDetectedError(
@@ -93,18 +86,20 @@ def noise_based_peak_finding(
         )
 
     # use peaks to extract waveform segments from which noise data can be extracted - control over this could be given to the user if required
-    segment_size = 10
+    noise_segment_num_samples = int(DEFAULT_NOISE_SEGMENT_DURATION * sample_freq)
 
-    while peaks[-1] + segment_size > len(waveform):
+    while peaks[-1] + noise_segment_num_samples > len(waveform):
         # possible bug deletes only peak and you get a len(list) == 0
         peaks = np.delete(peaks, -1)
 
-    noise_segements = np.array([[waveform[i] for i in range(peak, peak + segment_size)] for peak in peaks])
-    time_segments = np.array([[time_axis[i] for i in range(peak, peak + segment_size)] for peak in peaks])
+    noise_segements = np.array(
+        [[waveform[i] for i in range(peak, peak + noise_segment_num_samples)] for peak in peaks]
+    )
+    time_segments = np.array(
+        [[time_axis[i] for i in range(peak, peak + noise_segment_num_samples)] for peak in peaks]
+    )
 
     # fit quadratic to bring noise to baseline and remove peak information
-    # fit_models = [curve_fit(quadratic, time, signal) for time, signal in zip(time_segments,noise_segements)]
-    # quad_fit = [quadratic(i,*popt[0]) for i,popt in zip(time_segments, fit_models)]
     quad_fit = [
         quadratic(time, *curve_fit(quadratic, time, signal)[0])
         for time, signal in zip(time_segments, noise_segements)
@@ -140,8 +135,8 @@ def noise_based_peak_finding(
         )
 
     # the valley search size of the initial peak must not extend back beyond the initial timepoint, so remove any peaks that are too close to the start
-    segment_size = int(valley_search_duration * sample_freq)
-    while len(peaks) != 0 and peaks[0] - segment_size < 0:
+    valley_search_window_num_samples = int(valley_search_duration * sample_freq)
+    while len(peaks) != 0 and peaks[0] - valley_search_window_num_samples < 0:
         peaks = np.delete(peaks, 0)
 
     if len(peaks) == 0:
@@ -157,7 +152,7 @@ def noise_based_peak_finding(
     )
 
     # if a window is smaller than the segment size then use this else use the defined segment size
-    search_windows[search_windows > segment_size] = segment_size
+    search_windows[search_windows > valley_search_window_num_samples] = valley_search_window_num_samples
 
     # generate waveform segments
     valley_segments = [

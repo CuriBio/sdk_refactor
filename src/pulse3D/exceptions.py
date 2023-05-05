@@ -53,6 +53,10 @@ class TooFewPeaksDetectedError(PeakDetectionError):
     pass
 
 
+class InvalidValleySearchDurationError(PeakDetectionError):
+    pass
+
+
 class NoRecordingFilesLoadedError(Exception):
     pass
 

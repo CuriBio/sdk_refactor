@@ -1,12 +1,18 @@
 Changelog for Pulse3D
 =====================
 
+0.33.2 (2023-05-04)
+-------------------
+
+Added:
+^^^^^^
+- Noise based peak finding
+
 0.33.1 (2023-05-04)
 -------------------
 
 Added:
 ^^^^^^
-
 - Changes from 0.32.7
 
 
@@ -380,7 +386,7 @@ Added:
 
 0.21.1 (2022-01-12)
 -------------------
-- Parameterized `peak_detection.peak_detector` for minimum prominence and width scaling
+- Parameterized ``peak_detection.peak_detector`` for minimum prominence and width scaling
 - Changed default scaling factors to make peak-finding more sensitive
 
 0.20.2 (2022-01-12)

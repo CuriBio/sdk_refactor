@@ -15,21 +15,21 @@ from typing import Union
 
 import numpy as np
 import pandas as pd
-from pulse3D.transforms import get_time_window_indices
 from scipy import interpolate
 
 from .constants import *
 from .exceptions import *
 from .metrics import WellGroupMetric
+from .nb_peak_detection import noise_based_peak_finding
 from .peak_detection import concat
 from .peak_detection import data_metrics
 from .peak_detection import get_windowed_peaks_valleys
 from .peak_detection import init_dfs
-from .peak_detection import peak_detector
 from .plate_recording import PlateRecording
 from .plotting import plotting_parameters
 from .stimulation import aggregate_timepoints
 from .stimulation import realign_interpolated_stim_data
+from .transforms import get_time_window_indices
 from .utils import get_experiment_id
 from .utils import get_stiffness_label
 from .utils import truncate
@@ -201,8 +201,14 @@ def write_xlsx(
     end_time: Union[float, int] = np.inf,
     twitch_widths: Tuple[int, ...] = DEFAULT_TWITCH_WIDTHS,
     baseline_widths_to_use: Tuple[int, ...] = DEFAULT_BASELINE_WIDTHS,
-    prominence_factors: Tuple[Union[int, float], Union[int, float]] = DEFAULT_PROMINENCE_FACTORS,
-    width_factors: Tuple[Union[int, float], Union[int, float]] = DEFAULT_WIDTH_FACTORS,
+    noise_prominence_factor: Union[int, float] = DEFAULT_NB_NOISE_PROMINENCE_FACTOR,
+    relative_prominence_factor: Union[int, float] = DEFAULT_NB_RELATIVE_PROMINENCE_FACTOR,
+    width_factors: Tuple[Union[int, float], Union[int, float]] = DEFAULT_NB_WIDTH_FACTORS,
+    height_factor: Union[int, float] = DEFAULT_NB_HEIGHT_FACTOR,
+    max_frequency=None,
+    valley_search_duration=DEFAULT_NB_VALLEY_SEARCH_DUR,
+    upslope_duration=DEFAULT_NB_UPSLOPE_DUR,
+    upslope_noise_allowance_duration=DEFAULT_NB_UPSLOPE_NOISE_ALLOWANCE_DUR,
     peaks_valleys: Dict[str, List[List[int]]] = None,
     include_stim_protocols: bool = False,
     stim_waveform_format: Optional[Union[Literal["stacked"], Literal["overlayed"]]] = None,
@@ -217,9 +223,9 @@ def write_xlsx(
         end_time: End time of windowed analysis. Defaults to infinity.
         twitch_widths: Requested widths to add to output file
         baseline_widths_to_use: Twitch widths to use as baseline metrics
-        prominence_factors: factors used to determine the prominence peaks/valleys must have
-        width_factors: factors used to determine the width peaks/valleys must have
-        peaks_valleys: User-defined peaks and valleys to use instead of peak_detector
+        prominence_factor: factor used to determine the min prominence peaks must have
+        width_factors: factors used to determine the width peaks must have
+        peaks_valleys: User-defined peaks and valleys to use instead of peak detection results
         include_stim_protocols: Toggles the addition of stimulation-protocols sheet in the output excel
         stim_waveform_format: Toggles the output format of the stim waveforms if provided, o/w no waveforms are displayed
     Raises:
@@ -340,6 +346,7 @@ def write_xlsx(
         metrics = tuple(
             concat([dfs[k][j] for j in dfs[k].keys()], axis=1) for k in ("per_twitch", "aggregate")
         )
+        peaks_and_valleys = (np.array([]), np.array([]))
 
         if well_file is None:
             continue
@@ -384,9 +391,23 @@ def write_xlsx(
             log.info(f"Finding peaks and valleys for well {well_name}")
 
             if peaks_valleys is None:
-                log.info("No user defined peaks and valleys were found, so calculating with peak_detector")
-                peaks_and_valleys = peak_detector(
-                    interpolated_well_data, prominence_factors=prominence_factors, width_factors=width_factors
+                log.info("No user defined peaks and valleys were found, so finding peaks now")
+
+                # noise based peak finding requires the time values to be in seconds
+                well_data_for_peak_finding = np.array(
+                    [interpolated_well_data[0] / MICRO_TO_BASE_CONVERSION, interpolated_well_data[1]]
+                )
+
+                peaks_and_valleys = noise_based_peak_finding(
+                    well_data_for_peak_finding,
+                    noise_prominence_factor=noise_prominence_factor,
+                    relative_prominence_factor=relative_prominence_factor,
+                    width_factors=width_factors,
+                    height_factor=height_factor,
+                    max_frequency=max_frequency,
+                    valley_search_duration=valley_search_duration,
+                    upslope_duration=upslope_duration,
+                    upslope_noise_allowance_duration=upslope_noise_allowance_duration,
                 )
             else:
                 # convert peak and valley lists into a format compatible with find_twitch_indices

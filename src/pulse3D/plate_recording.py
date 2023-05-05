@@ -548,18 +548,10 @@ class PlateRecording:
 
     def to_dataframe(self, include_stim_data=True) -> pd.DataFrame:
         """Creates DataFrame from PlateRecording with all the data
-        interpolated, normalized, and scaled. The returned dataframe contains
-        one column for time in ms and one column for each well.
+        interpolated, normalized, and scaled.
 
-        The dataframe returned by this method can be used in calls to peak_detector by selecting the
-        'time' column and the well column that peak detection should be run on after transposing the
-        data, e.g.
-
-        >>> df = to_dataframe()
-        >>> peak_detector(df[['time', 'A1']].transpose().values)
-
-        The dataframe needs to be transposed before converting to NDArray because peak_detector
-        wants an ndarray of shape (2, N) while dataframe[['time', 'A1']] is in shape (N,2)
+        The returned dataframe contains one column for time in ms and
+        one column for each well.
         """
         # get first valid well and set interpolation period. Creating new iter to be safe
         first_well = next(iter(self))

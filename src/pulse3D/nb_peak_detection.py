@@ -9,6 +9,7 @@ from nptyping import NDArray
 import numpy as np
 from pulse3D.exceptions import InvalidValleySearchDurationError
 from pulse3D.exceptions import TooFewPeaksDetectedError
+from pulse3D.transforms import get_time_window_indices
 from scipy import signal
 from scipy.optimize import curve_fit
 
@@ -29,6 +30,8 @@ def quadratic(x, a, b, c):
 # TODO ? prefix args with peak_ or valley_ so it's more clear which they affect
 def noise_based_peak_finding(
     tissue_data: NDArray[(2, Any), float],
+    start_time: float = 0,
+    end_time: float = np.inf,
     noise_prominence_factor: float = DEFAULT_NB_NOISE_PROMINENCE_FACTOR,
     relative_prominence_factor: Optional[float] = DEFAULT_NB_RELATIVE_PROMINENCE_FACTOR,
     width_factors: Tuple[float, float] = DEFAULT_NB_WIDTH_FACTORS,
@@ -41,6 +44,8 @@ def noise_based_peak_finding(
     """
     Args:
         tissue_data: Waveform Amplitude (force/displacement/etc.) v. Time array. Time values should be in seconds. Data should be interpolated and normalized
+        start_time: The earliest timepoint to consider
+        end_time: The greatest timepoint to consider
         noise_prominence_factor: The minimum required SNR of a peak
         relative_prominence_factor: If specified, the prominence of each peak relative to the tallest peak will be taken into consideration.
             If this falls below the noise-based prominence threshold determined by `noise_prominence_factor`, that will be used instead.
@@ -58,7 +63,8 @@ def noise_based_peak_finding(
     Returns:
         A tuple containing an of the indices of the peaks and an array of the indices of valleys
     """
-    time_axis, waveform = tissue_data
+    window_indices = get_time_window_indices(tissue_data[0], start_time, end_time)
+    time_axis, waveform = tissue_data[:, window_indices]
 
     # TODO split into subfunctions, one for finding peaks and the other for finding valleys
 
@@ -205,5 +211,9 @@ def noise_based_peak_finding(
     valleys = np.array(
         [peak - (window - index) for peak, index, window in zip(peaks, valley_indices, search_windows)]
     )
+
+    # indices are only valid with the given window, so adjust to match original signal
+    peaks += window_indices[0]
+    valleys += window_indices[0]
 
     return peaks, valleys

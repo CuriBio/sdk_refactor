@@ -1,12 +1,20 @@
 Changelog for Pulse3D
 =====================
 
+0.33.3 (2023-05-08)
+-------------------
+
+Added:
+^^^^^^
+- Time window option to noise-based peak finding
+
+
 0.33.2 (2023-05-04)
 -------------------
 
 Added:
 ^^^^^^
-- Noise based peak finding
+- Noise-based peak finding
 
 0.33.1 (2023-05-04)
 -------------------

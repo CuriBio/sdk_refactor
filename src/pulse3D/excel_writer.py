@@ -100,6 +100,7 @@ def add_stim_data_series(
 
     if format == "overlayed":
         series_params["y2_axis"] = 1
+        series_params["line"]["transparency"] = 70
     else:
         y_axis_params["major_gridlines"] = {"visible": 0}
 

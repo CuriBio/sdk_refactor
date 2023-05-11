@@ -15,6 +15,7 @@ import uuid
 import zipfile
 
 import h5py
+from mantarray_magnet_finding.exceptions import UnableToConvergeError
 from mantarray_magnet_finding.utils import calculate_magnetic_flux_density_from_memsic
 from nptyping import NDArray
 import numpy as np
@@ -440,11 +441,15 @@ class PlateRecording:
         # create baseline data array
         baseline_data_mt = np.mean(baseline_data_mt[:, -BASELINE_MEAN_NUM_DATA_POINTS:], axis=1)
 
-        # pass data into magnet finding alg
-        log.info("Estimating magnet positions")
-        estimated_magnet_positions = find_magnet_positions(
-            plate_data_array_mt, baseline_data_mt, initial_magnet_finding_params
-        )
+        try:
+            # pass data into magnet finding alg
+            log.info("Estimating magnet positions")
+            estimated_magnet_positions = find_magnet_positions(
+                plate_data_array_mt, baseline_data_mt, initial_magnet_finding_params
+            )
+        except UnableToConvergeError:
+            log.exception("Unable to converge due to bad quality of data")
+            raise
 
         flip_data = self.wells[0].version >= VersionInfo.parse("1.1.0")
 

@@ -1,6 +1,13 @@
 Changelog for Pulse3D
 =====================
 
+0.33.4 (2023-05-08)
+-------------------
+
+Changed:
+^^^^^^^^
+- Raise exception when mag finding is unable to converge due to bad data
+
 0.33.3 (2023-05-08)
 -------------------
 

@@ -7,7 +7,6 @@ Changelog for Pulse3D
 Changed:
 ^^^^^^^^
 - Raise exception when mag finding is unable to converge due to bad data
-- Overlay time force data over stimulation data in continuous-waveforms graphs
 
 0.33.3 (2023-05-08)
 -------------------

@@ -89,17 +89,21 @@ def add_stim_data_series(
 ) -> None:
     stim_timepoints_col = xl_col_to_name(STIM_DATA_COLUMN_START)
     stim_session_col = xl_col_to_name(STIM_DATA_COLUMN_START + col_offset)
-
     series_params: Dict[str, Any] = {
         "name": series_label,
         "categories": f"='continuous-waveforms'!${stim_timepoints_col}$2:${stim_timepoints_col}${upper_x_bound_cell}",
         "values": f"='continuous-waveforms'!${stim_session_col}$2:${stim_session_col}${upper_x_bound_cell}",
         "line": {"color": "#d1d128"},
     }
-    y_axis_params: Dict[str, Any] = {"name": f"Stimulator Output ({charge_unit})", **y_axis_bounds}
+    y_axis_params: Dict[str, Any] = {
+        "name": f"Stimulator Output ({charge_unit})",
+        "label_align": "left",
+        **y_axis_bounds,
+    }
 
     if format == "overlayed":
         series_params["y2_axis"] = 1
+        series_params["line"]["transparency"] = 70
     else:
         y_axis_params["major_gridlines"] = {"visible": 0}
 
@@ -642,8 +646,10 @@ def _write_xlsx(
         wb = writer.book
         snapshot_sheet = wb.add_worksheet("continuous-waveform-snapshot")
         full_sheet = wb.add_worksheet("full-continuous-waveform-plots")
+
         for rec_info_idx, well_info in enumerate(recording_plotting_info):
             log.info(f'Creating waveform charts for well {well_info["well_name"]}')
+
             create_waveform_charts(
                 y_axis_bounds,
                 well_info,
@@ -825,8 +831,9 @@ def create_waveform_charts(
     # plot full waveform
     full_lower_x_bound = well_info["tissue_data"][0, 0]
     full_upper_x_bound = well_info["tissue_data"][0, -1]
+    stim_chart_format = stim_plotting_info.get("chart_format")
 
-    full_plot_include_y2_axis = stim_plotting_info.get("chart_format") == "overlayed"
+    full_plot_include_y2_axis = stim_chart_format == "overlayed"
     full_plot_params = plotting_parameters(
         full_upper_x_bound - full_lower_x_bound, include_y2_axis=full_plot_include_y2_axis
     )
@@ -838,29 +845,6 @@ def create_waveform_charts(
         {"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0}, **y_axis_bounds["tissue"]}
     )
     full_chart.set_title({"name": f"Well {well_name}"})
-
-    full_chart.add_series(
-        {
-            "name": "Waveform Data",
-            "categories": f"='continuous-waveforms'!$A$2:$A${len(continuous_waveforms_df)}",
-            "values": f"='continuous-waveforms'!${well_column}$2:${well_column}${len(continuous_waveforms_df)+1}",
-            "line": {"color": "#1B9E77"},
-        }
-    )
-
-    full_chart.set_size({"width": full_plot_params["chart_width"], "height": CHART_HEIGHT})
-    full_chart.set_plotarea(
-        {
-            "layout": {
-                "x": full_plot_params["x"],
-                "y": 0.1,
-                "width": full_plot_params["plot_width"],
-                "height": 0.7,
-            }
-        }
-    )
-
-    stim_chart_format = stim_plotting_info.get("chart_format")
 
     if stim_plotting_info:
         log.info(f"Adding stim data series for well {well_name}")
@@ -899,6 +883,27 @@ def create_waveform_charts(
                 upper_x_bound_cell=len(stim_waveform_df["Stim Time (seconds)"]),
                 y_axis_bounds=y_axis_bounds["stim"],
             )
+
+    full_chart.add_series(
+        {
+            "name": "Waveform Data",
+            "categories": f"='continuous-waveforms'!$A$2:$A${len(continuous_waveforms_df)}",
+            "values": f"='continuous-waveforms'!${well_column}$2:${well_column}${len(continuous_waveforms_df)+1}",
+            "line": {"color": "#1B9E77"},
+        }
+    )
+
+    full_chart.set_size({"width": full_plot_params["chart_width"], "height": CHART_HEIGHT})
+    full_chart.set_plotarea(
+        {
+            "layout": {
+                "x": full_plot_params["x"],
+                "y": 0.1,
+                "width": full_plot_params["plot_width"],
+                "height": 0.7,
+            }
+        }
+    )
 
     peaks, valleys = well_info["peaks_and_valleys"]
     log.info(f"Adding peak detection series for well {well_name}")

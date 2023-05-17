@@ -35,7 +35,7 @@ setup(
     install_requires=[
         "h5py>=3.8.0",
         "nptyping==1.4.4",  # Tanner (4/7/22): pinning for now, can upgrade to 2.0.0 once there is time to refactor
-        "numpy>=1.23.4",
+        "numpy>=1.23.4",  # there is also a numpy version pinned in requirements-dev.txt since it is required to run this setup.py file
         "scipy==1.9.3",
         "numba==0.57.0",
         "immutabledict>=1.2.0",
@@ -46,6 +46,7 @@ setup(
         "requests>=2.25.1",
         "semver>=2.13.0",
         "pandas==1.5.3",
+        "pyarrow==12.0.0",
         'importlib-metadata >= 3.7.3 ; python_version < "3.8"',
     ],
     zip_safe=False,

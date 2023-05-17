@@ -26,13 +26,13 @@ jobs:
           - "windows-2022"
           - "macos-11.0"
         python-version:
-          - "3.8"
           - "3.9"
           - "3.10"
+          - "3.11"
         include:
           # only enable coverage on the fastest job
           - os: "ubuntu-22.04"
-            python-version: "3.10"
+            python-version: "3.11"
             IS_FASTEST_JOB: true
 
     name: Test code before publishing in Python ${{ matrix.python-version }} on ${{ matrix.os }}
@@ -143,12 +143,6 @@ jobs:
       - name: Build wheel for release
         run: python setup.py bdist_wheel
 
-      - name: Rename wheel for Linux (Python 3.8)
-        if: runner.os == 'Linux' && matrix.python-version == 3.8
-        run: |
-          cp ./dist/Pulse3D-${{ steps.extract_version.outputs.package-version }}-cp38-cp38-linux_x86_64.whl ./dist/Pulse3D-${{ steps.extract_version.outputs.package-version }}-cp38-cp38-manylinux1_x86_64.whl
-          rm ./dist/Pulse3D-${{ steps.extract_version.outputs.package-version }}-cp38-cp38-linux_x86_64.whl
-
       - name: Rename wheel for Linux (Python 3.9)
         if: runner.os == 'Linux' && matrix.python-version == 3.9
         run: |
@@ -160,6 +154,12 @@ jobs:
         run: |
           cp ./dist/Pulse3D-${{ steps.extract_version.outputs.package-version }}-cp310-cp310-linux_x86_64.whl ./dist/Pulse3D-${{ steps.extract_version.outputs.package-version }}-cp310-cp310-manylinux1_x86_64.whl
           rm ./dist/Pulse3D-${{ steps.extract_version.outputs.package-version }}-cp310-cp310-linux_x86_64.whl
+
+      - name: Rename wheel for Linux (Python 3.11)
+        if: runner.os == 'Linux' && matrix.python-version == '3.11'
+        run: |
+          cp ./dist/Pulse3D-${{ steps.extract_version.outputs.package-version }}-cp311-cp311-linux_x86_64.whl ./dist/Pulse3D-${{ steps.extract_version.outputs.package-version }}-cp311-cp311-manylinux1_x86_64.whl
+          rm ./dist/Pulse3D-${{ steps.extract_version.outputs.package-version }}-cp311-cp311-linux_x86_64.whl
 
       - name: Build sdist for release (Linux)
         if: matrix.IS_FASTEST_JOB == true
@@ -185,7 +185,7 @@ jobs:
         os:
           - "ubuntu-22.04"
         python-version:
-          - "3.10"
+          - "3.11"
     name: Publish to Test PyPI for Python ${{ matrix.python-version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -245,9 +245,9 @@ jobs:
           - "windows-2022"
           - "macos-11.0"
         python-version:
-          - "3.8"
           - "3.9"
           - "3.10"
+          - "3.11"
     name: Publish to PyPI for Python ${{ matrix.python-version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:

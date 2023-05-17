@@ -25,13 +25,13 @@ jobs:
           - "windows-2022"
           - "macos-11.0"
         python-version:
-          - "3.8"
           - "3.9"
           - "3.10"
+          - "3.11"
         include:
           # only enable coverage on the fastest job
           - os: "ubuntu-22.04"
-            python-version: "3.10"
+            python-version: "3.11"
             IS_FASTEST_JOB: true
 
     name: Python ${{ matrix.python-version }} on ${{ matrix.os }}

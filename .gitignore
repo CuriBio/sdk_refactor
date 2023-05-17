@@ -21,8 +21,8 @@ __pycache__/
 *.html
 
 # Venv
-.venv/
-venv/
+.venv*
+venv*
 *.egg-info
 
 # sphinx html

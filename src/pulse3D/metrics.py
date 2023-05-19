@@ -395,7 +395,7 @@ class TwitchVelocity(BaseMetric):
         self.baseline_widths = baseline_widths_to_use
         self.is_contraction = is_contraction
         # always need the 10 for relaxation and 90 for contraction to compare against input baseline width
-        self.twitch_widths = set(self.baseline_widths) | {10, 90}
+        self.twitch_widths = set(self.baseline_widths) | {100, 0}
 
     def fit(
         self,

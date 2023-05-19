@@ -1,6 +1,14 @@
 Changelog for Pulse3D
 =====================
 
+0.33.6 (2023-05-18)
+-------------------
+
+Fixed:
+^^^^^^
+- Correct use of baselines in Twitch Velocity
+
+
 0.33.5 (2023-05-17)
 -------------------
 

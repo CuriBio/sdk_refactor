@@ -395,7 +395,7 @@ class TwitchVelocity(BaseMetric):
         self.baseline_widths = baseline_widths_to_use
         self.is_contraction = is_contraction
         # always need the 10 for relaxation and 90 for contraction to compare against input baseline width
-        self.twitch_widths = set(self.baseline_widths) | {100, 0}
+        self.twitch_widths = set(self.baseline_widths) | {10, 90}
 
     def fit(
         self,
@@ -440,21 +440,22 @@ class TwitchVelocity(BaseMetric):
         if is_contraction:
             coord_type = "contraction"
             twitch_base = self.baseline_widths[0]
-            twitch_top = 100
+            twitch_top = 90
         else:
             coord_type = "relaxation"
             twitch_base = self.baseline_widths[1]
-            twitch_top = 0
+            twitch_top = 10
 
         Y_end = coordinate_df["force", coord_type, twitch_top]
         Y_start = coordinate_df["force", coord_type, twitch_base]
 
         X_end = coordinate_df["time", coord_type, twitch_top]
         X_start = coordinate_df["time", coord_type, twitch_base]
+
         # change in force / change in time
         velocity = abs((Y_end - Y_start) / (X_end - X_start))
         velocity *= MICRO_TO_BASE_CONVERSION
-
+        print(coord_type, twitch_base, twitch_top)
         return velocity
 
 

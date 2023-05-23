@@ -393,11 +393,9 @@ class TwitchVelocity(BaseMetric):
         super().__init__(rounded=rounded, **kwargs)
 
         self.baseline_widths = baseline_widths_to_use
-
-        self.velocity_start = self.baseline_widths[0]
-        self.velocity_end = self.baseline_widths[1]
-
         self.is_contraction = is_contraction
+        # always need the 10 for relaxation and 90 for contraction to compare against input baseline width
+        self.twitch_widths = set(self.baseline_widths) | {10, 90}
 
     def fit(
         self,
@@ -409,7 +407,7 @@ class TwitchVelocity(BaseMetric):
         _, coordinates = TwitchWidth.calculate_twitch_widths(
             filtered_data=filtered_data,
             twitch_indices=twitch_indices,
-            twitch_width_percents=self.baseline_widths,
+            twitch_width_percents=tuple(self.twitch_widths),
             rounded=self.rounded,
         )
 
@@ -439,13 +437,20 @@ class TwitchVelocity(BaseMetric):
         Returns:
             DataFrame floats that are the velocities of each twitch
         """
-        coord_type = "contraction" if is_contraction else "relaxation"
+        if is_contraction:
+            coord_type = "contraction"
+            twitch_base = self.baseline_widths[0]
+            twitch_top = 90
+        else:
+            coord_type = "relaxation"
+            twitch_base = self.baseline_widths[1]
+            twitch_top = 10
 
-        Y_end = coordinate_df["force", coord_type, self.velocity_start]
-        Y_start = coordinate_df["force", coord_type, self.velocity_end]
+        Y_end = coordinate_df["force", coord_type, twitch_top]
+        Y_start = coordinate_df["force", coord_type, twitch_base]
 
-        X_end = coordinate_df["time", coord_type, self.velocity_start]
-        X_start = coordinate_df["time", coord_type, self.velocity_end]
+        X_end = coordinate_df["time", coord_type, twitch_top]
+        X_start = coordinate_df["time", coord_type, twitch_base]
 
         # change in force / change in time
         velocity = abs((Y_end - Y_start) / (X_end - X_start))

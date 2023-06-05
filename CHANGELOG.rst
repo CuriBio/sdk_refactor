@@ -7,6 +7,7 @@ Changelog for Pulse3D
 Fixed:
 ^^^^^^
 - Issue loading from DF when there are more stim timepoints than magnetometer timepoints
+- Issue loading zipped xlsx files
 
 
 0.33.6 (2023-05-18)

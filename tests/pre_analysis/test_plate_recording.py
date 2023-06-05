@@ -23,6 +23,7 @@ import pytest
 
 from ..fixtures_utils import PATH_TO_H5_FILES
 from ..fixtures_utils import PATH_TO_MAGNET_FINDING_FILES
+from ..fixtures_utils import TEST_OPTICAL_FILE_ALL_WELLS
 from ..fixtures_utils import TEST_OPTICAL_FILE_CONTAINS_OUTPUT_XLSX
 from ..fixtures_utils import TEST_OPTICAL_FILE_DUPLICATES
 from ..fixtures_utils import TEST_OPTICAL_FILE_ONE_PATH
@@ -338,6 +339,11 @@ def test_PlateRecording__to_dataframe__drops_nan_values_when_no_stim_data_is_pre
     stim_data_should_be_output = test_include_stim_data is not False and recording_includes_stim_data
     assert df_contains_nan is stim_data_should_be_output
     assert ("Stim Time (µs)" in existing_df.columns) is stim_data_should_be_output
+
+
+def test_PlateRecording__loads_from_zipped_xlsx_correctly():
+    pr = PlateRecording(TEST_OPTICAL_FILE_ALL_WELLS)
+    assert all(pr.wells)
 
 
 def test_PlateRecording__raises_error_when_duplicate_wells_found_in_optical_files():

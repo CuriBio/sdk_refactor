@@ -364,7 +364,7 @@ class PlateRecording:
                     self.wells, calibration_recordings = load_files(
                         tmpdir, stiffness_factor, inverted_post_magnet_wells
                     )
-                elif xlsx_files := glob.glob(os.path.join(tmpdir, "*.xlsx"), recursive=True):
+                elif xlsx_files := glob.glob(os.path.join(tmpdir, "**", "*.xlsx"), recursive=True):
                     self._load_optical_well_files(xlsx_files, stiffness_factor)
         elif self.path.endswith(".xlsx"):  # optical file
             self._load_optical_well_files([self.path], stiffness_factor)

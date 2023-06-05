@@ -202,7 +202,16 @@ def test_PlateRecording__slices_data_before_analysis(mocker):
     assert abs(expected_final_time_index - pr.wells[0].force[0][-1]) <= recording_sampling_period_us * 2
 
 
-def test_PlateRecording__v1_data_loaded_from_dataframe_will_equal_original_well_data(mocker):
+@pytest.mark.parametrize(
+    "test_recording_path",
+    [
+        TEST_VAR_STIM_SESSIONS_FILE_PATH,
+        os.path.join(PATH_TO_H5_FILES, "stim", "V1WithStim-LoadFromDFIssue.zip"),
+    ],
+)
+def test_PlateRecording__v1_data_loaded_from_dataframe_will_equal_original_well_data(
+    mocker, test_recording_path
+):
     def se(x, *args, **kwargs):
         x_len = x.shape[-1]
         test_data = np.empty((x_len, 24))
@@ -214,16 +223,14 @@ def test_PlateRecording__v1_data_loaded_from_dataframe_will_equal_original_well_
     # mock so magnet finding alg doesn't run
     mocker.patch.object(plate_recording, "find_magnet_positions", autospec=True, side_effect=se)
 
-    rec_path = TEST_VAR_STIM_SESSIONS_FILE_PATH
-
-    pr_created_from_h5 = PlateRecording(rec_path)
+    pr_created_from_h5 = PlateRecording(test_recording_path)
 
     existing_df = pr_created_from_h5.to_dataframe()
     # make sure data was actually written to the dataframe
     for col in existing_df:
         assert existing_df[col].shape > (2, 0), existing_df
 
-    pr_recreated_from_df = PlateRecording(rec_path, recording_df=existing_df)
+    pr_recreated_from_df = PlateRecording(test_recording_path, recording_df=existing_df)
 
     for well_idx, (original_wf, recreated_wf) in enumerate(zip(pr_created_from_h5, pr_recreated_from_df)):
         # to_dataframe normalizes time points so a PlateRecording sometimes has timepoints like

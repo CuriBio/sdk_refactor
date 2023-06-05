@@ -364,7 +364,7 @@ class PlateRecording:
                     self.wells, calibration_recordings = load_files(
                         tmpdir, stiffness_factor, inverted_post_magnet_wells
                     )
-                elif xlsx_files := glob.glob(os.path.join(tmpdir, "*.xlsx"), recursive=True):
+                elif xlsx_files := glob.glob(os.path.join(tmpdir, "**", "*.xlsx"), recursive=True):
                     self._load_optical_well_files(xlsx_files, stiffness_factor)
         elif self.path.endswith(".xlsx"):  # optical file
             self._load_optical_well_files([self.path], stiffness_factor)
@@ -490,7 +490,7 @@ class PlateRecording:
                     stim_protocol["subprotocols"], wf[STIMULATION_READINGS], start_time_us, end_time_us
                 )
             except SubprotocolFormatIncompatibleWithInterpolationError:
-                log.info("Subprotocol format not supported by intperpolation")
+                log.exception("Subprotocol format not supported by interpolation")
                 return
 
             is_voltage = stim_protocol["stimulation_type"] == "V"
@@ -520,6 +520,7 @@ class PlateRecording:
             well_name = wf[WELL_NAME_UUID]
             raw_force_amplitudes = df[f"{well_name}__raw"]
             wf.force = np.vstack((force_timepoints, raw_force_amplitudes)).astype(np.float64)
+            wf.force = wf.force[:, ~np.isnan(raw_force_amplitudes)]
 
             if stim_timepoints is None:
                 continue

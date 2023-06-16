@@ -9,6 +9,7 @@ from pulse3D.exceptions import SubprotocolFormatIncompatibleWithInterpolationErr
 from pulse3D.stimulation import aggregate_timepoints
 from pulse3D.stimulation import create_interpolated_subprotocol_waveform
 from pulse3D.stimulation import create_stim_session_waveforms
+from pulse3D.stimulation import get_ordered_subprotocols
 from pulse3D.stimulation import interpolate_stim_session
 from pulse3D.stimulation import realign_interpolated_stim_data
 from pulse3D.stimulation import remove_intermediate_interpolation_data
@@ -371,6 +372,64 @@ def test_create_interpolated_subprotocol_waveform__creates_biphasic_waveform_cor
     np.testing.assert_array_equal(mocked_truncate.call_args[0][0], expected_arr)
 
 
+def test_get_ordered_subprotocols__returns_correct_list__when_no_loops_present():
+    test_subprotocols = get_test_subprotocols()
+    assert get_ordered_subprotocols(test_subprotocols) == test_subprotocols
+
+
+def test_get_ordered_subprotocols__returns_correct_list__top_level_is_not_a_loop__no_nested_loops():
+    test_subprotocols = [
+        *get_test_subprotocols(),
+        {"type": "loop", "subprotocols": get_test_subprotocols()},
+        {"type": "loop", "subprotocols": get_test_subprotocols()[1:2]},
+        get_test_subprotocols()[0],
+    ]
+    assert (
+        get_ordered_subprotocols(test_subprotocols)
+        == (get_test_subprotocols() * 2) + get_test_subprotocols()[1:2] + get_test_subprotocols()[0:1]
+    )
+
+
+def test_get_ordered_subprotocols__returns_correct_list__top_level_is_not_a_loop__contains_nested_loops():
+    test_subprotocols = [
+        {"type": "loop", "subprotocols": get_test_subprotocols()},
+        *get_test_subprotocols(),
+        {
+            "type": "loop",
+            "subprotocols": [
+                *get_test_subprotocols()[1:2],
+                {"type": "loop", "subprotocols": get_test_subprotocols()},
+            ],
+        },
+        get_test_subprotocols()[0],
+    ]
+    assert (
+        get_ordered_subprotocols(test_subprotocols)
+        == (get_test_subprotocols() * 2)
+        + get_test_subprotocols()[1:2]
+        + get_test_subprotocols()
+        + get_test_subprotocols()[0:1]
+    )
+
+
+def test_get_ordered_subprotocols__returns_correct_list__top_level_is_a_loop():
+    test_subprotocols = [
+        {
+            "type": "loop",
+            "subprotocols": [
+                {"type": "loop", "subprotocols": get_test_subprotocols()},
+                *get_test_subprotocols(),
+                {"type": "loop", "subprotocols": get_test_subprotocols()[1:2]},
+                get_test_subprotocols()[0],
+            ],
+        },
+    ]
+    assert (
+        get_ordered_subprotocols(test_subprotocols)
+        == (get_test_subprotocols() * 2) + get_test_subprotocols()[1:2] + get_test_subprotocols()[0:1]
+    )
+
+
 def test_interpolate_stim_session__returns_empty_array_if_start_timepoint_is_greater_than_protocol_complete_status_of_stim_status_updates():
     test_start_timepoint = 0
     test_stop_timepoint = 100
@@ -496,7 +555,7 @@ def test_create_stim_session_waveforms__creates_list_of_session_waveforms_correc
     test_subprotocols = get_test_subprotocols()
 
     actual_waveforms = create_stim_session_waveforms(
-        test_subprotocols,
+        [{"type": "loop", "subprotocols": test_subprotocols}, *test_subprotocols],
         test_stim_status_updates,
         test_initial_timepoint,
         test_final_timepoint,
@@ -504,7 +563,7 @@ def test_create_stim_session_waveforms__creates_list_of_session_waveforms_correc
     assert actual_waveforms == [expected_mock_waveform_return]
 
     mocked_interpolate_stim_session.assert_called_once_with(
-        test_subprotocols, mocker.ANY, test_initial_timepoint, test_final_timepoint
+        test_subprotocols * 2, mocker.ANY, test_initial_timepoint, test_final_timepoint
     )
     # have to make assertions on the stim_status_updates array separately
     np.testing.assert_array_equal(mocked_interpolate_stim_session.call_args[0][1], test_stim_status_updates)

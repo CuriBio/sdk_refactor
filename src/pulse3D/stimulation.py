@@ -114,6 +114,22 @@ def create_interpolated_subprotocol_waveform(
     return interpolated_waveform_arr
 
 
+def get_ordered_subprotocols(subprotocols: List[Dict[str, Any]]) -> List[Dict[str, int]]:
+    ordered_subprotocols = []
+    for subprotocol in subprotocols:
+        try:
+            subprotocol_type = subprotocol["type"]
+        except KeyError:
+            raise SubprotocolFormatIncompatibleWithInterpolationError("Must have a 'type'")
+
+        if subprotocol_type == "loop":
+            ordered_subprotocols += get_ordered_subprotocols(subprotocol["subprotocols"])
+        else:
+            ordered_subprotocols.append(subprotocol)
+
+    return ordered_subprotocols
+
+
 def interpolate_stim_session(
     subprotocols: List[Dict[str, int]],
     stim_status_updates: NDArray[(2, Any), int],
@@ -183,6 +199,9 @@ def create_stim_session_waveforms(
         if stim_sessions[-1][1, -1] == STIM_COMPLETE_SUBPROTOCOL_IDX
         else final_timepoint
     ]
+
+    # remove the loops and order subprotocols so they can be easily matched up with their idx
+    subprotocols = get_ordered_subprotocols(subprotocols)
 
     interpolated_stim_sessions = [
         interpolate_stim_session(subprotocols, session_updates, initial_timepoint, session_stop_timepoint)

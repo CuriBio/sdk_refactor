@@ -1,6 +1,14 @@
 Changelog for Pulse3D
 =====================
 
+0.33.8 (2023-06-15)
+-------------------
+
+Added:
+^^^^^^
+- Support for stimulation subprotocol loops
+
+
 0.33.7 (2023-06-05)
 -------------------
 

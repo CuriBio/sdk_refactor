@@ -1,6 +1,14 @@
 Changelog for Pulse3D
 =====================
 
+0.33.9 (2023-06-21)
+-------------------
+
+Added:
+^^^^^^
+- Include user-defined peak finding parameters in metadata sheet
+
+
 0.33.8 (2023-06-15)
 -------------------
 

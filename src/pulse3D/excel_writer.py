@@ -307,6 +307,7 @@ def write_xlsx(
         DEFAULT_NB_UPSLOPE_DUR: upslope_duration,
         DEFAULT_NB_UPSLOPE_NOISE_ALLOWANCE_DUR: upslope_noise_allowance_duration,
     }
+
     # using f-string for value correctly left formats the string in the cell, otherwise it's on the right
     peak_finding_display_rows = [
         ("", DEFAULT_NB_PARAMS[default_val], f"{given_val}")

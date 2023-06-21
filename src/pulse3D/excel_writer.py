@@ -323,7 +323,24 @@ def write_xlsx(
         ("", "Analysis Type (Full or Windowed)", "Full" if is_full_analysis else "Windowed"),
         ("", "Analysis Start Time (seconds)", f"{start_time:.1f}"),
         ("", "Analysis End Time (seconds)", f"{end_time:.1f}"),
+        ("User-defined Peak Finding Params:", "", ""),
     ]
+
+    peak_finding_params_to_compare = {
+        DEFAULT_NB_NOISE_PROMINENCE_FACTOR: noise_prominence_factor,
+        DEFAULT_NB_RELATIVE_PROMINENCE_FACTOR: relative_prominence_factor,
+        DEFAULT_NB_WIDTH_FACTORS: width_factors,
+        DEFAULT_NB_HEIGHT_FACTOR: height_factor,
+        DEFAULT_NB_VALLEY_SEARCH_DUR: valley_search_duration,
+        DEFAULT_NB_UPSLOPE_DUR: upslope_duration,
+        DEFAULT_NB_UPSLOPE_NOISE_ALLOWANCE_DUR: upslope_noise_allowance_duration,
+    }
+
+    for default_val, given_val in peak_finding_params_to_compare.items():
+        if default_val != given_val:
+            # using f-string for value correctly left formats the string in the cell, otherwise it's on the right
+            metadata_rows.append(("", DEFAULT_NB_PARAMS[default_val], f"{given_val}"))
+
     metadata_df = pd.DataFrame(
         {col: [row[i] for row in metadata_rows] for i, col in enumerate(("A", "B", "C"))}
     )

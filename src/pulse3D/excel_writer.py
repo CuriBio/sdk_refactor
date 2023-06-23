@@ -196,6 +196,7 @@ def create_frequency_vs_time_charts(
 
 def write_xlsx(
     plate_recording: PlateRecording,
+    output_dir: str = os.getcwd(),
     normalize_y_axis: bool = True,
     max_y: Union[int, float] = None,
     start_time: Union[float, int] = 0,
@@ -278,7 +279,7 @@ def write_xlsx(
     # create output file name
     input_file_name_no_ext = os.path.splitext(os.path.basename(plate_recording.path))[0]
     file_suffix = "full" if is_full_analysis else f"{start_time}-{end_time}"
-    output_file_name = f"{input_file_name_no_ext}_{file_suffix}.xlsx"
+    output_file_path = os.path.join(output_dir, f"{input_file_name_no_ext}_{file_suffix}.xlsx")
 
     if plate_recording.is_optical_recording:
         post_stiffness_factor_label = NOT_APPLICABLE_LABEL
@@ -308,9 +309,8 @@ def write_xlsx(
         DEFAULT_NB_UPSLOPE_NOISE_ALLOWANCE_DUR: upslope_noise_allowance_duration,
     }
 
-    # using f-string for value correctly left formats the string in the cell, otherwise it's on the right
     peak_finding_display_rows = [
-        ("", DEFAULT_NB_PARAMS[default_val], f"{given_val}")
+        ("", DEFAULT_NB_PARAMS[default_val], str(given_val))
         for default_val, given_val in peak_finding_params_to_compare.items()
         if default_val != given_val
     ]
@@ -498,7 +498,7 @@ def write_xlsx(
     )
 
     _write_xlsx(
-        output_file_name=output_file_name,
+        output_file_path=output_file_path,
         metadata_df=metadata_df,
         continuous_waveforms_df=continuous_waveforms_df,
         stim_protocols_df=stim_protocols_df,
@@ -512,7 +512,7 @@ def write_xlsx(
     )
 
     log.info("Done")
-    return output_file_name
+    return output_file_path
 
 
 def _create_stim_protocols_df(plate_recording):
@@ -638,7 +638,7 @@ def _get_stim_plotting_data(
 
 
 def _write_xlsx(
-    output_file_name: str,
+    output_file_path: str,
     metadata_df: pd.DataFrame,
     continuous_waveforms_df: pd.DataFrame,
     stim_protocols_df: pd.DataFrame,
@@ -650,8 +650,8 @@ def _write_xlsx(
     baseline_widths_to_use: Tuple[int, ...] = DEFAULT_BASELINE_WIDTHS,
     group_metrics_list: List[Dict[str, Any]] = [],
 ):
-    log.info(f"Writing {output_file_name}")
-    with pd.ExcelWriter(output_file_name) as writer:
+    log.info(f"Writing {output_file_path}")
+    with pd.ExcelWriter(output_file_path) as writer:
         _write_metadata(writer, metadata_df)
 
         if include_stim_protocols:

@@ -1,6 +1,15 @@
 Changelog for Pulse3D
 =====================
 
+0.33.9 (2023-06-24)
+-------------------
+
+Added:
+^^^^^^
+- Include user-defined peak finding parameters in metadata sheet
+- Ability to add output directory to `write_xlsx`
+
+
 0.33.8 (2023-06-15)
 -------------------
 

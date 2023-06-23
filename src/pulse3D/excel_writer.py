@@ -196,6 +196,7 @@ def create_frequency_vs_time_charts(
 
 def write_xlsx(
     plate_recording: PlateRecording,
+    output_dir: str = os.getcwd(),
     normalize_y_axis: bool = True,
     max_y: Union[int, float] = None,
     start_time: Union[float, int] = 0,
@@ -278,7 +279,7 @@ def write_xlsx(
     # create output file name
     input_file_name_no_ext = os.path.splitext(os.path.basename(plate_recording.path))[0]
     file_suffix = "full" if is_full_analysis else f"{start_time}-{end_time}"
-    output_file_name = f"{input_file_name_no_ext}_{file_suffix}.xlsx"
+    output_file_path = os.path.join(output_dir, f"{input_file_name_no_ext}_{file_suffix}.xlsx")
 
     if plate_recording.is_optical_recording:
         post_stiffness_factor_label = NOT_APPLICABLE_LABEL
@@ -297,6 +298,26 @@ def write_xlsx(
     platemap_label_display_rows = [
         ("", label, ", ".join(well_names)) for label, well_names in plate_recording.platemap_labels.items()
     ]
+
+    peak_finding_params_to_compare = {
+        DEFAULT_NB_NOISE_PROMINENCE_FACTOR: noise_prominence_factor,
+        DEFAULT_NB_RELATIVE_PROMINENCE_FACTOR: relative_prominence_factor,
+        DEFAULT_NB_WIDTH_FACTORS: width_factors,
+        DEFAULT_NB_HEIGHT_FACTOR: height_factor,
+        DEFAULT_NB_VALLEY_SEARCH_DUR: valley_search_duration,
+        DEFAULT_NB_UPSLOPE_DUR: upslope_duration,
+        DEFAULT_NB_UPSLOPE_NOISE_ALLOWANCE_DUR: upslope_noise_allowance_duration,
+    }
+
+    peak_finding_display_rows = [
+        ("", DEFAULT_NB_PARAMS[default_val], str(given_val))
+        for default_val, given_val in peak_finding_params_to_compare.items()
+        if default_val != given_val
+    ]
+
+    # only add this section header if necessary
+    if len(peak_finding_display_rows) > 0:
+        peak_finding_display_rows.insert(0, ("User-defined Peak Finding Params:", "", ""))
 
     # create metadata sheet format as DataFrame
     metadata_rows = [
@@ -323,7 +344,9 @@ def write_xlsx(
         ("", "Analysis Type (Full or Windowed)", "Full" if is_full_analysis else "Windowed"),
         ("", "Analysis Start Time (seconds)", f"{start_time:.1f}"),
         ("", "Analysis End Time (seconds)", f"{end_time:.1f}"),
+        *peak_finding_display_rows,
     ]
+    
     metadata_df = pd.DataFrame(
         {col: [row[i] for row in metadata_rows] for i, col in enumerate(("A", "B", "C"))}
     )
@@ -475,7 +498,7 @@ def write_xlsx(
     )
 
     _write_xlsx(
-        output_file_name=output_file_name,
+        output_file_path=output_file_path,
         metadata_df=metadata_df,
         continuous_waveforms_df=continuous_waveforms_df,
         stim_protocols_df=stim_protocols_df,
@@ -489,7 +512,7 @@ def write_xlsx(
     )
 
     log.info("Done")
-    return output_file_name
+    return output_file_path
 
 
 def _create_stim_protocols_df(plate_recording):
@@ -615,7 +638,7 @@ def _get_stim_plotting_data(
 
 
 def _write_xlsx(
-    output_file_name: str,
+    output_file_path: str,
     metadata_df: pd.DataFrame,
     continuous_waveforms_df: pd.DataFrame,
     stim_protocols_df: pd.DataFrame,
@@ -627,8 +650,8 @@ def _write_xlsx(
     baseline_widths_to_use: Tuple[int, ...] = DEFAULT_BASELINE_WIDTHS,
     group_metrics_list: List[Dict[str, Any]] = [],
 ):
-    log.info(f"Writing {output_file_name}")
-    with pd.ExcelWriter(output_file_name) as writer:
+    log.info(f"Writing {output_file_path}")
+    with pd.ExcelWriter(output_file_path) as writer:
         _write_metadata(writer, metadata_df)
 
         if include_stim_protocols:

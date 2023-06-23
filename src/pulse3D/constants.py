@@ -208,6 +208,18 @@ DEFAULT_NB_VALLEY_SEARCH_DUR = 1
 DEFAULT_NB_UPSLOPE_DUR = 0.07
 DEFAULT_NB_UPSLOPE_NOISE_ALLOWANCE_DUR = 0.01
 
+DEFAULT_NB_PARAMS = immutabledict(
+    {
+        DEFAULT_NB_NOISE_PROMINENCE_FACTOR: "Noise Prominence Factor",
+        DEFAULT_NB_RELATIVE_PROMINENCE_FACTOR: "Relative Prominence Factor",
+        DEFAULT_NB_WIDTH_FACTORS: "Width Factor",
+        DEFAULT_NB_HEIGHT_FACTOR: "Height Factor",
+        DEFAULT_NB_VALLEY_SEARCH_DUR: "Valley Search Duration",
+        DEFAULT_NB_UPSLOPE_DUR: "Upslope Duration",
+        DEFAULT_NB_UPSLOPE_NOISE_ALLOWANCE_DUR: "Upslope Noise Allowance Duration",
+    }
+)
+
 # twitch indices keys
 PRIOR_PEAK_INDEX_UUID = uuid.UUID("80df90dc-21f8-4cad-a164-89436909b30a")
 PRIOR_VALLEY_INDEX_UUID = uuid.UUID("72ba9466-c203-41b6-ac30-337b4a17a124")

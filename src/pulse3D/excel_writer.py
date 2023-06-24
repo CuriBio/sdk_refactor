@@ -346,7 +346,7 @@ def write_xlsx(
         ("", "Analysis End Time (seconds)", f"{end_time:.1f}"),
         *peak_finding_display_rows,
     ]
-    
+
     metadata_df = pd.DataFrame(
         {col: [row[i] for row in metadata_rows] for i, col in enumerate(("A", "B", "C"))}
     )

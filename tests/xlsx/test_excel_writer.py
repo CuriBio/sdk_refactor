@@ -83,21 +83,21 @@ def fixture_patch_get_positions(mocker):
 
 
 @pytest.mark.slow
-def test_write_xlsx__runs_beta_1_file_without_error(tmp_dir_for_xlsx):
+def test_write_xlsx__runs_beta_1_file_without_error():
     # Tanner (12/8/22): do not add anything to this test, it is just meant to run a full analysis start to
     # finish with no mocking on a beta 1 file.
     # Any and all param testing should be done in separate tests and make assertions on the xlsx output as is
     # done in the tests below.
 
     pr = PlateRecording(TEST_SMALL_BETA_1_FILE_PATH)
-    output_file_name = write_xlsx(pr, output_dir=tmp_dir_for_xlsx)
+    output_file_name = write_xlsx(pr)
 
     # this assertion isn't really necessary, but it's nice to make an assertion in a test that otherwise has none
     assert isinstance(output_file_name, str)
 
 
 @pytest.mark.slow
-def test_write_xlsx__runs_magnet_finding_alg_without_error(tmp_dir_for_xlsx):
+def test_write_xlsx__runs_magnet_finding_alg_without_error():
     # Tanner (12/8/22): do not add anything to this test, it is just meant to run a full analysis start to
     # finish with no mocking. This is specifically to make sure that there are no issues with using the magnet
     # finding alg since it is often mocked in other tests to make them run faster.
@@ -105,7 +105,7 @@ def test_write_xlsx__runs_magnet_finding_alg_without_error(tmp_dir_for_xlsx):
     # done in the tests below.
 
     pr = PlateRecording(TEST_FILE_PATH)
-    output_file_name = write_xlsx(pr, output_dir=tmp_dir_for_xlsx, stim_waveform_format="stacked")
+    output_file_name = write_xlsx(pr, stim_waveform_format="stacked")
 
     # this assertion isn't really necessary, but it's nice to make an assertion in a test that otherwise has none
     assert isinstance(output_file_name, str)
@@ -120,14 +120,14 @@ def test_write_xlsx__runs_magnet_finding_alg_without_error(tmp_dir_for_xlsx):
         TEST_OPTICAL_FILE_NO_DUPLICATES,
     ],
 )
-def test_write_xlsx__runs_optical_file_without_error(optical_file, tmp_dir_for_xlsx):
+def test_write_xlsx__runs_optical_file_without_error(optical_file):
     # Tanner (12/8/22): do not add anything to this test, it is just meant to run a full analysis start to
     # finish with no mocking on an optical file.
     # Any and all param testing should be done in separate tests and make assertions on the xlsx output as is
     # done in the tests below.
 
     pr = PlateRecording(optical_file)
-    output_file_name = write_xlsx(pr, output_dir=tmp_dir_for_xlsx)
+    output_file_name = write_xlsx(pr)
 
     # this assertion isn't really necessary, but it's nice to make an assertion in a test that otherwise has none
     assert isinstance(output_file_name, str)
@@ -142,7 +142,7 @@ def test_write_xlsx__sets_tissue_y_axis_correctly_based_on_normalize_y_axis_and_
 
     pr = PlateRecording(TEST_FILE_PATH)
 
-    kwargs = {"output_dir": tmp_dir_for_xlsx}
+    kwargs = {}
     if test_normalize_y_axis is not None:
         kwargs["normalize_y_axis"] = test_normalize_y_axis
     if test_max_y is not None:
@@ -167,37 +167,35 @@ def test_write_xlsx__sets_tissue_y_axis_correctly_based_on_normalize_y_axis_and_
         assert call[0][0]["tissue"] == expected_tissue_chart_bounds
 
 
-def test_write_xlsx__raises_error_if_start_time_less_than_zero(patch_get_positions, tmp_dir_for_xlsx):
+def test_write_xlsx__raises_error_if_start_time_less_than_zero(patch_get_positions):
     test_start_time = -0.01
     with pytest.raises(ValueError, match=rf"Window start time \({test_start_time}s\) cannot be negative"):
-        write_xlsx(PlateRecording(TEST_FILE_PATH), output_dir=tmp_dir_for_xlsx, start_time=test_start_time)
+        write_xlsx(PlateRecording(TEST_FILE_PATH), start_time=test_start_time)
 
 
 @pytest.mark.parametrize("test_start_time", [33.0, 33.1])
 def test_write_xlsx__raises_error_if_start_time_greater_than_or_equal_to_final_timepoint_of_recording(
-    test_start_time, patch_get_positions, tmp_dir_for_xlsx
+    test_start_time, patch_get_positions
 ):
     with pytest.raises(
         ValueError,
         match=rf"Window start time \({test_start_time}s\) greater than the max timepoint of this recording \(33.0s\)",
     ):
-        write_xlsx(PlateRecording(TEST_FILE_PATH), output_dir=tmp_dir_for_xlsx, start_time=test_start_time)
+        write_xlsx(PlateRecording(TEST_FILE_PATH), start_time=test_start_time)
 
 
 @pytest.mark.parametrize("test_end_time", [10, 9.9])
 def test_write_xlsx__raises_error_if_end_time_less_than_or_equal_to_start_time(
-    test_end_time, patch_get_positions, tmp_dir_for_xlsx
+    test_end_time, patch_get_positions
 ):
     with pytest.raises(ValueError, match="Window end time must be greater than window start time"):
-        write_xlsx(
-            PlateRecording(TEST_FILE_PATH), output_dir=tmp_dir_for_xlsx, start_time=10, end_time=test_end_time
-        )
+        write_xlsx(PlateRecording(TEST_FILE_PATH), start_time=10, end_time=test_end_time)
 
 
 def test_write_xlsx__uses_default_start_and_end_time_values_correctly(patch_get_positions, tmp_dir_for_xlsx):
     pr = PlateRecording(TEST_FILE_PATH)
 
-    output_filename = write_xlsx(pr, output_dir=tmp_dir_for_xlsx)
+    output_filename = write_xlsx(pr)
     assert "full" in output_filename
 
     output_filepath = os.path.join(tmp_dir_for_xlsx, output_filename)
@@ -216,9 +214,7 @@ def test_write_xlsx__uses_custom_start_and_end_time_values_correctly(patch_get_p
     test_start_time = 5.0
     test_end_time = 10.0
 
-    output_filename = write_xlsx(
-        pr, output_dir=tmp_dir_for_xlsx, start_time=test_start_time, end_time=test_end_time
-    )
+    output_filename = write_xlsx(pr, start_time=test_start_time, end_time=test_end_time)
     assert f"{test_start_time}-{test_end_time}" in output_filename
 
     output_filepath = os.path.join(tmp_dir_for_xlsx, output_filename)
@@ -235,12 +231,12 @@ def test_write_xlsx__uses_custom_start_and_end_time_values_correctly(patch_get_p
     [[0.0, 33.0, 10], [15.0, 30.0, 10], [5.0, 10.0, 4.99], [25.0, 27.0, 1.9899999999999984]],
 )
 def test_write_xlsx__correctly_sets_snapshot_width_when_using_custom_start_and_end_time_values(
-    patch_get_positions, mocker, test_start_time, test_end_time, expected_width, tmp_dir_for_xlsx
+    patch_get_positions, mocker, test_start_time, test_end_time, expected_width
 ):
     snapshot_plotter = mocker.spy(excel_writer, "plotting_parameters")
 
     pr = PlateRecording(TEST_FILE_PATH)
-    write_xlsx(pr, output_dir=tmp_dir_for_xlsx, start_time=test_start_time, end_time=test_end_time)
+    write_xlsx(pr, start_time=test_start_time, end_time=test_end_time)
 
     snapshot_plotter.assert_any_call(expected_width)
 
@@ -248,7 +244,7 @@ def test_write_xlsx__correctly_sets_snapshot_width_when_using_custom_start_and_e
 def test_write_xlsx__correctly_handles_default_twitch_widths(patch_get_positions, tmp_dir_for_xlsx):
     pr = PlateRecording(TEST_FILE_PATH)
 
-    output_file_name = write_xlsx(pr, output_dir=tmp_dir_for_xlsx)
+    output_file_name = write_xlsx(pr)
 
     output_filepath = os.path.join(tmp_dir_for_xlsx, output_file_name)
     df = pd.read_excel(output_filepath, sheet_name="per-twitch-metrics", usecols=[0])
@@ -259,9 +255,7 @@ def test_write_xlsx__correctly_handles_default_twitch_widths(patch_get_positions
 def test_write_xlsx__correctly_handles_custom_twitch_widths(patch_get_positions, tmp_dir_for_xlsx):
     pr = PlateRecording(TEST_FILE_PATH)
 
-    output_file_name = write_xlsx(
-        pr, output_dir=tmp_dir_for_xlsx, twitch_widths=(23, 81), baseline_widths_to_use=(8, 93)
-    )
+    output_file_name = write_xlsx(pr, twitch_widths=(23, 81), baseline_widths_to_use=(8, 93))
 
     output_filepath = os.path.join(tmp_dir_for_xlsx, output_file_name)
     df = pd.read_excel(output_filepath, sheet_name="per-twitch-metrics", usecols=[0])
@@ -288,7 +282,7 @@ def test_write_xlsx__correctly_handles_include_stim_protocols_param_when_false(
 ):
     pr = PlateRecording(TEST_OLD_FILE_WITH_STIM_PROTOCOLS_PATH)
 
-    kwargs = {"output_dir": tmp_dir_for_xlsx}
+    kwargs = {}
     if test_include_stim_protocols is not None:
         kwargs["include_stim_protocols"] = test_include_stim_protocols
 
@@ -301,12 +295,26 @@ def test_write_xlsx__correctly_handles_include_stim_protocols_param_when_false(
     assert len(df.keys()) == 8
 
 
+def test_write_xlsx__correctly_writes_to_provided_output_directory(patch_get_positions, tmp_dir_for_xlsx):
+    pr = PlateRecording(TEST_NO_STIM_FILE_PATH)
+
+    expected_output_dir = os.path.join(tmp_dir_for_xlsx, "test_subdir")
+    os.makedirs(expected_output_dir)
+
+    output_file_name = write_xlsx(pr, output_dir=expected_output_dir)
+    output_filepath = os.path.join(expected_output_dir, output_file_name)
+    default_path = os.path.join(tmp_dir_for_xlsx, "SmallBeta2File-NoStim_full.xlsx")
+
+    assert os.path.exists(output_filepath)
+    assert not os.path.exists(default_path)
+
+
 def test_write_xlsx__correctly_handles_include_stim_protocols_when_true_for_file_with_stim_protocols(
     patch_get_positions, tmp_dir_for_xlsx
 ):
     pr = PlateRecording(TEST_OLD_FILE_WITH_STIM_PROTOCOLS_PATH)
 
-    output_file_name = write_xlsx(pr, output_dir=tmp_dir_for_xlsx, include_stim_protocols=True)
+    output_file_name = write_xlsx(pr, include_stim_protocols=True)
     output_filepath = os.path.join(tmp_dir_for_xlsx, output_file_name)
 
     df = pd.read_excel(output_filepath, sheet_name="stimulation-protocols", usecols=[1])
@@ -335,7 +343,7 @@ def test_write_xlsx__correctly_handles_include_stim_protocols_when_true_for_beta
 
     pr = PlateRecording(TEST_FILE_PATH)
 
-    output_file_name = write_xlsx(pr, output_dir=tmp_dir_for_xlsx, include_stim_protocols=True)
+    output_file_name = write_xlsx(pr, include_stim_protocols=True)
 
     output_filepath = os.path.join(tmp_dir_for_xlsx, output_file_name)
     df = pd.read_excel(output_filepath, sheet_name="stimulation-protocols", usecols=[0])
@@ -347,7 +355,7 @@ def test_write_xlsx__correctly_handles_include_stim_protocols_when_true_for_beta
 def test_write_xlsx__correctly_handles_include_stim_protocols_when_true_for_beta_1_file(tmp_dir_for_xlsx):
     pr = PlateRecording(TEST_SMALL_BETA_1_FILE_PATH)
 
-    output_file_name = write_xlsx(pr, output_dir=tmp_dir_for_xlsx, include_stim_protocols=True)
+    output_file_name = write_xlsx(pr, include_stim_protocols=True)
 
     output_filepath = os.path.join(tmp_dir_for_xlsx, output_file_name)
     df = pd.read_excel(output_filepath, sheet_name="stimulation-protocols", usecols=[0])
@@ -366,21 +374,17 @@ def test_write_xlsx__raise_error_with_invalid_stim_waveform_format_option(patch_
     [TEST_NO_STIM_FILE_PATH, TEST_SMALL_BETA_1_FILE_PATH, TEST_OLD_FILE_WITH_STIM_PROTOCOLS_PATH],
 )
 def test_write_xlsx__ignores_stim_waveform_format_option_with_incompatible_file(
-    test_file_path, mocker, patch_get_positions, tmp_dir_for_xlsx
+    test_file_path, mocker, patch_get_positions
 ):
     mocked_write_xlsx_helper = mocker.patch.object(excel_writer, "_write_xlsx", autospec=True)
-    write_xlsx(
-        PlateRecording(test_file_path),
-        output_dir=tmp_dir_for_xlsx,
-        stim_waveform_format=choice(["overlayed", "stacked"]),
-    )
+    write_xlsx(PlateRecording(test_file_path), stim_waveform_format=choice(["overlayed", "stacked"]))
     assert mocked_write_xlsx_helper.call_args[1]["stim_plotting_info"] == {}
 
 
 @pytest.mark.parametrize("test_normalize_y_axis", [None, True, False])
 @pytest.mark.parametrize("test_stim_waveform_format", ["overlayed", "stacked"])
 def test_write_xlsx__stim_chart_axis_bounds_set_correctly(
-    test_normalize_y_axis, test_stim_waveform_format, patch_get_positions, mocker, tmp_dir_for_xlsx
+    test_normalize_y_axis, test_stim_waveform_format, patch_get_positions, mocker
 ):
     mocked_create_waveform_charts = mocker.patch.object(excel_writer, "create_waveform_charts", autospec=True)
 
@@ -392,7 +396,7 @@ def test_write_xlsx__stim_chart_axis_bounds_set_correctly(
 
     pr = PlateRecording(TEST_TWO_STIM_SESSIONS_FILE_PATH)
 
-    kwargs = {"stim_waveform_format": test_stim_waveform_format, "output_dir": tmp_dir_for_xlsx}
+    kwargs = {"stim_waveform_format": test_stim_waveform_format}
 
     if test_normalize_y_axis is not None:
         kwargs["normalize_y_axis"] = test_normalize_y_axis

@@ -196,7 +196,7 @@ def create_frequency_vs_time_charts(
 
 def write_xlsx(
     plate_recording: PlateRecording,
-    output_dir: str = os.getcwd(),
+    output_dir: Optional[str] = None,
     normalize_y_axis: bool = True,
     max_y: Union[int, float] = None,
     start_time: Union[float, int] = 0,
@@ -277,6 +277,9 @@ def write_xlsx(
     is_full_analysis = start_time == 0 and end_time == max_final_time_secs
 
     # create output file name
+    if output_dir is None:
+        output_dir = os.getcwd()
+
     input_file_name_no_ext = os.path.splitext(os.path.basename(plate_recording.path))[0]
     file_suffix = "full" if is_full_analysis else f"{start_time}-{end_time}"
     output_file_path = os.path.join(output_dir, f"{input_file_name_no_ext}_{file_suffix}.xlsx")

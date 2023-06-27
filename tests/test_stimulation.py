@@ -634,11 +634,13 @@ def test_aggregate_timepoints__returns_correct_values_sorted():
 
 
 def test_realign_interpolated_stim_data__returns_correct_array():
-    new_timepoints = np.repeat(np.arange(0, 15, 1), 2)
-    orignal_stim_status_data = np.array([[0, 0, 3, 3, 14], [10, 20, 20, 30, 30]])
+    new_timepoints = np.repeat(np.arange(0, 16, 1), 2)
+    orignal_stim_status_data = np.array([[1, 1, 4, 4, 15], [10, 20, 20, 30, 30]])
 
     actual_adjusted_stim_status_data = realign_interpolated_stim_data(
         new_timepoints, orignal_stim_status_data
     )
-    expected_data = np.array([10, 20] + ([np.NaN] * 4) + [20, 30] + ([np.NaN] * 20) + [30, np.NaN])
+    expected_data = np.array(
+        ([np.NaN] * 2) + [10, 20] + ([np.NaN] * 4) + [20, 30] + ([np.NaN] * 20) + [30, np.NaN]
+    )
     np.testing.assert_array_equal(actual_adjusted_stim_status_data, expected_data)

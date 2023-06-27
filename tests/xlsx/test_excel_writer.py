@@ -295,6 +295,20 @@ def test_write_xlsx__correctly_handles_include_stim_protocols_param_when_false(
     assert len(df.keys()) == 8
 
 
+def test_write_xlsx__correctly_writes_to_provided_output_directory(patch_get_positions, tmp_dir_for_xlsx):
+    pr = PlateRecording(TEST_NO_STIM_FILE_PATH)
+
+    expected_output_dir = os.path.join(tmp_dir_for_xlsx, "test_subdir")
+    os.makedirs(expected_output_dir)
+
+    output_file_name = write_xlsx(pr, output_dir=expected_output_dir)
+    output_filepath = os.path.join(expected_output_dir, output_file_name)
+    default_path = os.path.join(tmp_dir_for_xlsx, "SmallBeta2File-NoStim_full.xlsx")
+
+    assert os.path.exists(output_filepath)
+    assert not os.path.exists(default_path)
+
+
 def test_write_xlsx__correctly_handles_include_stim_protocols_when_true_for_file_with_stim_protocols(
     patch_get_positions, tmp_dir_for_xlsx
 ):

@@ -563,8 +563,8 @@ class PlateRecording:
         first_well = next(iter(self))
 
         # add interpolated force timepoints
-        if self._created_from_dataframe:
-            raise NotImplementedError("Cannot export a DF if created from a DF. Just use the original")
+        # if self._created_from_dataframe:
+        #     raise NotImplementedError("Cannot export a DF if created from a DF. Just use the original")
 
         min_time = min([wf.force[0, 0] for wf in self])
         max_time = max([wf.force[0, -1] for wf in self])

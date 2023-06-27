@@ -216,16 +216,20 @@ def aggregate_timepoints(timepoints_from_wells: List[NDArray[(1, Any), float]]) 
 
 
 def realign_interpolated_stim_data(
-    new_timepoints: NDArray[(1, Any), float], orignal_stim_status_data: NDArray[(2, Any), float]
+    new_timepoints: NDArray[(1, Any), float], original_stim_status_data: NDArray[(2, Any), float]
 ) -> NDArray[(1, Any), float]:
-    adjusted_interpolated_stim_data = np.full((len(new_timepoints)), np.NaN)
-    orignal_timepoints_list = orignal_stim_status_data[0].tolist()
-    for new_idx, new_t in enumerate(new_timepoints):
-        try:
-            old_idx = orignal_timepoints_list.index(new_t)
-        except ValueError:
-            continue
-        else:
-            orignal_timepoints_list[old_idx] = None  # remove since there will be duplicate timepoints
-            adjusted_interpolated_stim_data[new_idx] = orignal_stim_status_data[1, old_idx]
+    adjusted_interpolated_stim_data = np.full(len(new_timepoints), np.NaN)
+
+    old_idx = 0
+    curr_time, curr_charge = original_stim_status_data[:, old_idx]
+    for new_idx, new_time in enumerate(new_timepoints):
+        if new_time == curr_time:
+            adjusted_interpolated_stim_data[new_idx] = curr_charge
+
+            old_idx += 1
+            try:
+                curr_time, curr_charge = original_stim_status_data[:, old_idx]
+            except IndexError:
+                break
+
     return adjusted_interpolated_stim_data

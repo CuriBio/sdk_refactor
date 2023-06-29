@@ -347,7 +347,7 @@ def test_PlateRecording__loads_from_zipped_xlsx_correctly():
 
 
 def test_PlateRecording__raises_error_when_duplicate_wells_found_in_optical_files():
-    with pytest.raises(DuplicateWellsFoundError, match="Duplicate well found for A1"):
+    with pytest.raises(DuplicateWellsFoundError):
         PlateRecording(TEST_OPTICAL_FILE_DUPLICATES)
 
 

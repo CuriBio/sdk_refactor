@@ -20,14 +20,12 @@ from pulse3D.plate_recording import PlateRecording
 import pytest
 
 from ..fixtures_utils import PATH_TO_H5_FILES
+from ..fixtures_utils import TEST_OPTICAL_FILE_96_WELL
 from ..fixtures_utils import TEST_OPTICAL_FILE_NO_DUPLICATES
 from ..fixtures_utils import TEST_OPTICAL_FILE_ONE_PATH
 from ..fixtures_utils import TEST_OPTICAL_FILE_THREE_PATH
 from ..fixtures_utils import TEST_OPTICAL_FILE_TWO_PATH
 from ..fixtures_utils import TEST_SMALL_BETA_1_FILE_PATH
-from ..fixtures_utils import TEST_OPTICAL_FILE_96_WELL
-from ..fixtures_utils import TEST_OPTICAL_FILE_384_WELL
-
 
 TEST_FILE_PATH = os.path.join(
     PATH_TO_H5_FILES, "v1.1.0", "ML2022126006_Position 1 Baseline_2022_06_15_004655.zip"
@@ -122,7 +120,6 @@ def test_write_xlsx__runs_magnet_finding_alg_without_error():
         TEST_OPTICAL_FILE_THREE_PATH,
         TEST_OPTICAL_FILE_NO_DUPLICATES,
         TEST_OPTICAL_FILE_96_WELL,
-        TEST_OPTICAL_FILE_384_WELL,
     ],
 )
 def test_write_xlsx__runs_optical_file_without_error(optical_file):

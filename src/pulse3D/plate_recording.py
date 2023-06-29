@@ -540,9 +540,6 @@ class PlateRecording:
     def _load_optical_well_files(self, file_paths: List[str], stiffness_factor: Union[int, None]):
         self.is_optical_recording = True
 
-        # first check column value, then check row
-        # file_paths.sort(key=lambda fp: (int(os.path.basename(fp)[1:-5]), os.path.basename(fp)[0]))
-
         for xlsx_path in file_paths:
             # check if xlsx is correct format and not pulse3d output file
             if _get_num_of_sheets(xlsx_path) > 1:

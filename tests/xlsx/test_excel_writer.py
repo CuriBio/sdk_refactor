@@ -25,6 +25,8 @@ from ..fixtures_utils import TEST_OPTICAL_FILE_ONE_PATH
 from ..fixtures_utils import TEST_OPTICAL_FILE_THREE_PATH
 from ..fixtures_utils import TEST_OPTICAL_FILE_TWO_PATH
 from ..fixtures_utils import TEST_SMALL_BETA_1_FILE_PATH
+from ..fixtures_utils import TEST_OPTICAL_FILE_96_WELL
+from ..fixtures_utils import TEST_OPTICAL_FILE_384_WELL
 
 
 TEST_FILE_PATH = os.path.join(
@@ -111,6 +113,7 @@ def test_write_xlsx__runs_magnet_finding_alg_without_error():
     assert isinstance(output_file_name, str)
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "optical_file",
     [
@@ -118,6 +121,8 @@ def test_write_xlsx__runs_magnet_finding_alg_without_error():
         TEST_OPTICAL_FILE_TWO_PATH,
         TEST_OPTICAL_FILE_THREE_PATH,
         TEST_OPTICAL_FILE_NO_DUPLICATES,
+        TEST_OPTICAL_FILE_96_WELL,
+        TEST_OPTICAL_FILE_384_WELL,
     ],
 )
 def test_write_xlsx__runs_optical_file_without_error(optical_file):

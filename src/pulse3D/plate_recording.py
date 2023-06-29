@@ -31,6 +31,7 @@ from .constants import *
 from .exceptions import IncorrectOpticalFileFormatError
 from .exceptions import NoRecordingFilesLoadedError
 from .exceptions import SubprotocolFormatIncompatibleWithInterpolationError
+from .exceptions import DuplicateWellsFoundError
 from .magnet_finding import find_magnet_positions
 from .magnet_finding import fix_dropped_samples
 from .magnet_finding import format_well_file_data
@@ -374,6 +375,9 @@ class PlateRecording:
         # make sure at least one WellFile was loaded
         if not any(self.wells):
             raise NoRecordingFilesLoadedError()
+
+        if len(self.wells) > len(set(w[WELL_NAME_UUID] for w in self.wells)):
+            raise DuplicateWellsFoundError()
 
         # ensure wells are in correct order A1, B1,.., A2, B2,...
         self.wells.sort(key=lambda w: (int(w[WELL_NAME_UUID][1:]), w[WELL_NAME_UUID][0]))

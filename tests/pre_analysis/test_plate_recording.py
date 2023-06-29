@@ -15,6 +15,7 @@ from pulse3D.constants import TWENTY_FOUR_WELL_PLATE
 from pulse3D.constants import WELL_INDEX_UUID
 from pulse3D.constants import WELL_NAME_UUID
 from pulse3D.exceptions import IncorrectOpticalFileFormatError
+from pulse3D.exceptions import DuplicateWellsFoundError
 from pulse3D.magnet_finding import format_well_file_data
 from pulse3D.plate_recording import PlateRecording
 from pulse3D.plate_recording import WellFile
@@ -27,6 +28,7 @@ from ..fixtures_utils import TEST_OPTICAL_FILE_CONTAINS_OUTPUT_XLSX
 from ..fixtures_utils import TEST_OPTICAL_FILE_ONE_PATH
 from ..fixtures_utils import TEST_SMALL_BETA_1_FILE_PATH
 from ..fixtures_utils import TEST_SMALL_BETA_2_FILE_PATH
+from ..fixtures_utils import TEST_OPTICAL_FILE_DUPLICATES
 
 TEST_TWO_STIM_SESSIONS_FILE_PATH = os.path.join(
     PATH_TO_H5_FILES, "stim", "StimInterpolationTest-TwoSessions.zip"
@@ -342,6 +344,11 @@ def test_PlateRecording__to_dataframe__drops_nan_values_when_no_stim_data_is_pre
 def test_PlateRecording__loads_from_zipped_xlsx_correctly():
     pr = PlateRecording(TEST_OPTICAL_FILE_ALL_WELLS)
     assert all(pr.wells)
+
+
+def test_PlateRecording__raises_error_when_duplicate_wells_found_in_optical_files():
+    with pytest.raises(DuplicateWellsFoundError, match="Duplicate well found for A1"):
+        PlateRecording(TEST_OPTICAL_FILE_DUPLICATES)
 
 
 def test_PlateRecording__raises_error_when_xlsx_output_found_in_zipped_optical_files():

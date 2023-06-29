@@ -411,6 +411,8 @@ class PlateRecording:
                 ):
                     self._process_stim_data()
 
+            self.contains_stim_data = any(wf.stim_sessions for wf in self)
+
     def _process_plate_data(self, calibration_recordings):
         if not all(isinstance(well_file, WellFile) for well_file in self.wells) or len(self.wells) != 24:
             raise NotImplementedError("All 24 wells must have a recording file present")
@@ -503,8 +505,6 @@ class PlateRecording:
                 waveform[0] -= wf[TIME_INDICES][0]
                 waveform[1] /= charge_conversion_factor
                 wf.stim_sessions.append(waveform)
-                # need to set this flag if this point is reached
-                self.contains_stim_data = True
 
     def _load_dataframe(self, df: pd.DataFrame) -> None:
         """Add time and force data to well files in PlateRecording.

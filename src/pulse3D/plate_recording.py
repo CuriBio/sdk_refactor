@@ -340,8 +340,9 @@ class PlateRecording:
         self.path = path
         self.wells = []
         self._iter = 0
-        # this may get overwritten later
+        # these may get overwritten later
         self.is_optical_recording = False
+        self.contains_stim_data = False
 
         # Tanner (11/16/22): due to the needs of the scientists for the full analysis,
         # these params should only be used in the recording snapshot.
@@ -502,6 +503,8 @@ class PlateRecording:
                 waveform[0] -= wf[TIME_INDICES][0]
                 waveform[1] /= charge_conversion_factor
                 wf.stim_sessions.append(waveform)
+                # need to set this flag if this point is reached
+                self.contains_stim_data = True
 
     def _load_dataframe(self, df: pd.DataFrame) -> None:
         """Add time and force data to well files in PlateRecording.

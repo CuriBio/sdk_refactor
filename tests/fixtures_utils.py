@@ -30,7 +30,8 @@ TEST_OPTICAL_FILE_THREE_PATH = os.path.join(PATH_TO_OPTICAL_FILES, "OPTICAL_TEST
 PATH_TO_ZIPPED_OPTICAL_FILES = os.path.join(PATH_TO_OPTICAL_FILES, "zipped_optical")
 TEST_OPTICAL_FILE_DUPLICATES = os.path.join(PATH_TO_ZIPPED_OPTICAL_FILES, "duplicates_optical.zip")
 TEST_OPTICAL_FILE_NO_DUPLICATES = os.path.join(PATH_TO_ZIPPED_OPTICAL_FILES, "no_duplicates_optical.zip")
-TEST_OPTICAL_FILE_96_WELL = os.path.join(PATH_TO_ZIPPED_OPTICAL_FILES, "96_well_recording.zip")
+TEST_OPTICAL_FILE_96_WELL = os.path.join(PATH_TO_ZIPPED_OPTICAL_FILES, "96_well_plate_example.zip")
+TEST_OPTICAL_FILE_384_WELL = os.path.join(PATH_TO_ZIPPED_OPTICAL_FILES, "384_well_plate_example.zip")
 TEST_OPTICAL_FILE_ALL_WELLS = os.path.join(PATH_TO_ZIPPED_OPTICAL_FILES, "full_recording.zip")
 TEST_OPTICAL_FILE_CONTAINS_OUTPUT_XLSX = os.path.join(
     PATH_TO_ZIPPED_OPTICAL_FILES, "contains_output_xlsx.zip"

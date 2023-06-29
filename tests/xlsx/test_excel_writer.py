@@ -412,4 +412,4 @@ def test_write_xlsx__stim_chart_axis_bounds_set_correctly(
 
     for call in mocked_create_waveform_charts.call_args_list:
         assert call[0][0]["stim"] == expected_stim_chart_bounds
-        assert call[0][-2]["chart_format"] == test_stim_waveform_format
+        assert call[0][-4]["chart_format"] == test_stim_waveform_format

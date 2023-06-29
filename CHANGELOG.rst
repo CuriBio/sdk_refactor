@@ -9,6 +9,7 @@ Added:
 - Include user-defined peak finding parameters in metadata sheet
 - Ability to add output directory to `write_xlsx`
 - Performance boost for recordings with high frequency stimulation
+- Ability to use any number of wells in analysis
 
 
 0.33.8 (2023-06-15)

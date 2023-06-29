@@ -118,14 +118,16 @@ def create_force_frequency_relationship_charts(
     well_name: str,
     num_data_points: int,
     num_per_twitch_metrics: int,
+    well_row: int,
+    well_col: int,
 ) -> None:
-    well_row = well_index * num_per_twitch_metrics
+    row = well_index * num_per_twitch_metrics
     last_column = xl_col_to_name(num_data_points)
 
     force_frequency_chart.add_series(
         {
-            "categories": f"='{PER_TWITCH_METRICS_SHEET_NAME}'!$B${well_row + 7}:${last_column}${well_row + 7}",
-            "values": f"='{PER_TWITCH_METRICS_SHEET_NAME}'!$B${well_row + 5}:${last_column}${well_row + 5}",
+            "categories": f"='{PER_TWITCH_METRICS_SHEET_NAME}'!$B${row + 7}:${last_column}${row + 7}",
+            "values": f"='{PER_TWITCH_METRICS_SHEET_NAME}'!$B${row + 5}:${last_column}${row + 5}",
             "marker": {"type": "diamond", "size": 7},
             "line": {"none": True},
         }
@@ -141,8 +143,6 @@ def create_force_frequency_relationship_charts(
     force_frequency_chart.set_size({"width": CHART_FIXED_WIDTH, "height": CHART_HEIGHT})
     force_frequency_chart.set_title({"name": f"Well {well_name}"})
 
-    well_row, well_col = get_row_and_column_from_well_name(well_name)
-
     force_frequency_sheet.insert_chart(
         1 + well_row * (CHART_HEIGHT_CELLS + 1),
         1 + well_col * (CHART_FIXED_WIDTH_CELLS + 1),
@@ -156,9 +156,10 @@ def create_frequency_vs_time_charts(
     well_info: Dict[str, Any],
     num_data_points: int,
     num_per_twitch_metrics,
+    well_row: int,
+    well_col: int,
 ) -> None:
     well_index = well_info["well_index"]
-    well_name = well_info["well_name"]
 
     row = well_index * num_per_twitch_metrics
     last_column = xl_col_to_name(num_data_points)
@@ -188,8 +189,6 @@ def create_frequency_vs_time_charts(
 
     frequency_chart.set_size({"width": CHART_FIXED_WIDTH, "height": CHART_HEIGHT})
     frequency_chart.set_title({"name": f"Well {well_info['well_name']}"})
-
-    well_row, well_col = get_row_and_column_from_well_name(well_name)
 
     frequency_chart_sheet.insert_chart(
         1 + well_row * (CHART_HEIGHT_CELLS + 1), 1 + well_col * (CHART_FIXED_WIDTH_CELLS + 1), frequency_chart
@@ -666,12 +665,20 @@ def _write_xlsx(
         if stim_plotting_info:
             _write_stim_waveforms(writer, stim_plotting_info["stim_waveform_df"])
 
+        # this is used to check if a couple xlsx files are being analyzed, could be more exact and check for 24/96/384
+        # but without this, the snapshot, time-force, and twitch-freq charts have a ton of white space calculating row/column
+        is_complete_plate_recording = len(recording_plotting_info) >= 24
+
         # waveform snapshot/full
         wb = writer.book
         snapshot_sheet = wb.add_worksheet("continuous-waveform-snapshot")
         full_sheet = wb.add_worksheet("full-continuous-waveform-plots")
 
         for rec_info_idx, well_info in enumerate(recording_plotting_info):
+            well_row, well_col = _get_row_and_column_for_well(
+                well_info["well_name"], is_complete_plate_recording, rec_info_idx
+            )
+
             log.info(f'Creating waveform charts for well {well_info["well_name"]}')
             create_waveform_charts(
                 y_axis_bounds,
@@ -683,6 +690,8 @@ def _write_xlsx(
                 full_sheet,
                 stim_plotting_info,
                 rec_info_idx,  # used to remove whitespace in full-continuous-waveform-plots
+                well_row,
+                well_col,
             )
 
         _write_aggregate_metrics(
@@ -697,7 +706,7 @@ def _write_xlsx(
         force_freq_sheet = wb.add_worksheet(FORCE_FREQUENCY_RELATIONSHIP_SHEET)
         freq_vs_time_sheet = wb.add_worksheet(TWITCH_FREQUENCIES_CHART_SHEET_NAME)
 
-        for well_info in recording_plotting_info:
+        for rec_info_idx, well_info in enumerate(recording_plotting_info):
             well_metrics = well_info["metrics"]
 
             if not well_metrics:
@@ -708,9 +717,19 @@ def _write_xlsx(
             force_freq_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
             freq_vs_time_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
 
+            well_row, well_col = _get_row_and_column_for_well(
+                well_info["well_name"], is_complete_plate_recording, rec_info_idx
+            )
+
             log.info(f"Creating frequency vs time chart for well {well_info['well_name']}")
             create_frequency_vs_time_charts(
-                freq_vs_time_sheet, freq_vs_time_chart, well_info, num_data_points, num_metrics
+                freq_vs_time_sheet,
+                freq_vs_time_chart,
+                well_info,
+                num_data_points,
+                num_metrics,
+                well_row,
+                well_col,
             )
 
             log.info(f"Creating force frequency relationship chart for well {well_info['well_name']}")
@@ -721,6 +740,8 @@ def _write_xlsx(
                 well_info["well_name"],
                 num_data_points,  # number of twitches
                 num_metrics,
+                well_row,
+                well_col,
             )
 
         log.info("Saving file")
@@ -807,6 +828,8 @@ def create_waveform_charts(
     full_sheet,
     stim_plotting_info,
     rec_info_idx,
+    well_row,
+    well_col,
 ):
     well_idx = well_info["well_index"]
     well_name = well_info["well_name"]
@@ -945,7 +968,6 @@ def create_waveform_charts(
             waveform_charts=[snapshot_chart, full_chart],
         )
 
-    well_row, well_col = get_row_and_column_from_well_name(well_name)
     snapshot_sheet.insert_chart(
         well_row * (CHART_HEIGHT_CELLS + 1), well_col * (CHART_FIXED_WIDTH_CELLS + 1), snapshot_chart
     )
@@ -1143,3 +1165,14 @@ def _get_agg_group_metrics(well_data, well_groups, twitch_widths_range):
         all_group_metrics.append({"name": label, "metrics": concat_aggregate_df})
 
     return all_group_metrics
+
+
+def _get_row_and_column_for_well(
+    well_name: str, is_complete_recording: bool, rec_info_idx: int
+) -> Tuple[int, int]:
+    # used to remove whitespace in snapshot, force frequency, and twitch-frequency sheets if only a few xlsx files were given
+    return (
+        get_row_and_column_from_well_name(well_name)
+        if is_complete_recording
+        else TWENTY_FOUR_WELL_PLATE.get_row_and_column_from_well_index(rec_info_idx)
+    )

@@ -14,7 +14,6 @@ PACKAGE_VERSION = metadata.version("pulse3D")
 
 TWENTY_FOUR_WELL_PLATE = LabwareDefinition(row_count=4, column_count=6)
 
-
 NUM_CHANNELS_24_WELL_PLATE = 24 * NUM_CHANNELS_PER_WELL
 
 MIN_SUPPORTED_FILE_VERSION = "0.1.1"

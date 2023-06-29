@@ -13,6 +13,7 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 
+from labware_domain_models import get_row_and_column_from_well_name
 import numpy as np
 import pandas as pd
 from scipy import interpolate
@@ -140,7 +141,7 @@ def create_force_frequency_relationship_charts(
     force_frequency_chart.set_size({"width": CHART_FIXED_WIDTH, "height": CHART_HEIGHT})
     force_frequency_chart.set_title({"name": f"Well {well_name}"})
 
-    well_row, well_col = TWENTY_FOUR_WELL_PLATE.get_row_and_column_from_well_index(well_index)
+    well_row, well_col = get_row_and_column_from_well_name(well_name)
 
     force_frequency_sheet.insert_chart(
         1 + well_row * (CHART_HEIGHT_CELLS + 1),
@@ -157,6 +158,7 @@ def create_frequency_vs_time_charts(
     num_per_twitch_metrics,
 ) -> None:
     well_index = well_info["well_index"]
+    well_name = well_info["well_name"]
 
     row = well_index * num_per_twitch_metrics
     last_column = xl_col_to_name(num_data_points)
@@ -187,7 +189,7 @@ def create_frequency_vs_time_charts(
     frequency_chart.set_size({"width": CHART_FIXED_WIDTH, "height": CHART_HEIGHT})
     frequency_chart.set_title({"name": f"Well {well_info['well_name']}"})
 
-    well_row, well_col = TWENTY_FOUR_WELL_PLATE.get_row_and_column_from_well_index(well_index)
+    well_row, well_col = get_row_and_column_from_well_name(well_name)
 
     frequency_chart_sheet.insert_chart(
         1 + well_row * (CHART_HEIGHT_CELLS + 1), 1 + well_col * (CHART_FIXED_WIDTH_CELLS + 1), frequency_chart
@@ -364,7 +366,7 @@ def write_xlsx(
 
     recording_plotting_info = []
     max_force_of_recording = 0
-    for well_file in plate_recording:
+    for well_index, well_file in enumerate(plate_recording):
         # initialize some data structures
         error_msg = None
 
@@ -378,8 +380,7 @@ def write_xlsx(
         if well_file is None:
             continue
 
-        well_index = well_file[WELL_INDEX_UUID]
-        well_name = TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_index)
+        well_name = well_file[WELL_NAME_UUID]
 
         # find bounding indices with respect to well recording
         well_start_idx, well_end_idx = truncate(
@@ -465,7 +466,7 @@ def write_xlsx(
 
         well_info = {
             "well_index": well_index,
-            "well_name": TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_index),
+            "well_name": well_name,
             "platemap_label": well_file[PLATEMAP_LABEL_UUID],
             "tissue_data": interpolated_well_data,
             "peaks_and_valleys": peaks_and_valleys,
@@ -590,8 +591,8 @@ def _get_stim_plotting_data(
     # insert this first since dict insertion order matters for the data frame creation
     stim_waveforms_dict = {"Stim Time (seconds)": None}
 
-    for well_idx, wf in enumerate(plate_recording):
-        well_name = TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_idx)
+    for wf in plate_recording:
+        well_name = wf[WELL_NAME_UUID]
 
         if not wf.stim_sessions:
             continue
@@ -669,6 +670,7 @@ def _write_xlsx(
         wb = writer.book
         snapshot_sheet = wb.add_worksheet("continuous-waveform-snapshot")
         full_sheet = wb.add_worksheet("full-continuous-waveform-plots")
+
         for rec_info_idx, well_info in enumerate(recording_plotting_info):
             log.info(f'Creating waveform charts for well {well_info["well_name"]}')
             create_waveform_charts(
@@ -697,8 +699,10 @@ def _write_xlsx(
 
         for well_info in recording_plotting_info:
             well_metrics = well_info["metrics"]
+
             if not well_metrics:
                 continue
+
             num_data_points = len(well_metrics[0])
 
             force_freq_chart = wb.add_chart({"type": "scatter", "subtype": "straight"})
@@ -941,7 +945,7 @@ def create_waveform_charts(
             waveform_charts=[snapshot_chart, full_chart],
         )
 
-    well_row, well_col = TWENTY_FOUR_WELL_PLATE.get_row_and_column_from_well_index(df_column - 1)
+    well_row, well_col = get_row_and_column_from_well_name(well_name)
     snapshot_sheet.insert_chart(
         well_row * (CHART_HEIGHT_CELLS + 1), well_col * (CHART_FIXED_WIDTH_CELLS + 1), snapshot_chart
     )

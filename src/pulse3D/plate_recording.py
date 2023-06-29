@@ -28,7 +28,6 @@ from xlsxwriter.utility import xl_cell_to_rowcol
 
 from .compression_cy import compress_filtered_magnetic_data
 from .constants import *
-from .exceptions import DuplicateWellsFoundError
 from .exceptions import IncorrectOpticalFileFormatError
 from .exceptions import NoRecordingFilesLoadedError
 from .exceptions import SubprotocolFormatIncompatibleWithInterpolationError
@@ -91,7 +90,6 @@ class WellFile:
             )
 
         self.has_inverted_post_magnet = has_inverted_post_magnet
-
         self.stiffness_override = stiffness_factor is not None
 
         if file_path.endswith(".h5"):
@@ -109,7 +107,7 @@ class WellFile:
             elif not self.get(IS_CALIBRATION_FILE_UUID, False):
                 # earlier versions of files do not have the IS_CALIBRATION_FILE_UUID in their metadata
                 experiment_id = get_experiment_id(self[PLATE_BARCODE_UUID])
-                self.stiffness_factor = get_stiffness_factor(experiment_id, self[WELL_INDEX_UUID])
+                self.stiffness_factor = get_stiffness_factor(experiment_id, self[WELL_NAME_UUID])
             else:
                 # calibration recordings do not have an associated barcode or post stiffness since they
                 # are creatd when a plate is not even on the istrument, so just set the stiffness factor to 1
@@ -162,6 +160,7 @@ class WellFile:
                 "y" in str(_get_excel_metadata_value(self._excel_sheet, TWITCHES_POINT_UP_UUID)).lower()
             )
             self.stiffness_factor = None
+
             for uuid_ in (PLATEMAP_NAME_UUID, PLATEMAP_LABEL_UUID):
                 self[uuid_] = NOT_APPLICABLE_LABEL
             # skip all other transforms
@@ -172,7 +171,6 @@ class WellFile:
     def _load_data_from_h5_file(self, file_path: str) -> None:
         with h5py.File(file_path, "r") as h5_file:
             self.file_name = os.path.basename(h5_file.filename)
-
             self.attrs = {attr: h5_file.attrs[attr] for attr in list(h5_file.attrs)}
             self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
 
@@ -377,6 +375,9 @@ class PlateRecording:
         if not any(self.wells):
             raise NoRecordingFilesLoadedError()
 
+        # ensure wells are in correct order A1, B1,.., A2, B2,...
+        self.wells.sort(key=lambda w: (int(w[WELL_NAME_UUID][1:]), w[WELL_NAME_UUID][0]))
+
         # set up platemap info
         first_avaliable_well = next(iter(self))
         self.platemap_name = first_avaliable_well[PLATEMAP_NAME_UUID]
@@ -534,9 +535,9 @@ class PlateRecording:
 
     def _load_optical_well_files(self, file_paths: List[str], stiffness_factor: Union[int, None]):
         self.is_optical_recording = True
-        if not self.wells:
-            # TODO parameterize number of wells here, set to 24 max for now
-            self.wells = [None] * 24
+
+        # first check column value, then check row
+        # file_paths.sort(key=lambda fp: (int(os.path.basename(fp)[1:-5]), os.path.basename(fp)[0]))
 
         for xlsx_path in file_paths:
             # check if xlsx is correct format and not pulse3d output file
@@ -546,11 +547,7 @@ class PlateRecording:
                 )
 
             well_file = WellFile(xlsx_path, stiffness_factor=stiffness_factor)
-            # check if user attempts to upload multiple files for the same well
-            if self.wells[well_file[WELL_INDEX_UUID]] is not None:
-                raise DuplicateWellsFoundError(f"Duplicate well found for {well_file[WELL_NAME_UUID]}")
-
-            self.wells[well_file[WELL_INDEX_UUID]] = well_file
+            self.wells.append(well_file)
 
     def to_dataframe(self, include_stim_data=True) -> pd.DataFrame:
         """Creates DataFrame from PlateRecording with all the data
@@ -568,6 +565,7 @@ class PlateRecording:
 
         min_time = min([wf.force[0, 0] for wf in self])
         max_time = max([wf.force[0, -1] for wf in self])
+
         interp_period = (
             first_well[INTERPOLATION_VALUE_UUID] if self.is_optical_recording else INTERPOLATED_DATA_PERIOD_US
         )
@@ -598,11 +596,11 @@ class PlateRecording:
             data["Stim Time (µs)"] = pd.Series(aggregate_stim_timepoints_us_for_plotting)
 
         # iterating over self.wells instead of using __iter__ so well_idx is preserved
-        for well_idx, wf in enumerate(self.wells):
+        for wf in self.wells:
             if not wf:
                 continue
 
-            well_name = wf.get(WELL_NAME_UUID, TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_idx))
+            well_name = wf.get(WELL_NAME_UUID)
 
             # add raw force data
             data[f"{well_name}__raw"] = pd.Series(wf.force[1, :])
@@ -764,13 +762,7 @@ def _load_optical_file_attrs(sheet: Worksheet):
 
     begin_recording = _get_excel_metadata_value(sheet, UTC_BEGINNING_RECORDING_UUID)
     begin_recording = datetime.datetime.strptime(begin_recording, "%Y-%m-%d %H:%M:%S")  # type: ignore
-
-    twenty_four_well = LabwareDefinition(row_count=4, column_count=6)
     well_name = _get_excel_metadata_value(sheet, WELL_NAME_UUID)
-
-    # some provided sample xlsx files contained well names like A001 and B001
-    if well_name is not None:
-        well_name = well_name.replace("0", "")
 
     attrs = {
         FILE_FORMAT_VERSION_METADATA_KEY: NOT_APPLICABLE_LABEL,
@@ -782,7 +774,6 @@ def _load_optical_file_attrs(sheet: Worksheet):
         str(MANTARRAY_SERIAL_NUMBER_UUID): _get_excel_metadata_value(sheet, MANTARRAY_SERIAL_NUMBER_UUID),
         str(PLATE_BARCODE_UUID): _get_excel_metadata_value(sheet, PLATE_BARCODE_UUID),
         str(WELL_NAME_UUID): well_name,
-        str(WELL_INDEX_UUID): twenty_four_well.get_well_index_from_well_name(well_name),
     }
 
     return attrs

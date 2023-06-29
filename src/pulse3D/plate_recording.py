@@ -28,10 +28,10 @@ from xlsxwriter.utility import xl_cell_to_rowcol
 
 from .compression_cy import compress_filtered_magnetic_data
 from .constants import *
+from .exceptions import DuplicateWellsFoundError
 from .exceptions import IncorrectOpticalFileFormatError
 from .exceptions import NoRecordingFilesLoadedError
 from .exceptions import SubprotocolFormatIncompatibleWithInterpolationError
-from .exceptions import DuplicateWellsFoundError
 from .magnet_finding import find_magnet_positions
 from .magnet_finding import fix_dropped_samples
 from .magnet_finding import format_well_file_data

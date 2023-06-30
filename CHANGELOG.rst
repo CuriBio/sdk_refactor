@@ -1,7 +1,7 @@
 Changelog for Pulse3D
 =====================
 
-0.33.9 (unreleased)
+0.33.9 (2023-06-29)
 -------------------
 
 Added:
@@ -9,6 +9,7 @@ Added:
 - Include user-defined peak finding parameters in metadata sheet
 - Ability to add output directory to `write_xlsx`
 - Performance boost for recordings with high frequency stimulation
+- Ability to use any number of wells in analysis
 
 Changed:
 ^^^^^^^^

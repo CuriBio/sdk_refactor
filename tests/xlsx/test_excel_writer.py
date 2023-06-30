@@ -20,12 +20,12 @@ from pulse3D.plate_recording import PlateRecording
 import pytest
 
 from ..fixtures_utils import PATH_TO_H5_FILES
+from ..fixtures_utils import TEST_OPTICAL_FILE_96_WELL
 from ..fixtures_utils import TEST_OPTICAL_FILE_NO_DUPLICATES
 from ..fixtures_utils import TEST_OPTICAL_FILE_ONE_PATH
 from ..fixtures_utils import TEST_OPTICAL_FILE_THREE_PATH
 from ..fixtures_utils import TEST_OPTICAL_FILE_TWO_PATH
 from ..fixtures_utils import TEST_SMALL_BETA_1_FILE_PATH
-
 
 TEST_FILE_PATH = os.path.join(
     PATH_TO_H5_FILES, "v1.1.0", "ML2022126006_Position 1 Baseline_2022_06_15_004655.zip"
@@ -111,6 +111,7 @@ def test_write_xlsx__runs_magnet_finding_alg_without_error():
     assert isinstance(output_file_name, str)
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "optical_file",
     [
@@ -118,6 +119,7 @@ def test_write_xlsx__runs_magnet_finding_alg_without_error():
         TEST_OPTICAL_FILE_TWO_PATH,
         TEST_OPTICAL_FILE_THREE_PATH,
         TEST_OPTICAL_FILE_NO_DUPLICATES,
+        TEST_OPTICAL_FILE_96_WELL,
     ],
 )
 def test_write_xlsx__runs_optical_file_without_error(optical_file):
@@ -412,4 +414,4 @@ def test_write_xlsx__stim_chart_axis_bounds_set_correctly(
 
     for call in mocked_create_waveform_charts.call_args_list:
         assert call[0][0]["stim"] == expected_stim_chart_bounds
-        assert call[0][-2]["chart_format"] == test_stim_waveform_format
+        assert call[0][-4]["chart_format"] == test_stim_waveform_format

@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
+from random import choice
 from random import randint
+from string import ascii_uppercase
 
 from pulse3D.constants import CARDIAC_STIFFNESS_FACTOR
 from pulse3D.constants import CARDIAC_STIFFNESS_LABEL
@@ -18,13 +20,13 @@ from pulse3D.utils import get_stiffness_label
 import pytest
 
 
-def random_well_idx():
-    return randint(0, 23)
+# checking for 384-well plate
+def random_well_name():
+    return choice(ascii_uppercase[0:13]) + str(randint(0, 23))
 
 
-def random_well_idx_in_row(row):
-    row_idx = ord(row) - ord("A")
-    return randint(0, 5) * 4 + row_idx
+def random_well_name_in_row(row):
+    return row + str(randint(0, 23))
 
 
 def random_variable_stiffness_exp_id():
@@ -41,41 +43,41 @@ def test_get_experiment_id__return_correct_value(test_barcode_format):
 
 
 @pytest.mark.parametrize(
-    "test_experiment_id,test_well_idx,expected_stiffness_factor",
+    "test_experiment_id,test_well_name,expected_stiffness_factor",
     [
-        (MIN_EXPERIMENT_ID, random_well_idx(), CARDIAC_STIFFNESS_FACTOR),
-        (MAX_CARDIAC_EXPERIMENT_ID, random_well_idx(), CARDIAC_STIFFNESS_FACTOR),
-        (MAX_CARDIAC_EXPERIMENT_ID + 1, random_well_idx(), SKM_STIFFNESS_FACTOR),
-        (MAX_SKM_EXPERIMENT_ID, random_well_idx(), SKM_STIFFNESS_FACTOR),
-        (MAX_SKM_EXPERIMENT_ID + 1, 0, ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR["A"]),
+        (MIN_EXPERIMENT_ID, random_well_name(), CARDIAC_STIFFNESS_FACTOR),
+        (MAX_CARDIAC_EXPERIMENT_ID, random_well_name(), CARDIAC_STIFFNESS_FACTOR),
+        (MAX_CARDIAC_EXPERIMENT_ID + 1, random_well_name(), SKM_STIFFNESS_FACTOR),
+        (MAX_SKM_EXPERIMENT_ID, random_well_name(), SKM_STIFFNESS_FACTOR),
+        (MAX_SKM_EXPERIMENT_ID + 1, "A1", ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR["A"]),
         (
             MAX_VARIABLE_EXPERIMENT_ID,
-            random_well_idx_in_row("A"),
+            random_well_name_in_row("A"),
             ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR["A"],
         ),
         (
             random_variable_stiffness_exp_id(),
-            random_well_idx_in_row("B"),
+            random_well_name_in_row("B"),
             ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR["B"],
         ),
         (
             random_variable_stiffness_exp_id(),
-            random_well_idx_in_row("C"),
+            random_well_name_in_row("C"),
             ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR["C"],
         ),
         (
             random_variable_stiffness_exp_id(),
-            random_well_idx_in_row("D"),
+            random_well_name_in_row("D"),
             ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR["D"],
         ),
-        (MAX_VARIABLE_EXPERIMENT_ID + 1, random_well_idx(), CARDIAC_STIFFNESS_FACTOR),
-        (MAX_EXPERIMENT_ID, random_well_idx(), CARDIAC_STIFFNESS_FACTOR),
+        (MAX_VARIABLE_EXPERIMENT_ID + 1, random_well_name(), CARDIAC_STIFFNESS_FACTOR),
+        (MAX_EXPERIMENT_ID, random_well_name(), CARDIAC_STIFFNESS_FACTOR),
     ],
 )
 def test_get_stiffness_factor__returns_correct_value(
-    test_experiment_id, test_well_idx, expected_stiffness_factor
+    test_experiment_id, test_well_name, expected_stiffness_factor
 ):
-    assert get_stiffness_factor(test_experiment_id, test_well_idx) == expected_stiffness_factor
+    assert get_stiffness_factor(test_experiment_id, test_well_name) == expected_stiffness_factor
 
 
 @pytest.mark.parametrize(
@@ -100,4 +102,4 @@ def test_get_stiffness_factor__raises_value_error_if_invalid_experiment_id_given
     with pytest.raises(
         ValueError, match=f"Experiment ID must be in the range 000-999, not {test_experiment_id}"
     ):
-        get_stiffness_factor(test_experiment_id, random_well_idx())
+        get_stiffness_factor(test_experiment_id, random_well_name())

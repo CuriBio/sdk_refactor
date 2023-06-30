@@ -18,7 +18,6 @@ from .constants import MAX_VARIABLE_EXPERIMENT_ID
 from .constants import MIN_EXPERIMENT_ID
 from .constants import POST_STIFFNESS_LABEL_TO_FACTOR
 from .constants import SKM_STIFFNESS_LABEL
-from .constants import TWENTY_FOUR_WELL_PLATE
 from .constants import VARIABLE_STIFFNESS_LABEL
 from .constants import WELL_NAME_UUID
 
@@ -36,11 +35,11 @@ def get_stiffness_label(barcode_experiment_id: int) -> str:
     return _get_stiffness_info(barcode_experiment_id)[0]
 
 
-def get_stiffness_factor(barcode_experiment_id: int, well_idx: int) -> int:
-    return _get_stiffness_info(barcode_experiment_id, well_idx)[1]
+def get_stiffness_factor(barcode_experiment_id: int, well_name: str) -> int:
+    return _get_stiffness_info(barcode_experiment_id, well_name)[1]
 
 
-def _get_stiffness_info(barcode_experiment_id: int, well_idx: Optional[int] = None) -> Tuple[str, int]:
+def _get_stiffness_info(barcode_experiment_id: int, well_name: Optional[str] = None) -> Tuple[str, int]:
     if not (MIN_EXPERIMENT_ID <= barcode_experiment_id <= MAX_EXPERIMENT_ID):
         raise ValueError(f"Experiment ID must be in the range 000-999, not {barcode_experiment_id}")
 
@@ -53,8 +52,8 @@ def _get_stiffness_info(barcode_experiment_id: int, well_idx: Optional[int] = No
     elif barcode_experiment_id <= MAX_VARIABLE_EXPERIMENT_ID:
         stiffness_label = VARIABLE_STIFFNESS_LABEL
         # if no well index given, assume the stiffness factor isn't needed by the caller
-        if well_idx is not None:
-            well_row_label = TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_idx)[0]
+        if well_name is not None:
+            well_row_label = well_name[0]
     else:
         # if experiment ID does not have a stiffness factor defined (currently 300-999) then just use the value for Cardiac
         stiffness_label = CARDIAC_STIFFNESS_LABEL

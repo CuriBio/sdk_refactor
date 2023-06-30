@@ -11,6 +11,10 @@ Added:
 - Performance boost for recordings with high frequency stimulation
 - Ability to use any number of wells in analysis
 
+Changed:
+^^^^^^^^
+- Stim Barcode, if found in a recording file, will no longer be included in metadata unless stim data is also found
+
 
 0.33.8 (2023-06-15)
 -------------------

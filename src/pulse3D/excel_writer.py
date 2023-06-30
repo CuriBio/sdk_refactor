@@ -304,9 +304,11 @@ def write_xlsx(
     else:
         post_stiffness_factor_label = get_stiffness_label(get_experiment_id(first_wf[PLATE_BARCODE_UUID]))
 
-    stim_barcode_display = first_wf.get(STIM_BARCODE_UUID)
-    if stim_barcode_display is None or stim_barcode_display == str(NOT_APPLICABLE_H5_METADATA):
-        stim_barcode_display = NOT_APPLICABLE_LABEL
+    stim_barcode_display = NOT_APPLICABLE_LABEL
+    if plate_recording.contains_stim_data and (
+        (stim_barcode := first_wf.get(STIM_BARCODE_UUID)) not in (None, str(NOT_APPLICABLE_H5_METADATA))
+    ):
+        stim_barcode_display = stim_barcode
 
     platemap_label_display_rows = [
         ("", label, ", ".join(well_names)) for label, well_names in plate_recording.platemap_labels.items()

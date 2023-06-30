@@ -339,8 +339,9 @@ class PlateRecording:
         self.path = path
         self.wells = []
         self._iter = 0
-        # this may get overwritten later
+        # these may get overwritten later
         self.is_optical_recording = False
+        self.contains_stim_data = False
 
         # Tanner (11/16/22): due to the needs of the scientists for the full analysis,
         # these params should only be used in the recording snapshot.
@@ -414,6 +415,8 @@ class PlateRecording:
                     MIN_FILE_VERSION_FOR_STIM_INTERPOLATION
                 ):
                     self._process_stim_data()
+
+            self.contains_stim_data = any(wf.stim_sessions for wf in self)
 
     def _process_plate_data(self, calibration_recordings):
         if not all(isinstance(well_file, WellFile) for well_file in self.wells) or len(self.wells) != 24:

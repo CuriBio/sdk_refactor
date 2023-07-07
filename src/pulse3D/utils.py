@@ -13,6 +13,7 @@ from nptyping import NDArray
 from .constants import CARDIAC_STIFFNESS_LABEL
 from .constants import MAX_CARDIAC_EXPERIMENT_ID
 from .constants import MAX_EXPERIMENT_ID
+from .constants import MAX_MINI_EXPERIMENT_ID
 from .constants import MAX_SKM_EXPERIMENT_ID
 from .constants import MAX_VARIABLE_EXPERIMENT_ID
 from .constants import MIN_EXPERIMENT_ID
@@ -47,7 +48,10 @@ def _get_stiffness_info(barcode_experiment_id: int, well_name: Optional[str] = N
 
     if barcode_experiment_id <= MAX_CARDIAC_EXPERIMENT_ID:
         stiffness_label = CARDIAC_STIFFNESS_LABEL
-    elif barcode_experiment_id <= MAX_SKM_EXPERIMENT_ID:
+    elif (
+        barcode_experiment_id <= MAX_SKM_EXPERIMENT_ID
+        or MAX_VARIABLE_EXPERIMENT_ID < barcode_experiment_id <= MAX_MINI_EXPERIMENT_ID
+    ):
         stiffness_label = SKM_STIFFNESS_LABEL
     elif barcode_experiment_id <= MAX_VARIABLE_EXPERIMENT_ID:
         stiffness_label = VARIABLE_STIFFNESS_LABEL

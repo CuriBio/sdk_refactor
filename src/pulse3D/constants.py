@@ -10,6 +10,7 @@ try:
     from importlib import metadata
 except ImportError:  # pragma: no cover
     import importlib_metadata as metadata  # type: ignore
+
 PACKAGE_VERSION = metadata.version("pulse3D")
 
 TWENTY_FOUR_WELL_PLATE = LabwareDefinition(row_count=4, column_count=6)
@@ -265,6 +266,7 @@ MIN_EXPERIMENT_ID = 0
 MAX_CARDIAC_EXPERIMENT_ID = 99
 MAX_SKM_EXPERIMENT_ID = 199
 MAX_VARIABLE_EXPERIMENT_ID = 299
+MAX_MINI_EXPERIMENT_ID = 399
 MAX_EXPERIMENT_ID = 999
 
 CARDIAC_STIFFNESS_LABEL = "Cardiac (1x)"

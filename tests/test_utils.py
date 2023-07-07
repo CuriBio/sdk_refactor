@@ -70,7 +70,7 @@ def test_get_experiment_id__return_correct_value(test_barcode_format):
             random_well_name_in_row("D"),
             ROW_LABEL_TO_VARIABLE_STIFFNESS_FACTOR["D"],
         ),
-        (MAX_VARIABLE_EXPERIMENT_ID + 1, random_well_name(), CARDIAC_STIFFNESS_FACTOR),
+        (MAX_VARIABLE_EXPERIMENT_ID + 1, random_well_name(), SKM_STIFFNESS_FACTOR),
         (MAX_EXPERIMENT_ID, random_well_name(), CARDIAC_STIFFNESS_FACTOR),
     ],
 )
@@ -89,7 +89,7 @@ def test_get_stiffness_factor__returns_correct_value(
         (MAX_SKM_EXPERIMENT_ID, SKM_STIFFNESS_LABEL),
         (MAX_SKM_EXPERIMENT_ID + 1, VARIABLE_STIFFNESS_LABEL),
         (MAX_VARIABLE_EXPERIMENT_ID, VARIABLE_STIFFNESS_LABEL),
-        (MAX_VARIABLE_EXPERIMENT_ID + 1, CARDIAC_STIFFNESS_LABEL),
+        (MAX_VARIABLE_EXPERIMENT_ID + 1, SKM_STIFFNESS_LABEL),
         (MAX_EXPERIMENT_ID, CARDIAC_STIFFNESS_LABEL),
     ],
 )

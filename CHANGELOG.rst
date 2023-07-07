@@ -8,6 +8,10 @@ Added:
 ^^^^^^
 - Support for MA mini barcodes
 
+Fixed:
+^^^^^^
+- Removed unnecessary dependency
+
 
 0.33.9 (2023-06-29)
 -------------------

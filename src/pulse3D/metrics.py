@@ -65,12 +65,14 @@ class MetricCalculator:
         # TODO this needs to be set to the baseline width
         twitch_width = 90
 
-        def foo(desired_x, x_1, y_1, x_2, y_2):
+        def foo(desired_x, x_1, y_1, x_2, y_2, peak_y):
             slope = (y_2 - y_1) / (x_2 - x_1)
-            return slope * (desired_x - x_1) + y_1
+            base_y = slope * (desired_x - x_1) + y_1
+            return peak_y - base_y
 
         df = self["twitch_width_coordinates"].with_columns(
-            peak_x=pl.Series(self._filtered_data[0][list(self._twitch_indices.keys())])
+            peak_x=pl.Series(self._filtered_data[0][list(self._twitch_indices.keys())]),
+            peak_y=pl.Series(self._filtered_data[1][list(self._twitch_indices.keys())]),
         )
 
         amplitudes = df.select(
@@ -80,10 +82,11 @@ class MetricCalculator:
                 pl.col(f"C-{twitch_width}-Y"),
                 pl.col(f"R-{twitch_width}-X"),
                 pl.col(f"R-{twitch_width}-Y"),
+                pl.col("peak_y"),
             )
         )
 
-        return {"twitch_amplitude": pd.Series(amplitudes.to_numpy().T[0])}
+        return {"twitch_amplitude": pl.Series(amplitudes.to_numpy().T[0])}
 
     def _calculate_twitch_fraction_amplitude(self):
         amplitudes = self["twitch_amplitude"]
@@ -108,15 +111,16 @@ class MetricCalculator:
         return self.__calculate_twitch_width_and_coordinates()
 
     def __calculate_twitch_width_and_coordinates(self):
-        width_df = pl.DataFrame({}, schema={"peak_idx": int, "width": int, "val": float})
-
-        timepoints_arr = self._filtered_data[0]
-        force_amplitudes_arr = self._filtered_data[1]
-
-        dict_for_df = {"peak_idx": list(self._twitch_indices),} | {
+        width_dict = {"peak_idx": list(self._twitch_indices)} | {
+            str(width): [] for width in self._twitch_width_percents
+        }
+        coordinates_dict = {"peak_idx": list(self._twitch_indices)} | {
             f"{label}-{width}-{axis}": []
             for label, width, axis in itertools.product(["R", "C"], self._twitch_width_percents, ["X", "Y"])
         }
+
+        timepoints_arr = self._filtered_data[0]
+        force_amplitudes_arr = self._filtered_data[1]
 
         for iter_twitch_peak_idx in self._twitch_indices:
             peak_force = force_amplitudes_arr[iter_twitch_peak_idx]
@@ -169,23 +173,17 @@ class MetricCalculator:
                     falling_threshold = int(round(falling_threshold, 0))
 
                 # fill width-value dictionary
-                width_df.vstack(
-                    pl.DataFrame(
-                        {
-                            "peak_idx": iter_twitch_peak_idx,
-                            "width": iter_percent,
-                            "val": width_val / MICRO_TO_BASE_CONVERSION,
-                        }
-                    ),
-                    in_place=True,
-                )
+                width_dict[str(iter_percent)].append(width_val / MICRO_TO_BASE_CONVERSION)
 
-                dict_for_df[f"C-{iter_percent}-X"].append(interpolated_rising_timepoint)
-                dict_for_df[f"R-{iter_percent}-X"].append(interpolated_falling_timepoint)
-                dict_for_df[f"C-{iter_percent}-Y"].append(rising_threshold)
-                dict_for_df[f"R-{iter_percent}-Y"].append(falling_threshold)
+                coordinates_dict[f"C-{iter_percent}-X"].append(interpolated_rising_timepoint)
+                coordinates_dict[f"R-{iter_percent}-X"].append(interpolated_falling_timepoint)
+                coordinates_dict[f"C-{iter_percent}-Y"].append(rising_threshold)
+                coordinates_dict[f"R-{iter_percent}-Y"].append(falling_threshold)
 
-        return {"twitch_width": width_df, "twitch_width_coordinates": pl.DataFrame(dict_for_df)}
+        return {
+            "twitch_width": pl.DataFrame(width_dict),
+            "twitch_width_coordinates": pl.DataFrame(coordinates_dict),
+        }
 
     def _calculate_twitch_contraction_velocity(self):
         return self.__calculate_twitch_velocity(True)

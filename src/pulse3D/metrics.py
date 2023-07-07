@@ -7,7 +7,7 @@ If a new metric is requested, you must implement `fit`,
 
 # for hashing dataframes
 import abc
-import json
+import itertools
 from typing import Any
 from typing import Dict
 from typing import Optional
@@ -18,9 +18,9 @@ from uuid import UUID
 from nptyping import NDArray
 import numpy as np
 import pandas as pd
-import polars as pl
 from pandas import DataFrame
 from pandas import Series
+import polars as pl
 from pulse3D.transforms import get_time_window_indices
 
 from .compression_cy import interpolate_x_for_y_between_two_points
@@ -65,31 +65,25 @@ class MetricCalculator:
         # TODO this needs to be set to the baseline width
         twitch_width = 90
 
-        amplitudes: Dict[int, float] = dict()
+        def foo(desired_x, x_1, y_1, x_2, y_2):
+            slope = (y_2 - y_1) / (x_2 - x_1)
+            return slope * (desired_x - x_1) + y_1
 
-        {"peak_idx": int, "width": int, "data_type": str, "label": str, "val": float}
+        df = self["twitch_width_coordinates"].with_columns(
+            peak_x=pl.Series(self._filtered_data[0][list(self._twitch_indices.keys())])
+        )
 
-        def foo():
+        amplitudes = df.select(
+            amplitude_y=foo(
+                pl.col("peak_x"),
+                pl.col(f"C-{twitch_width}-X"),
+                pl.col(f"C-{twitch_width}-Y"),
+                pl.col(f"R-{twitch_width}-X"),
+                pl.col(f"R-{twitch_width}-Y"),
+            )
+        )
 
-
-        # TODO need to mess around with polars DFs to figure out the best way to handle this
-
-        for twitch_data_series in self["twitch_width_coordinates"]:
-            twitch_peak_idx = int(twitch_data_series.name)
-            twitch_peak_x, twitch_peak_y = self._filtered_data[:, twitch_peak_idx]
-
-            # C10 in the metric definition diagram is the C point at 90% twitch width
-            c10x = twitch_data_series["time", "contraction", twitch_width]
-            c10y = twitch_data_series["force", "contraction", twitch_width]
-            r90x = twitch_data_series["time", "relaxation", twitch_width]
-            r90y = twitch_data_series["force", "relaxation", twitch_width]
-
-            twitch_base_y = interpolate_y_for_x_between_two_points(twitch_peak_x, c10x, c10y, r90x, r90y)
-            amplitude_y = twitch_peak_y - twitch_base_y
-
-            amplitudes[twitch_peak_idx] = amplitude_y
-
-        return {"twitch_amplitude": pd.Series(amplitudes)}
+        return {"twitch_amplitude": pd.Series(amplitudes.to_numpy().T[0])}
 
     def _calculate_twitch_fraction_amplitude(self):
         amplitudes = self["twitch_amplitude"]
@@ -115,12 +109,14 @@ class MetricCalculator:
 
     def __calculate_twitch_width_and_coordinates(self):
         width_df = pl.DataFrame({}, schema={"peak_idx": int, "width": int, "val": float})
-        coordinate_df = pl.DataFrame(
-            {}, schema={"peak_idx": int, "width": int, "data_type": str, "label": str, "val": float}
-        )
 
         timepoints_arr = self._filtered_data[0]
         force_amplitudes_arr = self._filtered_data[1]
+
+        dict_for_df = {"peak_idx": list(self._twitch_indices),} | {
+            f"{label}-{width}-{axis}": []
+            for label, width, axis in itertools.product(["R", "C"], self._twitch_width_percents, ["X", "Y"])
+        }
 
         for iter_twitch_peak_idx in self._twitch_indices:
             peak_force = force_amplitudes_arr[iter_twitch_peak_idx]
@@ -184,19 +180,12 @@ class MetricCalculator:
                     in_place=True,
                 )
 
-                coordinate_dicts = [
-                    {"data_type": "time", "label": "contraction", "val": rising_threshold},
-                    {"data_type": "time", "label": "relaxation", "val": falling_threshold},
-                    {"data_type": "force", "label": "contraction", "val": rising_threshold},
-                    {"data_type": "force", "label": "relaxation", "val": falling_threshold},
-                ]
-                coordinate_dicts = [
-                    {"peak_idx": iter_twitch_peak_idx, "width": iter_percent, **d} for d in coordinate_dicts
-                ]
+                dict_for_df[f"C-{iter_percent}-X"].append(interpolated_rising_timepoint)
+                dict_for_df[f"R-{iter_percent}-X"].append(interpolated_falling_timepoint)
+                dict_for_df[f"C-{iter_percent}-Y"].append(rising_threshold)
+                dict_for_df[f"R-{iter_percent}-Y"].append(falling_threshold)
 
-                coordinate_df.vstack(pl.DataFrame(coordinate_dicts), in_place=True)
-
-        return {"twitch_width": width_df, "twitch_width_coordinates": coordinate_df}
+        return {"twitch_width": width_df, "twitch_width_coordinates": pl.DataFrame(dict_for_df)}
 
     def _calculate_twitch_contraction_velocity(self):
         return self.__calculate_twitch_velocity(True)
@@ -1075,3 +1064,31 @@ class WellGroupMetric(BaseMetric):
             aggregate_df[metric_column[0]] = aggregate_metrics
         else:
             aggregate_df[metric_column[0], metric_column[1]] = aggregate_metrics
+
+
+df = pl.DataFrame(
+    {
+        "peak_idx": [10, 20, 30, 40, 50],
+        "C-10-X": [11, 21, 31, 41, 51],
+        "C-10-Y": [12, 22, 32, 42, 52],
+        "R-10-X": [13, 23, 33, 43, 53],
+        "R-10-Y": [14, 24, 34, 44, 54],
+    }
+)
+df = df.with_columns(peak_x=pl.Series([100, 200, 300, 400, 500]), peak_y=pl.Series([101, 201, 301, 401, 501]))
+
+
+def foo(desired_x, x_1, y_1, x_2, y_2):
+    slope = (y_2 - y_1) / (x_2 - x_1)
+    return slope * (desired_x - x_1) + y_1
+
+
+df.select(
+    amplitude_y=foo(
+        pl.col("peak_x"),
+        pl.col("C-10-Y"),
+        pl.col("C-10-X"),
+        pl.col("R-10-X"),
+        pl.col("R-10-Y"),
+    )
+)

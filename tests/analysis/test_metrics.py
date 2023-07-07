@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 
 import os
-import time
 import uuid
 
 import numpy as np
 import pandas as pd
 from pulse3D.constants import DEFAULT_BASELINE_WIDTHS
 from pulse3D.constants import DEFAULT_TWITCH_WIDTH_PERCENTS
+from pulse3D.constants import MICRO_TO_BASE_CONVERSION
 import pulse3D.metrics as metrics
 from pulse3D.metrics import MetricCalculator
 from pulse3D.peak_detection import find_twitch_indices
@@ -88,15 +88,17 @@ def test_metrics__TwitchAmplitude():
     # metric = metrics.TwitchAmplitude()
     # estimate = metric.fit(pv, w.force, twitch_indices)
 
-    # 18.37362500000017
-    start = time.perf_counter()
+    # 18.37362500000017  start
+    # -----------------------
+    # 210.9251250512898  use polars
+    # start = time.perf_counter()
     mc = MetricCalculator(
         w.force, twitch_indices, pv, DEFAULT_TWITCH_WIDTH_PERCENTS, DEFAULT_BASELINE_WIDTHS, rounded=False
     )
     amp = mc["twitch_amplitude"]
-    print("$$$", (time.perf_counter() - start) * 1000)
+    # print("$$$", (time.perf_counter() - start) * 1000)
 
-    np.testing.assert_array_almost_equal(amp, expected)
+    np.testing.assert_array_almost_equal(amp * MICRO_TO_BASE_CONVERSION, expected * MICRO_TO_BASE_CONVERSION)
 
 
 def test_metrics__TwitchAUC():

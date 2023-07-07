@@ -43,7 +43,6 @@ setup(
         "openpyxl>=3.0.7",
         "stdlib_utils>=0.4.4",
         "labware-domain-models>=0.3.1",
-        "requests>=2.25.1",
         "semver>=2.13.0",
         "pandas==1.5.3",
         "pyarrow==12.0.0",

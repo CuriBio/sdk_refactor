@@ -22,7 +22,7 @@ if USE_CYTHON:
 
 setup(
     name="Pulse3D",
-    version="0.33.9",
+    version="0.33.10",
     description="Pulse3D Analysis Platform",
     url="https://github.com/CuriBio/Pulse3D",
     project_urls={"Documentation": "https://pulse3D.readthedocs.io/en/latest/"},
@@ -43,7 +43,6 @@ setup(
         "openpyxl>=3.0.7",
         "stdlib_utils>=0.4.4",
         "labware-domain-models>=0.3.1",
-        "requests>=2.25.1",
         "semver>=2.13.0",
         "pandas==1.5.3",
         "pyarrow==12.0.0",

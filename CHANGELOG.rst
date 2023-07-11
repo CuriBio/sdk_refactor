@@ -1,6 +1,14 @@
 Changelog for Pulse3D
 =====================
 
+0.33.12 (unreleased)
+--------------------
+
+Fixed:
+^^^^^^
+- Fixed peak finding error for wells with no peaks detected
+
+
 0.33.11 (2023-07-07)
 --------------------
 

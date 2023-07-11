@@ -109,7 +109,7 @@ def noise_based_peak_finding(
         raise TooFewPeaksDetectedError(
             f"A minimum of {MIN_NUMBER_PEAKS} peaks is required to extract twitch metrics, however only {num_peaks} peak(s) were detected."
         )
-    
+
     noise_segements = np.array([[waveform[i] for i in range(peak, peak + segment_size)] for peak in peaks])
     time_segments = np.array([[time_axis[i] for i in range(peak, peak + segment_size)] for peak in peaks])
 

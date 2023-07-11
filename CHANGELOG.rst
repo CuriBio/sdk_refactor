@@ -1,6 +1,22 @@
 Changelog for Pulse3D
 =====================
 
+0.33.11 (2023-07-07)
+--------------------
+
+Added:
+^^^^^^
+- Support for MA mini barcodes
+
+
+0.33.10 (2023-07-07)
+--------------------
+
+Fixed:
+^^^^^^
+- Removed unnecessary dependency
+
+
 0.33.9 (2023-06-29)
 -------------------
 

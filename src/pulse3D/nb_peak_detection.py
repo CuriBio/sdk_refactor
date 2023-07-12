@@ -101,7 +101,7 @@ def noise_based_peak_finding(
     # use peaks to extract waveform segments from which noise data can be extracted - control over this could be given to the user if required
     segment_size = 10
 
-    while len(peaks) > 0 and peaks[-1] + segment_size > len(waveform):
+    while peaks and peaks[-1] + segment_size > len(waveform):
         # possible bug deletes only peak and you get a len(list) == 0
         peaks = np.delete(peaks, -1)
 

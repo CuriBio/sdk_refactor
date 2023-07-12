@@ -363,12 +363,12 @@ def test_find_twitch_indices__returns_correct_values_with_data_that_ends_in_vall
     assert actual[3][SUBSEQUENT_VALLEY_INDEX_UUID] == 4
 
 
-def test_peak_finding_return_exeption_when_peaks_are_missing():
+def test_peak_finding_raises_exception_when_peaks_only_detected_in_last_segment_of_data():
     peak_finding_folder = os.path.join(
         get_current_file_abs_directory(), os.pardir, "data_files", "peak_finding"
     )
 
-    test_file_path = os.path.join(peak_finding_folder, "waveforms", "waveform_3.npy")
+    test_file_path = os.path.join(peak_finding_folder, "waveforms", "peak_in_last_segment.npy")
     test_waveform = np.load(test_file_path)
 
     with pytest.raises(TooFewPeaksDetectedError):

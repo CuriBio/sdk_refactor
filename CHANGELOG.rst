@@ -1,6 +1,14 @@
 Changelog for Pulse3D
 =====================
 
+0.33.12 (2023-07-14)
+--------------------
+
+Added:
+^^^^^^
+- `Max Frequency of Peaks` to default peak finding params to show in metadata if user-defined
+
+
 0.33.11 (2023-07-07)
 --------------------
 

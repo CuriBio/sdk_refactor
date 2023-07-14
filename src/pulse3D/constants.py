@@ -207,16 +207,18 @@ DEFAULT_NB_HEIGHT_FACTOR = 0
 DEFAULT_NB_VALLEY_SEARCH_DUR = 1
 DEFAULT_NB_UPSLOPE_DUR = 0.07
 DEFAULT_NB_UPSLOPE_NOISE_ALLOWANCE_DUR = 0.01
+DEFAULT_MAX_FREQUENCY = None
 
 DEFAULT_NB_PARAMS = immutabledict(
     {
         DEFAULT_NB_NOISE_PROMINENCE_FACTOR: "Noise Prominence Factor",
         DEFAULT_NB_RELATIVE_PROMINENCE_FACTOR: "Relative Prominence Factor",
         DEFAULT_NB_WIDTH_FACTORS: "Width Factor",
-        DEFAULT_NB_HEIGHT_FACTOR: "Height Factor",
+        DEFAULT_NB_HEIGHT_FACTOR: "Min Peak Height",
         DEFAULT_NB_VALLEY_SEARCH_DUR: "Valley Search Duration",
         DEFAULT_NB_UPSLOPE_DUR: "Upslope Duration",
         DEFAULT_NB_UPSLOPE_NOISE_ALLOWANCE_DUR: "Upslope Noise Allowance Duration",
+        DEFAULT_MAX_FREQUENCY: "Max Frequency of Peaks",
     }
 )
 

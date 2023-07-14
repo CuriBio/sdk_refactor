@@ -322,6 +322,7 @@ def write_xlsx(
         DEFAULT_NB_VALLEY_SEARCH_DUR: valley_search_duration,
         DEFAULT_NB_UPSLOPE_DUR: upslope_duration,
         DEFAULT_NB_UPSLOPE_NOISE_ALLOWANCE_DUR: upslope_noise_allowance_duration,
+        DEFAULT_MAX_FREQUENCY: max_frequency,
     }
 
     peak_finding_display_rows = [

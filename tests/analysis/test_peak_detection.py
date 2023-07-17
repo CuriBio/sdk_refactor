@@ -363,6 +363,20 @@ def test_find_twitch_indices__returns_correct_values_with_data_that_ends_in_vall
     assert actual[3][SUBSEQUENT_VALLEY_INDEX_UUID] == 4
 
 
+def test_peak_finding__raises_error_when_all_initial_peaks_removed():
+    peak_finding_folder = os.path.join(
+        get_current_file_abs_directory(), os.pardir, "data_files", "peak_finding"
+    )
+
+    test_file_path = os.path.join(peak_finding_folder, "waveforms", "no_initial_peaks.npy")
+    test_waveform = np.load(test_file_path)
+
+    with pytest.raises(TooFewPeaksDetectedError):
+        noise_based_peak_finding(
+            test_waveform, relative_prominence_factor=DEFAULT_NB_RELATIVE_PROMINENCE_FACTOR
+        )
+
+
 # @pytest.mark.parametrize(
 #     "expected_metrics,test_description",
 #     [

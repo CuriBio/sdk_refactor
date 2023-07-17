@@ -93,17 +93,16 @@ def noise_based_peak_finding(
 
         correction_factor += 1
 
+    # use peaks to extract waveform segments from which noise data can be extracted - control over this could be given to the user if required
+    segment_size = 10
+
+    while (len(peaks) > 0) and (peaks[-1] + segment_size > len(waveform)):
+        peaks = np.delete(peaks, -1)
+
     if (num_peaks := len(peaks)) < MIN_NUMBER_PEAKS:
         raise TooFewPeaksDetectedError(
             f"A minimum of {MIN_NUMBER_PEAKS} peaks is required to extract twitch metrics, however only {num_peaks} peak(s) were detected."
         )
-
-    # use peaks to extract waveform segments from which noise data can be extracted - control over this could be given to the user if required
-    segment_size = 10
-
-    while peaks[-1] + segment_size > len(waveform):
-        # possible bug deletes only peak and you get a len(list) == 0
-        peaks = np.delete(peaks, -1)
 
     noise_segements = np.array([[waveform[i] for i in range(peak, peak + segment_size)] for peak in peaks])
     time_segments = np.array([[time_axis[i] for i in range(peak, peak + segment_size)] for peak in peaks])

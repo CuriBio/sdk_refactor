@@ -8,6 +8,7 @@ Changelog for Pulse3D
 Fixed:
 ^^^^^^
 - Support for MA mini barcodes
+- Issue with certain waveforms causing errors during peak detection
 
 
 0.33.12 (2023-07-14)

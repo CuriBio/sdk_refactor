@@ -11,6 +11,7 @@ from pulse3D.constants import NOT_APPLICABLE_LABEL
 from pulse3D.constants import PLATEMAP_LABEL_UUID
 from pulse3D.constants import PLATEMAP_NAME_UUID
 from pulse3D.constants import TISSUE_SAMPLING_PERIOD_UUID
+from pulse3D.constants import TISSUE_SENSOR_READINGS
 from pulse3D.constants import TWENTY_FOUR_WELL_PLATE
 from pulse3D.constants import WELL_INDEX_UUID
 from pulse3D.constants import WELL_NAME_UUID
@@ -76,8 +77,8 @@ def test_PlateRecording__loads_platemap_info_correctly(test_platemap_name, test_
 
     unmocked_load = WellFile._load_data_from_h5_file
 
-    def load_se(wf, file_path):
-        unmocked_load(wf, file_path)
+    def load_se(wf, file_path, remove_stim_artifact):
+        unmocked_load(wf, file_path, remove_stim_artifact)
         if test_platemap_name and test_platemap_name != NOT_APPLICABLE_H5_METADATA:
             wf.attrs[str(PLATEMAP_NAME_UUID)] = test_platemap_name
             wf.attrs[str(PLATEMAP_LABEL_UUID)] = test_label_metadata[wf[WELL_INDEX_UUID]]
@@ -93,7 +94,7 @@ def test_PlateRecording__loads_platemap_info_correctly(test_platemap_name, test_
     assert pr.platemap_labels == expected_labels
 
 
-def test_PlateRecording__creates_WellFiles_with_correct_value_for_has_inverted_post_magnet(mocker):
+def test_PlateRecording__creates_WellFiles_with_correct_value_for_has_inverted_post_magnet():
     # make sure A1 is always present
     wells_to_flip = ["A1"] + [
         TWENTY_FOUR_WELL_PLATE.get_well_name_from_well_index(well_idx)
@@ -106,6 +107,27 @@ def test_PlateRecording__creates_WellFiles_with_correct_value_for_has_inverted_p
     for wf in pr:
         well_name = wf[WELL_NAME_UUID]
         assert wf.has_inverted_post_magnet is (well_name in wells_to_flip), well_name
+
+
+def test_PlateRecording__creates_WellFiles_with_correct_value_for_remove_stim_artifacts(mocker):
+    # mock so magnet finding alg doesn't run
+    mocker.patch.object(
+        plate_recording,
+        "find_magnet_positions",
+        autospec=True,
+        side_effect=lambda x, *args, **kwargs: {"X": np.empty((x.shape[-1], 24))},
+    )
+
+    mocked_clean = mocker.patch.object(
+        plate_recording,
+        "clean_stim_artifact",
+        autospec=True,
+        side_effect=lambda h5f: h5f[TISSUE_SENSOR_READINGS][:],
+    )
+
+    PlateRecording(TEST_SMALL_BETA_2_FILE_PATH, remove_stim_artifacts=True)
+
+    assert mocked_clean.call_count == 24
 
 
 @pytest.mark.parametrize("test_file_path", [TEST_SMALL_BETA_1_FILE_PATH, TEST_SMALL_BETA_2_FILE_PATH])
@@ -274,8 +296,8 @@ def test_PlateRecording__overrides_h5_platemap_groups_if_well_groups_param_is_no
     )
     unmocked_load = WellFile._load_data_from_h5_file
 
-    def load_se(wf, file_path):
-        unmocked_load(wf, file_path)
+    def load_se(wf, file_path, remove_stim_artifact):
+        unmocked_load(wf, file_path, remove_stim_artifact)
         wf.attrs[str(PLATEMAP_NAME_UUID)] = test_platemap_meta_name
         wf.attrs[str(PLATEMAP_LABEL_UUID)] = test_label_metadata[wf[WELL_INDEX_UUID]]
 

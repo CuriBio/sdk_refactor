@@ -17,6 +17,7 @@ import zipfile
 import h5py
 from mantarray_magnet_finding.exceptions import UnableToConvergeError
 from mantarray_magnet_finding.utils import calculate_magnetic_flux_density_from_memsic
+from mantarray_magnet_finding.utils import clean_stim_artifact
 from nptyping import NDArray
 import numpy as np
 from openpyxl import load_workbook
@@ -80,6 +81,7 @@ class WellFile:
         # TODO unit test the stiffness factor (auto and override)
         stiffness_factor: Optional[int] = None,
         has_inverted_post_magnet: bool = False,
+        remove_stim_artifacts: bool = False,
     ):
         self.displacement: NDArray[(2, Any), np.float64]
         self.force: NDArray[(2, Any), np.float64]
@@ -97,7 +99,7 @@ class WellFile:
             self.is_force_data = True
             self.is_magnetic_data = True
 
-            self._load_data_from_h5_file(file_path)
+            self._load_data_from_h5_file(file_path, remove_stim_artifacts)
 
             self.tissue_sampling_period = (
                 sampling_period if sampling_period else self[TISSUE_SAMPLING_PERIOD_UUID]
@@ -169,7 +171,7 @@ class WellFile:
             # timepoints still need to be in µs
             self.force[0] *= MICRO_TO_BASE_CONVERSION
 
-    def _load_data_from_h5_file(self, file_path: str) -> None:
+    def _load_data_from_h5_file(self, file_path: str, remove_stim_artifacts: bool) -> None:
         with h5py.File(file_path, "r") as h5_file:
             self.file_name = os.path.basename(h5_file.filename)
             self.attrs = {attr: h5_file.attrs[attr] for attr in list(h5_file.attrs)}
@@ -188,6 +190,9 @@ class WellFile:
                     STIMULATION_READINGS,
                 ):
                     self[dataset] = h5_file[dataset][:]
+
+                if remove_stim_artifacts:
+                    self[TISSUE_SENSOR_READINGS] = clean_stim_artifact(h5_file)
 
     def _load_reading(self, h5_file, reading_type: str) -> NDArray[(Any, Any), int]:
         sampling_period = self[
@@ -335,6 +340,7 @@ class PlateRecording:
         stiffness_factor: Optional[int] = None,
         inverted_post_magnet_wells: Optional[List[str]] = None,
         well_groups: Optional[Dict[str, List[str]]] = None,
+        remove_stim_artifacts: bool = False,
     ):
         self.path = path
         self.wells = []
@@ -362,7 +368,7 @@ class PlateRecording:
 
                 if glob.glob(os.path.join(tmpdir, "**", "*.h5"), recursive=True):
                     self.wells, calibration_recordings = load_files(
-                        tmpdir, stiffness_factor, inverted_post_magnet_wells
+                        tmpdir, stiffness_factor, remove_stim_artifacts, inverted_post_magnet_wells
                     )
                 elif xlsx_files := glob.glob(os.path.join(tmpdir, "**", "*.xlsx"), recursive=True):
                     self._load_optical_well_files(xlsx_files, stiffness_factor)
@@ -370,7 +376,7 @@ class PlateRecording:
             self._load_optical_well_files([self.path], stiffness_factor)
         else:  # .h5 files
             self.wells, calibration_recordings = load_files(
-                self.path, stiffness_factor, inverted_post_magnet_wells
+                self.path, stiffness_factor, remove_stim_artifacts, inverted_post_magnet_wells
             )
 
         # make sure at least one WellFile was loaded
@@ -677,7 +683,10 @@ class PlateRecording:
 
 # helpers
 def load_files(
-    path: str, stiffness_factor: Optional[int], inverted_post_magnet_wells: Optional[List[str]] = None
+    path: str,
+    stiffness_factor: Optional[int],
+    remove_stim_artifacts: bool,
+    inverted_post_magnet_wells: Optional[List[str]] = None,
 ):
     if not inverted_post_magnet_wells:
         inverted_post_magnet_wells = []
@@ -697,6 +706,7 @@ def load_files(
             f,
             stiffness_factor=stiffness_factor,
             has_inverted_post_magnet=well_name in inverted_post_magnet_wells,
+            remove_stim_artifacts=remove_stim_artifacts,
         )
         tissue_well_files[well_file[WELL_INDEX_UUID]] = well_file  # type: ignore
 

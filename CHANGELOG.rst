@@ -1,6 +1,14 @@
 Changelog for Pulse3D
 =====================
 
+0.34.0 (unreleased)
+-------------------
+
+Added:
+^^^^^^
+- Option to remove stimulation artifacts
+
+
 
 0.33.13 (2023-07-17)
 --------------------

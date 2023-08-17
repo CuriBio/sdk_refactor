@@ -264,10 +264,20 @@ def test_write_xlsx__correctly_handles_custom_twitch_widths(patch_get_positions,
 
     assert get_per_twitch_labels(df) == {
         "Time From Contraction 8 to Peak (seconds)",
+        "Time From Contraction 10 to Peak (seconds)",
+        "Time From Contraction 19 to Peak (seconds)",
         "Time From Contraction 23 to Peak (seconds)",
+        "Time From Contraction 50 to Peak (seconds)",
+        "Time From Contraction 77 to Peak (seconds)",
         "Time From Contraction 81 to Peak (seconds)",
+        "Time From Contraction 90 to Peak (seconds)",
+        "Time From Peak to Relaxation 10 (seconds)",
+        "Time From Peak to Relaxation 19 (seconds)",
         "Time From Peak to Relaxation 23 (seconds)",
+        "Time From Peak to Relaxation 50 (seconds)",
+        "Time From Peak to Relaxation 77 (seconds)",
         "Time From Peak to Relaxation 81 (seconds)",
+        "Time From Peak to Relaxation 90 (seconds)",
         "Time From Peak to Relaxation 93 (seconds)",
     }
 

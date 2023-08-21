@@ -367,9 +367,9 @@ def write_xlsx(
         {col: [row[i] for row in metadata_rows] for i, col in enumerate(("A", "B", "C"))}
     )
 
-    twitch_width_percents = tuple(
+    twitch_widths = tuple(
         sorted(
-            set([*twitch_widths, *(100 - np.array(twitch_widths, dtype=int)), *DEFAULT_TWITCH_WIDTH_PERCENTS])
+            set(twitch_widths) | set(100 - np.array(twitch_widths, dtype=int)) | set(DEFAULT_TWITCH_WIDTHS)
         )
     )
 
@@ -382,7 +382,7 @@ def write_xlsx(
         error_msg = None
 
         # necessary for concatenating DFs together, in event that peak-finding fails and produces empty DF
-        dfs = init_dfs(twitch_widths_range=twitch_width_percents)
+        dfs = init_dfs(twitch_widths_range=twitch_widths)
         metrics = tuple(
             concat([dfs[k][j] for j in dfs[k].keys()], axis=1) for k in ("per_twitch", "aggregate")
         )
@@ -461,7 +461,7 @@ def write_xlsx(
             metrics = data_metrics(
                 peaks_and_valleys,
                 interpolated_well_data,
-                twitch_width_percents=twitch_width_percents,
+                twitch_width_percents=twitch_widths,
                 baseline_widths_to_use=baseline_widths_to_use,
             )
 
@@ -491,7 +491,7 @@ def write_xlsx(
     group_metrics_list = _get_agg_group_metrics(
         well_data=recording_plotting_info,
         well_groups=plate_recording.platemap_labels,
-        twitch_widths_range=twitch_width_percents,
+        twitch_widths_range=twitch_widths,
     )
 
     continuous_waveforms_df = _create_continuous_waveforms_df(

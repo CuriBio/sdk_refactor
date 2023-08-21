@@ -2,6 +2,14 @@ Changelog for Pulse3D
 =====================
 
 
+0.33.14 (unreleased)
+--------------------
+
+Fixed:
+^^^^^^
+- Incorrect metrics for Contraction 10 and Relaxation 90 points
+
+
 0.33.13 (2023-07-17)
 --------------------
 

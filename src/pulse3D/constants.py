@@ -81,6 +81,7 @@ BOOT_FLAGS_UUID = uuid.UUID("762f6715-ffcd-4e8d-b707-638dd5777841")
 INITIAL_MAGNET_FINDING_PARAMS_UUID = uuid.UUID("da5f2f6d-6874-4e53-be10-90c4bfbd3d45")
 PLATEMAP_NAME_UUID = uuid.UUID("2663ebdb-dce8-4fa1-8ec6-383db1ed1dbb")
 PLATEMAP_LABEL_UUID = uuid.UUID("f4c1a517-4c0b-4970-9253-a5b4aa64362f")
+NUM_INITIAL_MICROSECONDS_TO_REMOVE_UUID = uuid.UUID("1ba780d2-5396-4aea-b7f3-e3b19c2ac291")
 METADATA_UUID_DESCRIPTIONS = immutabledict(
     {
         # General values
@@ -140,6 +141,7 @@ METADATA_UUID_DESCRIPTIONS = immutabledict(
         # Optical file values
         TWITCHES_POINT_UP_UUID: "Flag indicating whether or not the twitches in the data point up or not",
         INTERPOLATION_VALUE_UUID: "Desired value for optical well data interpolation",
+        NUM_INITIAL_MICROSECONDS_TO_REMOVE_UUID: "The number of microseconds to remove from the tissue data after running the magnet finding algorithm",
     }
 )
 

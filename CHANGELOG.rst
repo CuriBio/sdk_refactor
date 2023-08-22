@@ -1,8 +1,16 @@
 Changelog for Pulse3D
 =====================
 
+0.34.0 (2023-08-22)
+-------------------
 
-0.33.14 (unreleased)
+Added:
+^^^^^^
+- Metadata value for H5 files that specifies how many µs to trim from the start of the magnetometer data after
+  running it through the magnet finding algorithm
+
+
+0.33.14 (2023-08-21)
 --------------------
 
 Fixed:

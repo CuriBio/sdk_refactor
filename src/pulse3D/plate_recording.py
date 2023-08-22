@@ -473,6 +473,12 @@ class PlateRecording:
             adjusted_time_indices = time_indices[analysis_window] - time_indices[start_idx]
 
             well_file.displacement = np.array([adjusted_time_indices, x])
+
+            if num_us_to_trim_from_start := well_file.get(NUM_INITIAL_MICROSECONDS_TO_REMOVE_UUID):
+                well_file.displacement = well_file.displacement[
+                    :, well_file.displacement[0] >= num_us_to_trim_from_start
+                ]
+
             well_file.force = calculate_force_from_displacement(
                 well_file.displacement, stiffness_factor=well_file.stiffness_factor
             )

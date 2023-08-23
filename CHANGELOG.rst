@@ -1,6 +1,14 @@
 Changelog for Pulse3D
 =====================
 
+0.34.1 (2023-08-23)
+-------------------
+
+Fixed:
+^^^^^^
+- Issue with stim data not getting trimmed correctly
+
+
 0.34.0 (2023-08-22)
 -------------------
 

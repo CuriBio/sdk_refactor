@@ -475,6 +475,7 @@ class PlateRecording:
             adjusted_time_indices = time_indices[analysis_window] - time_indices[start_idx]
 
             well_file.displacement = np.array([adjusted_time_indices, x])
+
             well_file.force = calculate_force_from_displacement(
                 well_file.displacement, stiffness_factor=well_file.stiffness_factor
             )

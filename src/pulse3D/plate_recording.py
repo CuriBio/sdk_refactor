@@ -416,6 +416,8 @@ class PlateRecording:
                 ):
                     self._process_stim_data()
 
+                self._handle_removal_of_initial_padding()
+
             self.contains_stim_data = any(wf.stim_sessions for wf in self)
 
     def _process_plate_data(self, calibration_recordings):
@@ -473,12 +475,6 @@ class PlateRecording:
             adjusted_time_indices = time_indices[analysis_window] - time_indices[start_idx]
 
             well_file.displacement = np.array([adjusted_time_indices, x])
-
-            if num_us_to_trim_from_start := well_file.get(NUM_INITIAL_MICROSECONDS_TO_REMOVE_UUID):
-                well_file.displacement = well_file.displacement[
-                    :, well_file.displacement[0] >= num_us_to_trim_from_start
-                ]
-
             well_file.force = calculate_force_from_displacement(
                 well_file.displacement, stiffness_factor=well_file.stiffness_factor
             )
@@ -516,6 +512,24 @@ class PlateRecording:
                 waveform[0] -= wf[TIME_INDICES][0]
                 waveform[1] /= charge_conversion_factor
                 wf.stim_sessions.append(waveform)
+
+    def _handle_removal_of_initial_padding(self) -> None:
+        num_us_to_trim_from_start = self.wells[0].get(NUM_INITIAL_MICROSECONDS_TO_REMOVE_UUID)
+        if not num_us_to_trim_from_start:
+            return
+
+        for well_file in self:
+            well_file.displacement = well_file.displacement[
+                :, well_file.displacement[0] >= num_us_to_trim_from_start
+            ]
+            well_file.force = well_file.force[:, well_file.force[0] >= num_us_to_trim_from_start]
+
+            shift_amount = well_file.force[0, 0]
+
+            well_file.force -= shift_amount
+            well_file.displacement -= shift_amount
+            for stim_session_arr in well_file.stim_sessions:
+                stim_session_arr[0] -= shift_amount
 
     def _load_dataframe(self, df: pd.DataFrame) -> None:
         """Add time and force data to well files in PlateRecording.

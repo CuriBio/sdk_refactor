@@ -123,13 +123,15 @@ def add_stim_data_series(
 def create_force_frequency_relationship_charts(
     force_frequency_sheet,
     force_frequency_chart,
-    well_index: int,
-    well_name: str,
+    well_info: Dict[str, Any],
     num_data_points: int,
     num_per_twitch_metrics: int,
     well_row: int,
     well_col: int,
 ) -> None:
+    well_index = well_info["well_index"]
+    well_name = well_info["well_name"]
+
     row = well_index * num_per_twitch_metrics
     last_column = xl_col_to_name(num_data_points)
 
@@ -146,7 +148,7 @@ def create_force_frequency_relationship_charts(
     x_axis_label = CALCULATED_METRIC_DISPLAY_NAMES[TWITCH_FREQUENCY_UUID]
 
     force_frequency_chart.set_x_axis({"name": x_axis_label})
-    y_axis_label = CALCULATED_METRIC_DISPLAY_NAMES[AMPLITUDE_UUID]
+    y_axis_label = _get_full_amplitude_label(well_info)
 
     force_frequency_chart.set_y_axis({"name": y_axis_label, "major_gridlines": {"visible": 0}})
     force_frequency_chart.set_size({"width": CHART_FIXED_WIDTH, "height": CHART_HEIGHT})
@@ -224,6 +226,7 @@ def write_xlsx(
     peaks_valleys: Dict[str, List[List[int]]] = None,
     include_stim_protocols: bool = False,
     stim_waveform_format: Optional[Union[Literal["stacked"], Literal["overlayed"]]] = None,
+    data_type: Optional[str] = None,
 ):
     """Write plate recording waveform and computed metrics to Excel spredsheet.
 
@@ -251,6 +254,12 @@ def write_xlsx(
         if stim_waveform_format not in ("stacked", "overlayed"):
             raise ValueError(f"Invalid stim_waveform_format: {stim_waveform_format}")
         include_stim_protocols = True
+
+    data_type = _get_data_type(plate_recording, data_type)
+    data_unit_label = DATA_TYPE_TO_UNIT_LABEL.get(data_type.lower(), DEFAULT_UNIT_LABEL)
+    amplitude_label = DATA_TYPE_TO_AMPLITUDE_LABEL.get(data_type.lower(), DEFAULT_AMPLITUDE_LABEL)
+    rise_rate_label = DATA_TYPE_TO_RISE_RATE_LABEL.get(data_type.lower(), DEFAULT_RISE_RATE_LABEL)
+    decay_rate_label = DATA_TYPE_TO_DECAY_RATE_LABEL.get(data_type.lower(), DEFAULT_DECAY_RATE_LABEL)
 
     # make sure windows bounds are floats
     start_time = float(start_time)
@@ -346,6 +355,7 @@ def write_xlsx(
             str(first_wf[UTC_BEGINNING_RECORDING_UUID].replace(tzinfo=None)),
         ),
         ("", "Post Stiffness Factor", post_stiffness_factor_label),
+        ("", "Data Type", data_type.title()),
         ("Well Grouping Information:", "", ""),
         ("", "PlateMap Name", plate_recording.platemap_name),
         *platemap_label_display_rows,
@@ -482,6 +492,10 @@ def write_xlsx(
             "tissue_data": interpolated_well_data,
             "peaks_and_valleys": peaks_and_valleys,
             "metrics": metrics,
+            "data_unit_label": data_unit_label,
+            "amplitude_label": amplitude_label,
+            "rise_rate_label": rise_rate_label,
+            "decay_rate_label": decay_rate_label,
         }
         if error_msg:
             well_info["error_msg"] = error_msg
@@ -581,7 +595,9 @@ def _create_continuous_waveforms_df(windowed_timepoints_us, recording_plotting_i
     continuous_waveforms = {"Time (seconds)": pd.Series(windowed_timepoints_us)}
     continuous_waveforms.update(
         {
-            f"{well_info['well_name']} - Active Twitch Force (μN)": pd.Series(well_info["tissue_data"][1])
+            f"{well_info['well_name']} - {_get_full_amplitude_label(well_info)}": pd.Series(
+                well_info["tissue_data"][1]
+            )
             for well_info in recording_plotting_info
         }
     )
@@ -751,8 +767,7 @@ def _write_xlsx(
             create_force_frequency_relationship_charts(
                 force_freq_sheet,
                 force_freq_chart,
-                well_info["well_index"],
-                well_info["well_name"],
+                well_info,
                 num_data_points,  # number of twitches
                 num_metrics,
                 well_row,
@@ -854,7 +869,9 @@ def create_waveform_charts(
     snapshot_upper_x_bound = min(
         well_info["tissue_data"][0, -1], snapshot_lower_x_bound + CHART_MAXIMUM_SNAPSHOT_LENGTH_SECS
     )
-    df_column = continuous_waveforms_df.columns.get_loc(f"{well_name} - Active Twitch Force (μN)")
+    df_column = continuous_waveforms_df.columns.get_loc(
+        f"{well_name} - {_get_full_amplitude_label(well_info)}"
+    )
 
     well_column = xl_col_to_name(df_column)
     # plot snapshot of waveform
@@ -866,7 +883,11 @@ def create_waveform_charts(
         {"name": "Time (seconds)", "min": snapshot_lower_x_bound, "max": snapshot_upper_x_bound}
     )
     snapshot_chart.set_y_axis(
-        {"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0}, **y_axis_bounds["tissue"]}
+        {
+            "name": _get_full_amplitude_label(well_info),
+            "major_gridlines": {"visible": 0},
+            **y_axis_bounds["tissue"],
+        }
     )
     snapshot_chart.set_title({"name": f"Well {well_name}"})
 
@@ -904,7 +925,11 @@ def create_waveform_charts(
 
     full_chart.set_x_axis({"name": "Time (seconds)", "min": full_lower_x_bound, "max": full_upper_x_bound})
     full_chart.set_y_axis(
-        {"name": "Active Twitch Force (μN)", "major_gridlines": {"visible": 0}, **y_axis_bounds["tissue"]}
+        {
+            "name": _get_full_amplitude_label(well_info),
+            "major_gridlines": {"visible": 0},
+            **y_axis_bounds["tissue"],
+        }
     )
     full_chart.set_title({"name": f"Well {well_name}"})
 
@@ -1045,6 +1070,13 @@ def aggregate_metrics_df(
     empty_aggregate_df = init_dfs(twitch_widths_range=widths)["aggregate"]
     empty_column = concat([empty_aggregate_df[j] for j in empty_aggregate_df.keys()], axis=1)
 
+    display_params = {
+        "unit": recording_plotting_info[0]["data_unit_label"],
+        "amplitude": recording_plotting_info[0]["amplitude_label"],
+        "rise_rate": recording_plotting_info[0]["rise_rate_label"],
+        "decay_rate": recording_plotting_info[0]["decay_rate_label"],
+    }
+
     combined = pd.concat([*individual_well_metrics, *[empty_column for _ in range(3)], *group_metrics])
     for metric_id in ALL_METRICS:
         if metric_id in (WIDTH_UUID, RELAXATION_TIME_UUID, CONTRACTION_TIME_UUID):
@@ -1063,7 +1095,7 @@ def aggregate_metrics_df(
                 metric_df = combined[metric_id].drop(columns=["n"]).T.droplevel(level=-1, axis=0)
                 df = _append_aggregate_measures_df(df, metric_df, name)
         else:
-            name = CALCULATED_METRIC_DISPLAY_NAMES[metric_id]
+            name = CALCULATED_METRIC_DISPLAY_NAMES[metric_id].format(**display_params)
             metric_df = combined[metric_id].drop(columns=["n"]).T.droplevel(level=-1, axis=0)
             df = _append_aggregate_measures_df(df, metric_df, name)
 
@@ -1110,6 +1142,13 @@ def per_twitch_df(
     # append to a list instead of to a dataframe directly because it's faster and construct the dataframe at the end
     series_list = []
 
+    display_params = {
+        "unit": recording_plotting_info[0]["data_unit_label"],
+        "amplitude": recording_plotting_info[0]["amplitude_label"],
+        "rise_rate": recording_plotting_info[0]["rise_rate_label"],
+        "decay_rate": recording_plotting_info[0]["decay_rate_label"],
+    }
+
     for well_info in recording_plotting_info:  # for each well
         num_per_twitch_metrics = 0  # len(labels)
         twitch_times = [well_info["tissue_data"][0, i] for i in well_info["metrics"][0].index]
@@ -1142,7 +1181,7 @@ def per_twitch_df(
                     series_list.append(temp)
                     num_per_twitch_metrics += 1
             else:
-                values = [CALCULATED_METRIC_DISPLAY_NAMES[metric_id]]
+                values = [CALCULATED_METRIC_DISPLAY_NAMES[metric_id].format(**display_params)]
                 temp = pd.Series(values + list(dm[metric_id]))
                 series_list.append(temp)
                 num_per_twitch_metrics += 1
@@ -1197,4 +1236,18 @@ def _get_row_and_column_for_well(
         get_row_and_column_from_well_name(well_name)
         if is_complete_recording
         else TWENTY_FOUR_WELL_PLATE.get_row_and_column_from_well_index(rec_info_idx)
+    )
+
+
+def _get_data_type(pr: PlateRecording, data_type_override: Optional[str]) -> str:
+    if data_type_override:
+        return data_type_override
+
+    # default to force since H5 files won't have this value
+    return pr.wells[0].get(str(DATA_TYPE_UUID), "Force")
+
+
+def _get_full_amplitude_label(well_info: Dict[str, Any]) -> str:
+    return CALCULATED_METRIC_DISPLAY_NAMES[AMPLITUDE_UUID].format(
+        amplitude=well_info["amplitude_label"], unit=well_info["data_unit_label"]
     )

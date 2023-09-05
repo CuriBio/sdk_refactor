@@ -82,6 +82,7 @@ INITIAL_MAGNET_FINDING_PARAMS_UUID = uuid.UUID("da5f2f6d-6874-4e53-be10-90c4bfbd
 PLATEMAP_NAME_UUID = uuid.UUID("2663ebdb-dce8-4fa1-8ec6-383db1ed1dbb")
 PLATEMAP_LABEL_UUID = uuid.UUID("f4c1a517-4c0b-4970-9253-a5b4aa64362f")
 NUM_INITIAL_MICROSECONDS_TO_REMOVE_UUID = uuid.UUID("1ba780d2-5396-4aea-b7f3-e3b19c2ac291")
+DATA_TYPE_UUID = uuid.UUID("ff1f2704-f622-4fa0-9136-1cf2268cc02f")
 METADATA_UUID_DESCRIPTIONS = immutabledict(
     {
         # General values
@@ -139,9 +140,10 @@ METADATA_UUID_DESCRIPTIONS = immutabledict(
         BOOT_FLAGS_UUID: "Hardware/firmware flags present on device bootup",
         INITIAL_MAGNET_FINDING_PARAMS_UUID: "JSON string of the initial magnet finding params that should be used in Pulse3D",
         # Optical file values
-        TWITCHES_POINT_UP_UUID: "Flag indicating whether or not the twitches in the data point up or not",
+        TWITCHES_POINT_UP_UUID: "Flag indicating whether or not the twitches in the data point up",
         INTERPOLATION_VALUE_UUID: "Desired value for optical well data interpolation",
         NUM_INITIAL_MICROSECONDS_TO_REMOVE_UUID: "The number of microseconds to remove from the tissue data after running the magnet finding algorithm",
+        DATA_TYPE_UUID: "The type of data being measured (calcium/voltage/etc.)",
     }
 )
 
@@ -327,14 +329,47 @@ CHART_FIXED_WIDTH = DEFAULT_CELL_WIDTH * CHART_FIXED_WIDTH_CELLS
 
 SECONDS_PER_CELL = 2.5
 
+DATA_TYPE_TO_AMPLITUDE_LABEL = immutabledict(
+    {
+        "force": "Active Twitch Force",
+        "calcium": "Fluorescence",
+        "voltage": "Fluorescence",
+    }
+)
+DEFAULT_AMPLITUDE_LABEL = "Twitch Amplitude"
+DATA_TYPE_TO_UNIT_LABEL = immutabledict(
+    {
+        "force": "μN",
+        "calcium": "au",
+        "voltage": "au",
+    }
+)
+DEFAULT_UNIT_LABEL = "au"
+DATA_TYPE_TO_RISE_RATE_LABEL = immutabledict(
+    {
+        "force": "Twitch Contraction Velocity",
+        "calcium": "Fluorescence Rise Rate",
+        "voltage": "Fluorescence Rise Rate",
+    }
+)
+DEFAULT_RISE_RATE_LABEL = "Twitch Rise Rate"
+DATA_TYPE_TO_DECAY_RATE_LABEL = immutabledict(
+    {
+        "force": "Twitch Relaxation Velocity",
+        "calcium": "Fluorescence Decay Rate",
+        "voltage": "Fluorescence Decay Rate",
+    }
+)
+DEFAULT_DECAY_RATE_LABEL = "Twitch Decay Rate"
+
 CALCULATED_METRIC_DISPLAY_NAMES = {
     TWITCH_PERIOD_UUID: "Twitch Period (seconds)",
     TWITCH_FREQUENCY_UUID: "Twitch Frequency (Hz)",
-    AMPLITUDE_UUID: "Active Twitch Force (μN)",
-    FRACTION_MAX_UUID: "Fraction of Maximum Active Twitch Force (μN)",
-    AUC_UUID: "Area Under Curve (μN * second)",
-    CONTRACTION_VELOCITY_UUID: "Twitch Contraction Velocity (μN/second)",
-    RELAXATION_VELOCITY_UUID: "Twitch Relaxation Velocity (μN/second)",
+    AMPLITUDE_UUID: "{amplitude} ({unit})",
+    FRACTION_MAX_UUID: "Fraction of Maximum {amplitude} ({unit})",
+    AUC_UUID: "Area Under Curve ({unit} * second)",
+    CONTRACTION_VELOCITY_UUID: "{rise_rate} ({unit}/second)",
+    RELAXATION_VELOCITY_UUID: "{decay_rate} ({unit}/second)",
     IRREGULARITY_INTERVAL_UUID: "Twitch Interval Irregularity (seconds)",
     TIME_DIFFERENCE_UUID: "Time Difference (seconds)",
     WIDTH_UUID: "Twitch Width {} (seconds)",
@@ -371,6 +406,7 @@ EXCEL_OPTICAL_METADATA_CELLS = immutabledict(
         TWITCHES_POINT_UP_UUID: "E6",
         MANTARRAY_SERIAL_NUMBER_UUID: "E7",
         INTERPOLATION_VALUE_UUID: "E8",
+        DATA_TYPE_UUID: "E9",
     }
 )
 

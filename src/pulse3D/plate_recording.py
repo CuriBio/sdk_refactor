@@ -94,7 +94,6 @@ class WellFile:
         self.stiffness_override = stiffness_factor is not None
 
         if file_path.endswith(".h5"):
-            self.is_force_data = True
             self.is_magnetic_data = True
 
             self._load_data_from_h5_file(file_path)
@@ -157,9 +156,6 @@ class WellFile:
             self.attrs = {k: v for k, v in _load_optical_file_attrs(self._excel_sheet).items()}
             self.version = self[FILE_FORMAT_VERSION_METADATA_KEY]
             self.is_magnetic_data = False
-            self.is_force_data = (
-                "y" in str(_get_excel_metadata_value(self._excel_sheet, TWITCHES_POINT_UP_UUID)).lower()
-            )
             self.stiffness_factor = None
 
             for uuid_ in (PLATEMAP_NAME_UUID, PLATEMAP_LABEL_UUID):
@@ -268,7 +264,7 @@ class WellFile:
             self.displacement, stiffness_factor=self.stiffness_factor, in_mm=False
         )
 
-    def get(self, key, default=None):
+    def get(self, key, default=None) -> Any:
         try:
             return self[key]
         except Exception:
@@ -337,7 +333,7 @@ class PlateRecording:
         well_groups: Optional[Dict[str, List[str]]] = None,
     ):
         self.path = path
-        self.wells = []
+        self.wells: List[WellFile] = []
         self._iter = 0
         # these may get overwritten later
         self.is_optical_recording = False
@@ -799,6 +795,20 @@ def _load_optical_file_attrs(sheet: Worksheet):
         str(MANTARRAY_SERIAL_NUMBER_UUID): _get_excel_metadata_value(sheet, MANTARRAY_SERIAL_NUMBER_UUID),
         str(PLATE_BARCODE_UUID): _get_excel_metadata_value(sheet, PLATE_BARCODE_UUID),
         str(WELL_NAME_UUID): well_name,
+        str(DATA_TYPE_UUID): _get_data_type(_get_excel_metadata_value(sheet, DATA_TYPE_UUID)),
     }
 
     return attrs
+
+
+def _get_data_type(data_type_meta: Optional[str]):
+    default = "Calcium"
+
+    if data_type_meta is None:
+        return default
+    if "calcium" in data_type_meta.lower():
+        return "Calcium"
+    if "voltage" in data_type_meta.lower():
+        return "Voltage"
+
+    return default

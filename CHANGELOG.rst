@@ -1,6 +1,14 @@
 Changelog for Pulse3D
 =====================
 
+0.34.2 (2023-09-06)
+-------------------
+
+Added:
+^^^^^^
+- Ability to specify the type of data being analyzed (i.e. Twitch Force, Calcium/Voltage Fluorescence, etc.)
+
+
 0.34.1 (2023-08-23)
 -------------------
 

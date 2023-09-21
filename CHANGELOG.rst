@@ -1,6 +1,14 @@
 Changelog for Pulse3D
 =====================
 
+0.34.3 (unreleased)
+-------------------
+
+Added:
+^^^^^^
+- Ability to add arbitrary, user-defined metadata as key/value pairs
+
+
 0.34.2 (2023-09-06)
 -------------------
 

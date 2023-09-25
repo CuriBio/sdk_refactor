@@ -323,6 +323,12 @@ def write_xlsx(
         ("", label, ", ".join(well_names)) for label, well_names in plate_recording.platemap_labels.items()
     ]
 
+    user_defined_metadata_rows = []
+    if user_defined_metadata := json.loads(first_wf.get(USER_DEFINED_METADATA_UUID, r"{}")):
+        user_defined_metadata_rows = [("User-defined Metadata:", "", "")] + [
+            ("", k, v) for k, v in user_defined_metadata.items()
+        ]
+
     peak_finding_params_to_compare = {
         DEFAULT_NB_NOISE_PROMINENCE_FACTOR: noise_prominence_factor,
         DEFAULT_NB_RELATIVE_PROMINENCE_FACTOR: relative_prominence_factor,
@@ -356,6 +362,7 @@ def write_xlsx(
         ),
         ("", "Post Stiffness Factor", post_stiffness_factor_label),
         ("", "Data Type", data_type.title()),
+        *user_defined_metadata_rows,
         ("Well Grouping Information:", "", ""),
         ("", "PlateMap Name", plate_recording.platemap_name),
         *platemap_label_display_rows,

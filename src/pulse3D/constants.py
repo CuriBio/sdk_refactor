@@ -83,6 +83,7 @@ PLATEMAP_NAME_UUID = uuid.UUID("2663ebdb-dce8-4fa1-8ec6-383db1ed1dbb")
 PLATEMAP_LABEL_UUID = uuid.UUID("f4c1a517-4c0b-4970-9253-a5b4aa64362f")
 NUM_INITIAL_MICROSECONDS_TO_REMOVE_UUID = uuid.UUID("1ba780d2-5396-4aea-b7f3-e3b19c2ac291")
 DATA_TYPE_UUID = uuid.UUID("ff1f2704-f622-4fa0-9136-1cf2268cc02f")
+USER_DEFINED_METADATA_UUID = uuid.UUID("acd41862-4b8b-46d9-8090-017a30b66891")
 METADATA_UUID_DESCRIPTIONS = immutabledict(
     {
         # General values
@@ -123,6 +124,7 @@ METADATA_UUID_DESCRIPTIONS = immutabledict(
         FILE_VERSION_PRIOR_TO_MIGRATION_UUID: "File format version that this file was migrated from",
         PLATEMAP_NAME_UUID: "The name of the Platemap Well Grouping",
         PLATEMAP_LABEL_UUID: "The name of a label in the Platemap Well Grouping",
+        USER_DEFINED_METADATA_UUID: "User defined key/value pairs of metadata",
         # Beta 1 specific values
         XEM_SERIAL_NUMBER_UUID: "XEM Serial Number",
         # Beta 2 specific values
@@ -139,10 +141,10 @@ METADATA_UUID_DESCRIPTIONS = immutabledict(
         CHANNEL_FIRMWARE_VERSION_UUID: "Firmware Version (Channel Controller)",
         BOOT_FLAGS_UUID: "Hardware/firmware flags present on device bootup",
         INITIAL_MAGNET_FINDING_PARAMS_UUID: "JSON string of the initial magnet finding params that should be used in Pulse3D",
+        NUM_INITIAL_MICROSECONDS_TO_REMOVE_UUID: "The number of microseconds to remove from the tissue data after running the magnet finding algorithm",
         # Optical file values
         TWITCHES_POINT_UP_UUID: "Flag indicating whether or not the twitches in the data point up",
         INTERPOLATION_VALUE_UUID: "Desired value for optical well data interpolation",
-        NUM_INITIAL_MICROSECONDS_TO_REMOVE_UUID: "The number of microseconds to remove from the tissue data after running the magnet finding algorithm",
         DATA_TYPE_UUID: "The type of data being measured (calcium/voltage/etc.)",
     }
 )

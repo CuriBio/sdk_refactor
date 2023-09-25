@@ -324,8 +324,10 @@ def write_xlsx(
     ]
 
     user_defined_metadata_rows = []
-    if user_defined_metadata := first_wf.get(USER_DEFINED_METADATA_UUID):
-        user_defined_metadata_rows = [("", k, v) for k, v in user_defined_metadata.items()]
+    if user_defined_metadata := json.loads(first_wf.get(USER_DEFINED_METADATA_UUID, r"{}")):
+        user_defined_metadata_rows = [("User-defined Metadata:", "", "")] + [
+            ("", k, v) for k, v in user_defined_metadata.items()
+        ]
 
     peak_finding_params_to_compare = {
         DEFAULT_NB_NOISE_PROMINENCE_FACTOR: noise_prominence_factor,

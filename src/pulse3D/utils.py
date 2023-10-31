@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """General utility/helpers."""
-import logging
 import math
 from typing import Any
 from typing import Optional
@@ -22,9 +21,6 @@ from .constants import POST_STIFFNESS_LABEL_TO_FACTOR
 from .constants import SKM_STIFFNESS_LABEL
 from .constants import VARIABLE_STIFFNESS_LABEL
 from .constants import WELL_NAME_UUID
-
-
-logger = logging.getLogger(__name__)
 
 
 def get_experiment_id(barcode: str) -> int:

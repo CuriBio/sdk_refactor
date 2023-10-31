@@ -502,14 +502,12 @@ class PlateRecording:
 
             is_voltage = stim_protocol["stimulation_type"] == "V"
             charge_conversion_factor = 1 if is_voltage else MILLI_TO_BASE_CONVERSION
-            # print(stim_sessions_waveforms)
+
             for waveform in stim_sessions_waveforms:
                 if not waveform.shape[-1]:
                     continue
-
                 waveform[0] -= wf[TIME_INDICES][0]
                 waveform[1] /= charge_conversion_factor
-
                 wf.stim_sessions.append(waveform)
 
     def _handle_removal_of_initial_padding(self) -> None:

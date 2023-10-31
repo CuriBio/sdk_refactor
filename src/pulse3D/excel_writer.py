@@ -629,7 +629,7 @@ def _get_stim_plotting_data(
 
         if not wf.stim_sessions:
             continue
-        # print(wf.stim_sessions)
+
         stim_protocol = json.loads(wf[STIMULATION_PROTOCOL_UUID])
 
         charge_units[well_name] = "mA" if stim_protocol["stimulation_type"] == "C" else "mV"
@@ -657,11 +657,9 @@ def _get_stim_plotting_data(
             max_stim_amplitude = max(max_stim_amplitude, max(arr[1]))  # type: ignore
             min_stim_amplitude = min(min_stim_amplitude, min(arr[1]))  # type: ignore
             new_arr = realign_interpolated_stim_data(stim_timepoints_for_plotting_us, arr)
-
         stim_waveforms_dict[title] = pd.Series(new_arr)
 
     stim_waveform_df = pd.DataFrame(stim_waveforms_dict)
-
     if stim_waveform_df.empty:
         return {}
 
@@ -1027,12 +1025,12 @@ def create_waveform_charts(
         well_row * (CHART_HEIGHT_CELLS + 1), well_col * (CHART_FIXED_WIDTH_CELLS + 1), snapshot_chart
     )
 
+    cells_per_well = CHART_HEIGHT_CELLS + 1
     if stim_chart_format == "stacked":
         cells_per_well += STIM_CHART_HEIGHT_CELLS
         if stim_chart.series:
             full_sheet.insert_chart(1 + CHART_HEIGHT_CELLS + rec_info_idx * cells_per_well, 1, stim_chart)
 
-    cells_per_well = CHART_HEIGHT_CELLS + 1
     full_sheet.insert_chart(1 + rec_info_idx * cells_per_well, 1, full_chart)
 
 

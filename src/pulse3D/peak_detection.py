@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """Detecting peak and valleys of incoming Mantarray data."""
-import logging
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -18,8 +17,6 @@ from .exceptions import TooFewPeaksDetectedError
 from .exceptions import TwoPeaksInARowError
 from .exceptions import TwoValleysInARowError
 from .metrics import *
-
-log = logging.getLogger(__name__)
 
 
 def peak_detector(

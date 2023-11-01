@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import datetime
 import json
-import logging
 import math
 import os
 import string
@@ -17,6 +16,7 @@ from labware_domain_models import get_row_and_column_from_well_name
 import numpy as np
 import pandas as pd
 from scipy import interpolate
+import structlog
 
 from .constants import *
 from .exceptions import *
@@ -37,8 +37,7 @@ from .utils import truncate
 from .utils import truncate_float
 from .utils import xl_col_to_name
 
-
-log = logging.getLogger(__name__)
+log = structlog.getLogger()
 
 
 def add_peak_detection_series(

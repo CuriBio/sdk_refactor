@@ -3,7 +3,6 @@ from collections import defaultdict
 import datetime
 import glob
 import json
-import logging
 import os
 import tempfile
 from typing import Any
@@ -24,6 +23,7 @@ from openpyxl.worksheet.worksheet import Worksheet
 import pandas as pd
 from scipy import interpolate
 from semver import VersionInfo
+import structlog
 from xlsxwriter.utility import xl_cell_to_rowcol
 
 from .compression_cy import compress_filtered_magnetic_data
@@ -51,7 +51,7 @@ from .utils import get_stiffness_factor
 from .utils import get_well_name_from_h5
 from .utils import truncate
 
-log = logging.getLogger(__name__)
+log = structlog.getLogger()
 
 
 class MantarrayH5FileCreator(h5py.File):
@@ -491,11 +491,11 @@ class PlateRecording:
                 continue
 
             stim_protocol = json.loads(wf[STIMULATION_PROTOCOL_UUID])
-
             try:
                 stim_sessions_waveforms = create_stim_session_waveforms(
                     stim_protocol["subprotocols"], wf[STIMULATION_READINGS], start_time_us, end_time_us
                 )
+
             except SubprotocolFormatIncompatibleWithInterpolationError:
                 log.exception("Subprotocol format not supported by interpolation")
                 return

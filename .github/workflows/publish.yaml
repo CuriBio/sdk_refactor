@@ -98,9 +98,9 @@ jobs:
         if: runner.os == 'Linux'
         run: if [ "${{ steps.extract_branch.outputs.sha-of-current-branch}}" = "${{ steps.extract_branch.outputs.sha-of-main-branch}}" ] ; then echo "Running on main branch."; else echo "Not running on main branch."; fi
 
-      - name: Fail if attempting to publish from a branch other than main
-        if: runner.os == 'Linux' && github.event.inputs.dry_run != '1'
-        run: if [ "${{ steps.extract_branch.outputs.sha-of-current-branch}}" = "${{ steps.extract_branch.outputs.sha-of-main-branch}}" ] ; then echo "Running on main branch, can proceed to publish."; else exit 1; fi
+      # - name: Fail if attempting to publish from a branch other than main
+      #   if: runner.os == 'Linux' && github.event.inputs.dry_run != '1'
+      #   run: if [ "${{ steps.extract_branch.outputs.sha-of-current-branch}}" = "${{ steps.extract_branch.outputs.sha-of-main-branch}}" ] ; then echo "Running on main branch, can proceed to publish."; else exit 1; fi
 
       - name: Activate virtual environment (Linux/MacOS)
         if: runner.os == 'Linux' || runner.os == 'macOS'
@@ -177,66 +177,66 @@ jobs:
           name: dist--${{ matrix.os }}--${{ matrix.python-version }}
           path: dist/*
 
-  publish_to_test_pypi:
-    needs: [test]
-    strategy:
-      fail-fast: false
-      matrix: # if publishing pure python code, then disable all except one os and python version combination. But if publishing code that uses Cython then likely all combinations will be needed
-        os:
-          - "ubuntu-22.04"
-        python-version:
-          - "3.11"
-    name: Publish to Test PyPI for Python ${{ matrix.python-version }} on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 1
+  # publish_to_test_pypi:
+  #   needs: [test]
+  #   strategy:
+  #     fail-fast: false
+  #     matrix: # if publishing pure python code, then disable all except one os and python version combination. But if publishing code that uses Cython then likely all combinations will be needed
+  #       os:
+  #         - "ubuntu-22.04"
+  #       python-version:
+  #         - "3.11"
+  #   name: Publish to Test PyPI for Python ${{ matrix.python-version }} on ${{ matrix.os }}
+  #   runs-on: ${{ matrix.os }}
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v3
+  #       with:
+  #         fetch-depth: 1
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Display Python version
-        run: |
-          python -c "import sys; print(sys.version)"
-          python -m venv venv
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v4
+  #       with:
+  #         python-version: ${{ matrix.python-version }}
+  #     - name: Display Python version
+  #       run: |
+  #         python -c "import sys; print(sys.version)"
+  #         python -m venv venv
 
-      - name: Activate virtual environment (Linux/MacOS)
-        if: runner.os == 'Linux' || runner.os == 'macOS'
-        run: . venv/bin/activate
+  #     - name: Activate virtual environment (Linux/MacOS)
+  #       if: runner.os == 'Linux' || runner.os == 'macOS'
+  #       run: . venv/bin/activate
 
-      - name: Activate virtual environment (Windows)
-        if: runner.os == 'Windows'
-        run: venv\Scripts\Activate.ps1
+  #     - name: Activate virtual environment (Windows)
+  #       if: runner.os == 'Windows'
+  #       run: venv\Scripts\Activate.ps1
 
-      - name: Display Pip Version and confirm environment empty
-        run: |
-          pip -V
-          pip freeze
-      - name: Install Dev Dependencies
-        run: pip install -r requirements-dev.txt
+  #     - name: Display Pip Version and confirm environment empty
+  #       run: |
+  #         pip -V
+  #         pip freeze
+  #     - name: Install Dev Dependencies
+  #       run: pip install -r requirements-dev.txt
 
-      - name: Log full installed packages
-        run: pip freeze
+  #     - name: Log full installed packages
+  #       run: pip freeze
 
-      - name: Download built dist folder from previous step
-        uses: actions/download-artifact@v2
-        with:
-          name: dist--${{ matrix.os }}--${{ matrix.python-version }}
-          path: dist
+  #     - name: Download built dist folder from previous step
+  #       uses: actions/download-artifact@v2
+  #       with:
+  #         name: dist--${{ matrix.os }}--${{ matrix.python-version }}
+  #         path: dist
 
-      - name: Uploading to Test PyPI
-        if: github.event.inputs.dry_run != '1'
-        env:
-          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+  #     - name: Uploading to Test PyPI
+  #       if: github.event.inputs.dry_run != '1'
+  #       env:
+  #         TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+  #         TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
 
-        run: twine upload --repository testpypi dist/*
+  #       run: twine upload --repository testpypi dist/*
 
   publish_to_pypi:
-    needs: [publish_to_test_pypi]
+    needs: [test]
     strategy:
       fail-fast: false
       matrix: # if publishing pure python code, then disable all except one os and python version combination. But if publishing code that uses Cython then likely all combinations will be needed

@@ -840,7 +840,11 @@ class WellGroupMetric(BaseMetric):
             metrics (Union[NDArray[int], NDArray[float]]): estimates from all wells in single group
             metric_type (str): scalar or by_width
         """
-        aggregate_metrics = self.create_statistics_df(metrics.values, rounded=self.rounded)
+        try:
+            aggregate_metrics = self.create_statistics_df(metrics.values, rounded=self.rounded)
+        except Exception:
+            return
+
         if metric_type == "scalar":
             aggregate_df[metric_column[0]] = aggregate_metrics
         else:

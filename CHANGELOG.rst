@@ -1,6 +1,15 @@
 Changelog for Pulse3D
 =====================
 
+
+0.34.5 (2024-03-11)
+-------------------
+
+Fixed:
+^^^^^^
+- Handle errors when creating aggregate metrics for well groups
+
+
 0.34.4 (2023-10-31)
 -------------------
 

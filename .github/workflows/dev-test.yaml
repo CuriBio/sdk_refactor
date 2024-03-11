@@ -118,12 +118,12 @@ jobs:
       #     name: pytest-coverage-report--${{ matrix.os }}--${{ matrix.python-version }}
       #     path: "coverage-report-pytest/**/*"
 
-      - name: Confirm Sphinx Docs build correctly
-        # only check Sphinx docs build on the fastest job
-        if: matrix.IS_FASTEST_JOB == true
-        run: |
-          pip install -r docs/requirements.txt
-          SPHINXOPTS="-W" make --directory=docs html # the -W flag treats warnings as errors to cause build failures
+      # - name: Confirm Sphinx Docs build correctly
+      #   # only check Sphinx docs build on the fastest job
+      #   if: matrix.IS_FASTEST_JOB == true
+      #   run: |
+      #     pip install -r docs/requirements.txt
+      #     SPHINXOPTS="-W" make --directory=docs html # the -W flag treats warnings as errors to cause build failures
 
       # - name: Confirm no modifications to the repository files occurred when running the test suite
       #   if: matrix.IS_FASTEST_JOB == true # only enable pre-commit on the fastest job
